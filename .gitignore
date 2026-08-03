@@ -1,0 +1,26 @@
+# Build output
+**/target/
+**/build/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Runtime and local configuration
+.env
+*.local.yml
+*.local.yaml
+logs/
+*.log
+
+# Operating systems
+.DS_Store
+Thumbs.db
+
+# Test and coverage output
+coverage/
+**/jacoco.exec

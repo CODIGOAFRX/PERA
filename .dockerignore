@@ -1,0 +1,7 @@
+.git
+**/target
+.idea
+.vscode
+work
+outputs
+docs/reference/*.pdf

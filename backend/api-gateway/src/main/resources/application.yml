@@ -1,0 +1,34 @@
+server.port: ${SERVER_PORT:8080}
+spring:
+  application.name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: identity-auth
+              uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+              predicates: [Path=/api/v1/auth/**]
+            - id: identity-admin
+              uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+              predicates: ['Path=/api/v1/companies/**,/api/v1/users/**']
+            - id: master-data
+              uri: ${MASTER_DATA_SERVICE_URL:http://localhost:8082}
+              predicates: ['Path=/api/v1/customers/**,/api/v1/suppliers/**,/api/v1/products/**']
+            - id: sales
+              uri: ${SALES_SERVICE_URL:http://localhost:8083}
+              predicates: [Path=/api/v1/documents/**]
+            - id: finance
+              uri: ${FINANCE_SERVICE_URL:http://localhost:8084}
+              predicates: ['Path=/api/v1/payment-methods/**,/api/v1/due-dates/**']
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+                allowedMethods: [GET,POST,PUT,PATCH,DELETE,OPTIONS]
+                allowedHeaders: ['*']
+                allowCredentials: true
+pera.jwt.secret: ${PERA_JWT_SECRET:change-me-development-secret-at-least-32-bytes}
+management:
+  endpoints.web.exposure.include: health,info,prometheus,gateway
+  endpoint.health.probes.enabled: true
