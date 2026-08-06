@@ -26,6 +26,8 @@ Si un usuario tiene varias empresas y no envía `companyId`, el login responde `
 
 Los listados paginados aceptan los parámetros estándar `page`, `size` y `sort`.
 
+`calculationMultiplier` puede aparecer todavía en las peticiones y respuestas de cliente para mantener compatibilidad. OpenAPI lo marca como obsoleto; el servidor solo lo conserva y no lo aplica a precios ni documentos. No se publica ninguna ruta de obras.
+
 ## Ventas
 
 | Método | Ruta | Uso |

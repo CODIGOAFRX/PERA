@@ -22,13 +22,17 @@ flowchart LR
 |---|---|---|
 | API Gateway | Entrada, CORS, JWT y rutas | Ninguno |
 | Identidad | Login, empresas, usuarios, roles y permisos | empresas, usuarios, pertenencias, roles, permisos |
-| Maestros | Terceros y catálogo | clientes, proveedores, contactos, artículos, tarifas, obras |
+| Maestros | Terceros y catálogo | clientes, proveedores, contactos, artículos, tarifas y precios por cliente |
 | Ventas | Ciclo documental comercial | documentos, líneas, secuencias y outbox |
 | Finanzas | Cobro y tesorería | formas de pago, vencimientos, recibos, remesas, riesgo y caja |
 
 ## Decisión sobre granularidad
 
 La especificación inicial proponía un monolito modular y el encargo solicita microservicios. Se adopta una solución intermedia deliberada: cinco despliegues gruesos y cohesionados, no un servicio por entidad. El dominio interno de cada despliegue sigue organizado por módulos para que sea posible fusionar o extraer piezas sin reescribir el modelo.
+
+## Núcleo horizontal y extensiones
+
+Los contratos entre servicios solo pueden depender de conceptos transversales: empresa, tercero, producto, documento comercial, pago y movimiento financiero. Un concepto vertical deberá residir en un módulo de extensión y comunicarse mediante IDs o eventos estables. El modelo heredado `WorkSite` permanece dentro de maestros únicamente por compatibilidad, está congelado y no participa en rutas, servicios ni eventos del núcleo.
 
 ## Multiempresa
 

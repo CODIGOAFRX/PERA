@@ -35,3 +35,7 @@ El esqueleto evita generación implícita de constructores/getters. El modelo qu
 ## DT-009: convenciones Spring Boot 4
 
 Las migraciones usan `spring-boot-starter-flyway` más el módulo PostgreSQL para conservar la autoconfiguración de Boot 4. El outbox usa Jackson 3 (`tools.jackson`) y la paginación REST se serializa mediante `PagedModel`, evitando contratos JSON dependientes de `PageImpl`.
+
+## DT-010: núcleo horizontal y legado congelado
+
+PERA se orienta a pymes de distintos sectores. El núcleo solo incorporará conceptos transversales y las futuras verticales deberán quedar detrás de módulos y contratos explícitos. Para cumplir la política de no destruir trabajo ni datos, `WorkSite` y `calculation_multiplier` no se eliminan: se marcan como obsoletos, se documentan en el esquema y se prohíbe que nuevas reglas dependan de ellos. `carrier`, `route`, unidades métricas, listas de precios, precios por cliente y partes de trabajo se mantienen porque son útiles en comercio, distribución o servicios y no presuponen cristalería.

@@ -22,9 +22,14 @@ La pertenencia es el agregado de autorización: une usuario y empresa y contiene
 - `parties`: datos comunes de cualquier tercero.
 - `customer_profiles`, `supplier_profiles`: extensiones sin duplicar identidad fiscal.
 - `party_addresses`, `party_contacts`.
-- `customer_notes`, `customer_special_rates`, `customer_specific_prices`, `work_sites`.
+- `customer_notes`, `customer_special_rates`, `customer_specific_prices`.
 - `product_types`, `product_families`, `product_categories`, `products`.
 - `price_lists`, `price_list_items`.
+
+Compatibilidad congelada, fuera del núcleo horizontal:
+
+- `work_sites`: antiguo modelo de obra con terminología de construcción. Se conserva intacto y sin API activa.
+- `customer_profiles.calculation_multiplier`: valor heredado sin semántica validada. Se conserva con valor predeterminado `1`, pero ninguna regla de precios o ventas lo consume.
 
 ## Ventas
 
@@ -48,3 +53,5 @@ Un documento convertido conserva `source_document_id`; no se reemplaza ni muta e
 ## Propiedad y referencias
 
 Los UUID de cliente, documento o forma de pago que cruzan contextos son referencias externas, no relaciones JPA ni claves foráneas entre bases. Los nombres, códigos y precios necesarios para un histórico se copian como snapshots en el agregado que los consume.
+
+Las tablas o columnas congeladas no se eliminan mediante migraciones. Cualquier sustitución futura requerirá migración aditiva, validación de datos y una decisión explícita de compatibilidad.

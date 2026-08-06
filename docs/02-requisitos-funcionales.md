@@ -14,8 +14,8 @@
 - Datos fiscales y comerciales separados conceptualmente.
 - Búsqueda por código, razón social, nombre comercial o NIF/CIF.
 - Direcciones y contactos como colecciones independientes.
-- Clientes con tarifa, forma de pago, multiplicador de cálculo, riesgo, notas internas, tarifas especiales, precios particulares y obras.
-- Proveedores con transportista, ruta y forma de pago.
+- Clientes con tarifa, forma de pago, riesgo, notas internas, ajustes de precio explícitos y precios particulares.
+- Proveedores con forma de pago y datos logísticos opcionales como transportista o ruta.
 
 ### Artículos y precios
 
@@ -46,13 +46,19 @@
 - Secretos y credenciales configurables por entorno.
 - Cada servicio es propietario de sus tablas y no consulta directamente la base de otro.
 
-## Pendientes de validar con Raúl y usuarios
+## Compatibilidad heredada congelada
 
-- Significado exacto de porcentajes en tarifas especiales y “múltiplos de cálculo”.
+- `WorkSite`/`work_sites` conserva el antiguo concepto de obra para no borrar código ni datos. No dispone de API activa y ningún flujo del núcleo depende de él.
+- `calculationMultiplier`/`calculation_multiplier` se conserva en la ficha de cliente y en el contrato REST por compatibilidad. Está marcado como obsoleto, no interviene en el cálculo de documentos y no debe usarse en reglas nuevas.
+- Las listas de precios, precios específicos y ajustes tipados por cliente sí permanecen activas: son mecanismos transversales con significado explícito.
+
+## Pendientes de validar con usuarios
+
+- Prioridad y reglas exactas entre tarifa base, precio específico y ajuste por cliente.
 - Cuándo se descuenta stock y si el albarán o la factura es el hecho logístico.
 - Reglas de edición/anulación de facturas emitidas.
 - Series, numeración por ejercicio y requisitos fiscales definitivos.
 - Cálculo de riesgo: documentos incluidos, pagos en tránsito y política de bloqueo.
 - Días naturales/hábiles, festivos y ajuste de vencimientos.
-- Campos exactos de obras, cartas, vacaciones y partes de trabajo.
-- Operativa real de caja frente a Cartera Dimpro.
+- Si proyectos, ubicaciones de servicio y partes de trabajo deben formar un módulo horizontal y con qué alcance.
+- Operativa de caja necesaria para comercio, distribución y empresas de servicios.

@@ -26,6 +26,7 @@ public class CustomerService {
     }
 
     @Transactional
+    @SuppressWarnings("deprecation") // Frontera de compatibilidad: se conserva el valor heredado sin interpretarlo.
     public CustomerResponse create(CustomerRequest request) {
         UUID companyId = companyProvider.requireCompanyId();
         if (partyRepository.existsByCompanyIdAndCodeIgnoreCase(companyId, request.code())) {

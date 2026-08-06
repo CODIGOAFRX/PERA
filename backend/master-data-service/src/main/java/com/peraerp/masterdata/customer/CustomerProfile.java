@@ -23,6 +23,11 @@ public class CustomerProfile extends CompanyScopedEntity {
     private UUID defaultPaymentMethodId;
     @Column(name = "supplier_code", length = 60)
     private String supplierCode;
+    /**
+     * @deprecated Parámetro de cálculo heredado sin semántica validada. No forma parte del motor horizontal de
+     * precios; se conserva únicamente para compatibilidad con datos y clientes de API existentes.
+     */
+    @Deprecated(since = "0.2", forRemoval = false)
     @Column(name = "calculation_multiplier", nullable = false, precision = 15, scale = 6)
     private BigDecimal calculationMultiplier = BigDecimal.ONE;
     @Column(name = "credit_limit", nullable = false, precision = 19, scale = 4)
@@ -53,6 +58,10 @@ public class CustomerProfile extends CompanyScopedEntity {
     public UUID getPriceListId() { return priceListId; }
     public UUID getDefaultPaymentMethodId() { return defaultPaymentMethodId; }
     public String getSupplierCode() { return supplierCode; }
+    /**
+     * @deprecated Use listas de precios, precios específicos por cliente y reglas de ajuste con semántica explícita.
+     */
+    @Deprecated(since = "0.2", forRemoval = false)
     public BigDecimal getCalculationMultiplier() { return calculationMultiplier; }
     public BigDecimal getCreditLimit() { return creditLimit; }
     public BigDecimal getRiskWarningThreshold() { return riskWarningThreshold; }
