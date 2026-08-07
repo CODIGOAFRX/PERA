@@ -30,6 +30,12 @@ public class SupplierProfile extends CompanyScopedEntity {
         this.defaultPaymentMethodId = defaultPaymentMethodId;
     }
 
+    public void update(String carrier, String route, UUID defaultPaymentMethodId) {
+        this.carrier = carrier;
+        this.route = route;
+        this.defaultPaymentMethodId = defaultPaymentMethodId;
+    }
+
     public UUID getPartyId() { return partyId; }
     public String getCarrier() { return carrier; }
     public String getRoute() { return route; }

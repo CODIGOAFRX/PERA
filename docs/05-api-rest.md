@@ -18,9 +18,9 @@ Si un usuario tiene varias empresas y no envía `companyId`, el login responde `
 | Método | Ruta | Uso |
 |---|---|---|
 | GET/POST | `/api/v1/customers` | Buscar/crear clientes |
-| GET | `/api/v1/customers/{id}` | Ficha de cliente |
+| GET/PUT | `/api/v1/customers/{id}` | Consultar/actualizar cliente |
 | GET/POST | `/api/v1/suppliers` | Buscar/crear proveedores |
-| GET | `/api/v1/suppliers/{id}` | Ficha de proveedor |
+| GET/PUT | `/api/v1/suppliers/{id}` | Consultar/actualizar proveedor |
 | GET/POST | `/api/v1/products` | Buscar/crear artículos |
 | GET/PUT | `/api/v1/products/{id}` | Consultar/actualizar artículo |
 

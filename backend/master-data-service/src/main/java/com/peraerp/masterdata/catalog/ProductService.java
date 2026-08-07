@@ -46,6 +46,9 @@ public class ProductService {
     public ProductResponse update(UUID id, ProductRequest request) {
         Product product = repository.findByIdAndCompanyId(id, companyProvider.requireCompanyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Artículo", id));
+        if (!product.getCode().equalsIgnoreCase(request.code())) {
+            throw new BusinessRuleException("El código del artículo no se puede modificar.");
+        }
         product.update(request.name().trim(), request.description(), request.productTypeId(), request.familyId(),
                 request.categoryId(), request.unitOfMeasure(), request.basePrice(), request.taxRate(), request.active());
         return ProductResponse.from(product);

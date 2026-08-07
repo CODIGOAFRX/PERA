@@ -54,6 +54,21 @@ public class CustomerProfile extends CompanyScopedEntity {
         this.riskPolicy = riskPolicy == null ? RiskPolicy.WARN : riskPolicy;
     }
 
+    @SuppressWarnings("deprecation") // El multiplicador solo se conserva como dato de compatibilidad.
+    public void update(UUID priceListId, UUID defaultPaymentMethodId, String supplierCode,
+                       BigDecimal calculationMultiplier, BigDecimal creditLimit,
+                       BigDecimal riskWarningThreshold, RiskPolicy riskPolicy) {
+        this.priceListId = priceListId;
+        this.defaultPaymentMethodId = defaultPaymentMethodId;
+        this.supplierCode = supplierCode;
+        if (calculationMultiplier != null) {
+            this.calculationMultiplier = calculationMultiplier;
+        }
+        this.creditLimit = creditLimit == null ? BigDecimal.ZERO : creditLimit;
+        this.riskWarningThreshold = riskWarningThreshold == null ? BigDecimal.ZERO : riskWarningThreshold;
+        this.riskPolicy = riskPolicy == null ? RiskPolicy.WARN : riskPolicy;
+    }
+
     public UUID getPartyId() { return partyId; }
     public UUID getPriceListId() { return priceListId; }
     public UUID getDefaultPaymentMethodId() { return defaultPaymentMethodId; }

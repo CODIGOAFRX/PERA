@@ -102,6 +102,18 @@ services:
       - finance-service
     ports: ["8080:8080"]
 
+  frontend:
+    restart: unless-stopped
+    networks: [pera-network]
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      api-gateway:
+        condition: service_started
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+
 volumes:
   postgres-data:
 

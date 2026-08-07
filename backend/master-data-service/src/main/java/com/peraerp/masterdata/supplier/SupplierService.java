@@ -6,6 +6,7 @@ import com.peraerp.masterdata.party.PartyRepository;
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,22 @@ public class SupplierService {
         return SupplierResponse.from(profile, party);
     }
 
+    @Transactional
+    public SupplierResponse update(UUID id, SupplierRequest request) {
+        UUID companyId = companyProvider.requireCompanyId();
+        SupplierProfile profile = supplierRepository.findByIdAndCompanyId(id, companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proveedor", id));
+        Party party = partyRepository.findByIdAndCompanyId(profile.getPartyId(), companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tercero", profile.getPartyId()));
+        if (!party.getCode().equalsIgnoreCase(request.code())) {
+            throw new BusinessRuleException("El código del proveedor no se puede modificar.");
+        }
+        party.update(request.legalName().trim(), request.tradeName(), request.taxId(), request.phone(),
+                request.email(), request.observations(), request.active() == null || request.active());
+        profile.update(request.carrier(), request.route(), request.defaultPaymentMethodId());
+        return SupplierResponse.from(profile, party);
+    }
+
     @Transactional(readOnly = true)
     public SupplierResponse findById(UUID id) {
         UUID companyId = companyProvider.requireCompanyId();
@@ -53,7 +70,8 @@ public class SupplierService {
     public Page<SupplierResponse> search(String query, Pageable pageable) {
         UUID companyId = companyProvider.requireCompanyId();
         String normalized = query == null || query.isBlank() ? "" : query.trim();
-        return supplierRepository.search(companyId, normalized, pageable)
+        Pageable alphabeticalPage = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        return supplierRepository.search(companyId, normalized, alphabeticalPage)
                 .map(profile -> SupplierResponse.from(profile,
                         partyRepository.findByIdAndCompanyId(profile.getPartyId(), companyId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Tercero", profile.getPartyId()))));

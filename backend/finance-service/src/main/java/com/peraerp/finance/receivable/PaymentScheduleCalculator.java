@@ -8,6 +8,9 @@ import java.util.*;
 public class PaymentScheduleCalculator {
     private static final BigDecimal HUNDRED=new BigDecimal("100");
     public List<ScheduleItem> calculate(BigDecimal total,LocalDate issueDate,List<PaymentScheduleRule> rules){
+        if(total==null||total.signum()<=0) throw new IllegalArgumentException("El total debe ser mayor que cero.");
+        if(issueDate==null) throw new IllegalArgumentException("La fecha de emisión es obligatoria.");
+        if(rules==null||rules.isEmpty()) throw new IllegalArgumentException("Se necesita al menos una regla de vencimiento.");
         List<ScheduleItem> result=new ArrayList<>(); BigDecimal assigned=BigDecimal.ZERO;
         for(int i=0;i<rules.size();i++){
             PaymentScheduleRule rule=rules.get(i);

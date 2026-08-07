@@ -24,5 +24,6 @@ public record CustomerRequest(
         @DecimalMin("0.000001") BigDecimal calculationMultiplier,
         @DecimalMin("0") BigDecimal creditLimit,
         @DecimalMin("0") BigDecimal riskWarningThreshold,
-        RiskPolicy riskPolicy
+        RiskPolicy riskPolicy,
+        Boolean active
 ) {}

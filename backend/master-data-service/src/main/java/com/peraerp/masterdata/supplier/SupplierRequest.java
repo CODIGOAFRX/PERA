@@ -14,5 +14,6 @@ public record SupplierRequest(
         String observations,
         @Size(max = 160) String carrier,
         @Size(max = 160) String route,
-        UUID defaultPaymentMethodId
+        UUID defaultPaymentMethodId,
+        Boolean active
 ) {}

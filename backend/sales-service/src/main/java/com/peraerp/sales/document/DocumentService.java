@@ -94,6 +94,9 @@ public class DocumentService {
         if (document.getType() != DocumentType.INVOICE) {
             throw new BusinessRuleException("El estado de cobro solo se aplica a facturas.");
         }
+        if (status == PaymentStatus.NOT_APPLICABLE) {
+            throw new BusinessRuleException("Una factura debe tener un estado de cobro aplicable.");
+        }
         document.updatePaymentStatus(status);
         events.record("CommercialDocument", document.getId(), "InvoicePaymentStatusChanged",
                 Map.of("documentId", document.getId(), "status", status, "companyId", document.getCompanyId()));

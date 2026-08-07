@@ -1,6 +1,6 @@
 # Inventario de clases auditadas
 
-Inventario del estado revisado el 6 de agosto de 2026. Cada archivo Java aparece una vez. Estados:
+Inventario del estado revisado el 7 de agosto de 2026. Cada uno de los 164 archivos Java aparece una vez. Estados:
 
 - **Activa**: pertenece al núcleo horizontal o a una capacidad transversal opcional.
 - **Activa/compatibilidad**: la clase es horizontal, pero contiene un campo heredado congelado.
@@ -235,6 +235,21 @@ Inventario del estado revisado el 6 de agosto de 2026. Cada archivo Java aparece
 | `CurrentCompanyProvider` | Obtiene la empresa activa del JWT. | Activa |
 | `SecurityConfig` | Autoriza pagos y vencimientos por permisos. | Activa |
 | `FinanceServiceApplication` | Arranque del servicio financiero. | Activa |
+
+## Pruebas añadidas para el MVP frontend
+
+| Clase | Responsabilidad | Estado |
+|---|---|---|
+| `ApiExceptionHandlerTest` | Verifica errores 400, 401, 404, 422 y 500 sin filtrar detalles internos. | Prueba |
+| `AuthServiceTest` | Verifica credenciales, selección de empresa y emisión de sesión. | Prueba |
+| `CompanyServiceTest` | Verifica alta, actualización y códigos únicos de empresa. | Prueba |
+| `CustomerServiceTest` | Verifica alta, edición, aislamiento y paginación segura de clientes. | Prueba |
+| `SupplierServiceTest` | Verifica alta, edición y paginación segura de proveedores. | Prueba |
+| `ProductServiceTest` | Verifica alta, edición e inmutabilidad del código de producto. | Prueba |
+| `DocumentNumberGeneratorTest` | Verifica secuencias documentales concurrentes por empresa y tipo. | Prueba |
+| `DocumentServiceTest` | Verifica creación, conversión y reglas del estado de cobro. | Prueba |
+| `PaymentMethodServiceTest` | Verifica que los plazos sumen exactamente el 100 %. | Prueba |
+| `DueDateServiceTest` | Verifica generación idempotente y aislamiento de vencimientos. | Prueba |
 
 ## Resumen
 

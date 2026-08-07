@@ -5,10 +5,16 @@ import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import jakarta.validation.ConstraintViolationException;
 
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -16,6 +22,7 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(AuthenticationFailedException.class)
     ProblemDetail handleAuthentication(AuthenticationFailedException exception) {
@@ -42,6 +49,20 @@ public class ApiExceptionHandler {
         }
         detail.setProperty("violations", violations);
         return detail;
+    }
+
+    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class, ConstraintViolationException.class})
+    ProblemDetail handleMalformedRequest(Exception exception) {
+        return problem(HttpStatus.BAD_REQUEST, "Petición no válida",
+                "La petición no tiene el formato esperado.", "malformed-request");
+    }
+
+    @ExceptionHandler(Exception.class)
+    ProblemDetail handleUnexpected(Exception exception) {
+        LOGGER.error("Error inesperado procesando la petición", exception);
+        return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno",
+                "No se pudo completar la operación. Inténtalo de nuevo.", "internal-error");
     }
 
     private ProblemDetail problem(HttpStatus status, String title, String detail, String type) {

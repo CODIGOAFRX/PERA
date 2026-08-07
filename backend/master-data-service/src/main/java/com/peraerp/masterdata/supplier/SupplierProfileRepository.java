@@ -16,6 +16,7 @@ public interface SupplierProfileRepository extends JpaRepository<SupplierProfile
             "and (:query is null or lower(p.code) like lower(concat('%', :query, '%')) " +
             "or lower(p.legalName) like lower(concat('%', :query, '%')) " +
             "or lower(coalesce(p.tradeName, '')) like lower(concat('%', :query, '%')) " +
-            "or lower(coalesce(p.taxId, '')) like lower(concat('%', :query, '%')))")
+            "or lower(coalesce(p.taxId, '')) like lower(concat('%', :query, '%'))) " +
+            "order by p.legalName asc, p.code asc")
     Page<SupplierProfile> search(@Param("companyId") UUID companyId, @Param("query") String query, Pageable pageable);
 }

@@ -15,4 +15,7 @@ public class SupplierController {
     @GetMapping Page<SupplierResponse> search(@RequestParam(required = false) String query, Pageable pageable) { return service.search(query, pageable); }
     @GetMapping("/{id}") SupplierResponse findById(@PathVariable UUID id) { return service.findById(id); }
     @PostMapping @ResponseStatus(HttpStatus.CREATED) SupplierResponse create(@Valid @RequestBody SupplierRequest request) { return service.create(request); }
+    @PutMapping("/{id}") SupplierResponse update(@PathVariable UUID id, @Valid @RequestBody SupplierRequest request) {
+        return service.update(id, request);
+    }
 }

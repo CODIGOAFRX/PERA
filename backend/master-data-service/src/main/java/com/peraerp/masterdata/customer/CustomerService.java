@@ -6,6 +6,7 @@ import com.peraerp.masterdata.party.PartyRepository;
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,25 @@ public class CustomerService {
         return CustomerResponse.from(profile, party);
     }
 
+    @Transactional
+    @SuppressWarnings("deprecation") // Mantiene el valor heredado si un cliente antiguo todavía lo envía.
+    public CustomerResponse update(UUID id, CustomerRequest request) {
+        UUID companyId = companyProvider.requireCompanyId();
+        CustomerProfile profile = customerRepository.findByIdAndCompanyId(id, companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente", id));
+        Party party = partyRepository.findByIdAndCompanyId(profile.getPartyId(), companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tercero", profile.getPartyId()));
+        if (!party.getCode().equalsIgnoreCase(request.code())) {
+            throw new BusinessRuleException("El código del cliente no se puede modificar.");
+        }
+        party.update(request.legalName().trim(), request.tradeName(), request.taxId(), request.phone(),
+                request.email(), request.observations(), request.active() == null || request.active());
+        profile.update(request.priceListId(), request.defaultPaymentMethodId(), request.supplierCode(),
+                request.calculationMultiplier(), request.creditLimit(), request.riskWarningThreshold(),
+                request.riskPolicy());
+        return CustomerResponse.from(profile, party);
+    }
+
     @Transactional(readOnly = true)
     public CustomerResponse findById(UUID id) {
         UUID companyId = companyProvider.requireCompanyId();
@@ -55,7 +75,8 @@ public class CustomerService {
     public Page<CustomerResponse> search(String query, Pageable pageable) {
         UUID companyId = companyProvider.requireCompanyId();
         String normalized = query == null || query.isBlank() ? "" : query.trim();
-        return customerRepository.search(companyId, normalized, pageable)
+        Pageable alphabeticalPage = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        return customerRepository.search(companyId, normalized, alphabeticalPage)
                 .map(profile -> CustomerResponse.from(profile,
                         partyRepository.findByIdAndCompanyId(profile.getPartyId(), companyId)
                                 .orElseThrow(() -> new ResourceNotFoundException("Tercero", profile.getPartyId()))));

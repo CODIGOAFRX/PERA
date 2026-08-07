@@ -1,10 +1,10 @@
 # PERA ERP
 
-PERA es un ERP horizontal para pequeñas y medianas empresas. El backend se construye con Java 21, Spring Boot, PostgreSQL y servicios con límites de dominio explícitos. El frontend React + Vite se abordará en una fase posterior.
+PERA es un ERP horizontal para pequeñas y medianas empresas. Usa Java 21 y Spring Boot en el backend, React + TypeScript en el frontend, PostgreSQL como base de datos y servicios con límites de dominio explícitos.
 
 ## Estado del proyecto
 
-Este primer hito entrega un esqueleto backend compilable con:
+El MVP actual entrega:
 
 - `api-gateway`: entrada única, enrutamiento y validación JWT.
 - `identity-service`: empresas, usuarios, roles, permisos y autenticación.
@@ -13,27 +13,47 @@ Este primer hito entrega un esqueleto backend compilable con:
 - `finance-service`: formas de pago, vencimientos, recibos, remesas, riesgo, movimientos y caja.
 - PostgreSQL con una base de datos lógica por servicio en desarrollo local.
 - Flyway, Bean Validation, Spring Security, Actuator, OpenAPI y pruebas unitarias de reglas críticas.
+- Una interfaz React responsive para login, resumen, clientes, proveedores, catálogo, ventas y finanzas.
 
 ## Arranque rápido
 
-Requisitos: JDK 21, Maven 3.9+ y Docker con Compose.
+### Docker Compose
+
+Requisitos: Docker con Compose.
 
 ```bash
 cp infra/.env.example infra/.env
 docker compose --env-file infra/.env -f infra/docker-compose.yml up --build
 ```
 
-Una vez levantado, el gateway escucha en `http://localhost:8080`. Las credenciales de desarrollo iniciales son `admin` y el valor de `PERA_BOOTSTRAP_ADMIN_PASSWORD`.
+La aplicación queda en `http://localhost:5173`. Las credenciales del ejemplo son `admin` / `ChangeMe123!`.
 
-Para compilar sin Docker:
+### Windows sin Docker
 
-```bash
+Requisitos: JDK 21, Maven 3.9+, Node.js 20+ y PostgreSQL 17+.
+
+```powershell
+.\scripts\start-local.ps1
+```
+
+Este script crea un clúster PostgreSQL aislado en `.runtime`, conserva sus datos entre arranques y levanta la aplicación completa. Para detenerla:
+
+```powershell
+.\scripts\stop-local.ps1
+```
+
+Para verificar cada parte manualmente:
+
+```powershell
 mvn -f backend/pom.xml clean verify
+cd frontend
+npm test
+npm run build
 ```
 
 ## Validación del hito
 
-El esqueleto se ha verificado con una compilación limpia de los siete módulos, las pruebas unitarias de importes y vencimientos, y una ejecución real sobre PostgreSQL 17. En esa ejecución se aplicaron las cuatro migraciones Flyway, arrancaron los servicios, se probó el login/JWT, el rechazo sin token, los endpoints protegidos y el enrutamiento del gateway.
+El MVP se ha verificado con compilaciones de backend y frontend, 38 pruebas backend, 10 pruebas frontend y una ejecución real sobre PostgreSQL 17. El recorrido integrado cubre login/JWT, maestros, presupuesto, albarán, factura, vencimientos, cobro, validaciones 400/422 y enrutamiento del gateway. También se revisó visualmente en escritorio y móvil.
 
 ## Documentación
 
