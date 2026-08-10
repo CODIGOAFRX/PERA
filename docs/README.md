@@ -10,6 +10,7 @@
 8. [Auditoría de generalización a ERP horizontal](08-generalizacion-erp-horizontal.md)
 9. [Inventario de clases auditadas](09-inventario-clases.md)
 10. [Frontend MVP](10-frontend-mvp.md)
+11. [Ampliación funcional de la plataforma](11-ampliacion-plataforma.md)
 
 La carpeta `reference/` contiene material de descubrimiento. Ese material ayuda a entender el ERP legado, pero no sustituye requisitos validados con usuarios ni constituye una orden de copiar código, datos o estructuras privadas.
 

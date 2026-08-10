@@ -1,0 +1,25 @@
+server.port: ${SERVER_PORT:8086}
+spring:
+  application.name: activity-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/pera_activity}
+    username: ${DB_USER:pera}
+    password: ${DB_PASSWORD:pera_dev_password}
+  jpa:
+    open-in-view: false
+    hibernate.ddl-auto: validate
+    properties.hibernate.jdbc.time_zone: UTC
+  flyway.enabled: true
+pera:
+  jwt.secret: ${PERA_JWT_SECRET:change-me-development-secret-at-least-32-bytes}
+  internal.service-key: ${PERA_INTERNAL_SERVICE_KEY:pera-local-internal-service-key-change-me}
+  audit.retention:
+    enabled: ${PERA_AUDIT_RETENTION_ENABLED:true}
+    days: ${PERA_AUDIT_RETENTION_DAYS:365}
+    batch-size: ${PERA_AUDIT_RETENTION_BATCH_SIZE:1000}
+    maximum-batches: ${PERA_AUDIT_RETENTION_MAXIMUM_BATCHES:10}
+    cron: ${PERA_AUDIT_RETENTION_CRON:0 17 3 * * *}
+management:
+  endpoints.web.exposure.include: health,info,prometheus
+  endpoint.health.probes.enabled: true
+springdoc.swagger-ui.path: /swagger-ui.html

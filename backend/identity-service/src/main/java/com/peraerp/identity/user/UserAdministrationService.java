@@ -5,6 +5,7 @@ import com.peraerp.identity.access.RoleRepository;
 import com.peraerp.identity.access.UserCompany;
 import com.peraerp.identity.access.UserCompanyRepository;
 import com.peraerp.identity.company.CompanyRepository;
+import com.peraerp.identity.config.CurrentCompanyProvider;
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class UserAdministrationService {
@@ -22,34 +24,40 @@ public class UserAdministrationService {
     private final RoleRepository roleRepository;
     private final UserCompanyRepository membershipRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CurrentCompanyProvider companyProvider;
 
     public UserAdministrationService(AppUserRepository userRepository, CompanyRepository companyRepository,
                                      RoleRepository roleRepository, UserCompanyRepository membershipRepository,
-                                     PasswordEncoder passwordEncoder) {
+                                     PasswordEncoder passwordEncoder, CurrentCompanyProvider companyProvider) {
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
         this.roleRepository = roleRepository;
         this.membershipRepository = membershipRepository;
         this.passwordEncoder = passwordEncoder;
+        this.companyProvider = companyProvider;
     }
 
     @Transactional
     public UserResponse create(CreateUserRequest request) {
+        UUID companyId = companyProvider.requireCompanyId();
+        if (request.companyId() != null && !companyId.equals(request.companyId())) {
+            throw new ResourceNotFoundException("Empresa", request.companyId());
+        }
         if (userRepository.existsByUsernameIgnoreCase(request.username())) {
             throw new BusinessRuleException("El nombre de usuario ya existe.");
         }
-        companyRepository.findById(request.companyId())
-                .orElseThrow(() -> new ResourceNotFoundException("Empresa", request.companyId()));
+        companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Empresa", companyId));
 
         Set<Role> roles = new LinkedHashSet<>();
         for (String roleCode : request.roleCodes()) {
-            roles.add(roleRepository.findByCompanyIdAndCodeIgnoreCase(request.companyId(), roleCode)
+            roles.add(roleRepository.findByCompanyIdAndCodeIgnoreCase(companyId, roleCode)
                     .orElseThrow(() -> new ResourceNotFoundException("Rol", roleCode)));
         }
 
         AppUser user = userRepository.save(new AppUser(request.username().trim(),
                 passwordEncoder.encode(request.password()), request.displayName().trim(), request.email()));
-        UserCompany membership = new UserCompany(user, request.companyId());
+        UserCompany membership = new UserCompany(user, companyId);
         roles.forEach(membership::assignRole);
         membershipRepository.save(membership);
 

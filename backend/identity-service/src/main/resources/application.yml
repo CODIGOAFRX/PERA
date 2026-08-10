@@ -17,6 +17,10 @@ spring:
         jdbc.time_zone: UTC
   flyway:
     enabled: true
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
 
 pera:
   jwt:
@@ -25,6 +29,8 @@ pera:
     ttl: ${PERA_JWT_TTL:PT8H}
   bootstrap:
     admin-password: ${PERA_BOOTSTRAP_ADMIN_PASSWORD:ChangeMe123!}
+  company-logo:
+    storage-root: ${PERA_COMPANY_LOGO_STORAGE_ROOT:.runtime/company-logos}
 
 management:
   endpoints:

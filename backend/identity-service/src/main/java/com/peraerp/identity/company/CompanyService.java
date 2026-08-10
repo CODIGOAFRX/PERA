@@ -1,5 +1,6 @@
 package com.peraerp.identity.company;
 
+import com.peraerp.identity.config.CurrentCompanyProvider;
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
@@ -12,14 +13,22 @@ import java.util.UUID;
 public class CompanyService {
 
     private final CompanyRepository repository;
+    private final CompanySettingsRepository settingsRepository;
+    private final CurrentCompanyProvider companyProvider;
 
-    public CompanyService(CompanyRepository repository) {
+    public CompanyService(CompanyRepository repository, CompanySettingsRepository settingsRepository,
+                          CurrentCompanyProvider companyProvider) {
         this.repository = repository;
+        this.settingsRepository = settingsRepository;
+        this.companyProvider = companyProvider;
     }
 
     @Transactional(readOnly = true)
     public List<CompanyResponse> findAll() {
-        return repository.findAll().stream().map(CompanyResponse::from).toList();
+        UUID companyId = companyProvider.requireCompanyId();
+        Company company = repository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Empresa", companyId));
+        return List.of(CompanyResponse.from(company));
     }
 
     @Transactional
@@ -27,11 +36,17 @@ public class CompanyService {
         if (repository.existsByCodeIgnoreCase(request.code())) {
             throw new BusinessRuleException("Ya existe una empresa con el código " + request.code());
         }
-        return CompanyResponse.from(repository.save(new Company(request.code().trim().toUpperCase(), request.name().trim(), request.taxId())));
+        Company company = repository.save(new Company(request.code().trim().toUpperCase(), request.name().trim(), request.taxId()));
+        settingsRepository.save(CompanySettings.defaults(company.getId(), company.getName()));
+        return CompanyResponse.from(company);
     }
 
     @Transactional
     public CompanyResponse update(UUID id, CompanyRequest request) {
+        UUID companyId = companyProvider.requireCompanyId();
+        if (!companyId.equals(id)) {
+            throw new ResourceNotFoundException("Empresa", id);
+        }
         Company company = repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Empresa", id));
         company.update(request.name().trim(), request.taxId(), request.active());
         return CompanyResponse.from(company);

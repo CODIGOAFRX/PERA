@@ -1,49 +1,55 @@
-import type { DocumentStatus, DocumentType, PaymentStatus, UnitOfMeasure } from '../types/api'
+const currencyFormatters = new Map<string, Intl.NumberFormat>()
+const numberFormatters = new Map<string, Intl.NumberFormat>()
+const dateFormatters = new Map<string, Intl.DateTimeFormat>()
+const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>()
 
-const currencyFormatter = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' })
-const numberFormatter = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 })
-const dateFormatter = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
-
-export function formatCurrency(value: number | string | null | undefined) {
-  return currencyFormatter.format(Number(value ?? 0))
+export function formatCurrency(
+  value: number | string | null | undefined,
+  currency = 'EUR',
+  locale = 'es-ES',
+) {
+  const normalizedCurrency = /^[A-Za-z]{3}$/.test(currency) ? currency.toUpperCase() : 'EUR'
+  const key = `${locale}:${normalizedCurrency}`
+  let formatter = currencyFormatters.get(key)
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, { style: 'currency', currency: normalizedCurrency })
+    currencyFormatters.set(key, formatter)
+  }
+  return formatter.format(Number(value ?? 0))
 }
 
-export function formatNumber(value: number | string | null | undefined) {
-  return numberFormatter.format(Number(value ?? 0))
-}
-
-export function formatDate(value: string | null | undefined) {
+export function formatDateTime(value: string | null | undefined, locale = 'es-ES') {
   if (!value) return '—'
-  return dateFormatter.format(new Date(`${value}T00:00:00`))
+  let formatter = dateTimeFormatters.get(locale)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    })
+    dateTimeFormatters.set(locale, formatter)
+  }
+  return formatter.format(new Date(value))
 }
 
-export const documentTypeLabel: Record<DocumentType, string> = {
-  QUOTE: 'Presupuesto',
-  DELIVERY_NOTE: 'Albarán',
-  INVOICE: 'Factura',
-  WORK_ORDER: 'Parte de trabajo',
+export function formatNumber(
+  value: number | string | null | undefined,
+  locale = 'es-ES',
+  maximumFractionDigits = 2,
+) {
+  const key = `${locale}:${maximumFractionDigits}`
+  let formatter = numberFormatters.get(key)
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, { maximumFractionDigits })
+    numberFormatters.set(key, formatter)
+  }
+  return formatter.format(Number(value ?? 0))
 }
 
-export const documentStatusLabel: Record<DocumentStatus, string> = {
-  DRAFT: 'Borrador',
-  CONFIRMED: 'Confirmado',
-  CONVERTED: 'Convertido',
-  CANCELLED: 'Cancelado',
-}
-
-export const paymentStatusLabel: Record<PaymentStatus, string> = {
-  NOT_APPLICABLE: 'No aplica',
-  PENDING: 'Pendiente',
-  PARTIALLY_PAID: 'Cobro parcial',
-  PAID: 'Cobrado',
-}
-
-export const unitLabel: Record<UnitOfMeasure, string> = {
-  UNIT: 'Unidad',
-  METER: 'Metro',
-  SQUARE_METER: 'Metro cuadrado',
-  CUBIC_METER: 'Metro cúbico',
-  KILOGRAM: 'Kilogramo',
-  LITER: 'Litro',
-  HOUR: 'Hora',
+export function formatDate(value: string | null | undefined, locale = 'es-ES') {
+  if (!value) return '—'
+  let formatter = dateFormatters.get(locale)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', year: 'numeric' })
+    dateFormatters.set(locale, formatter)
+  }
+  return formatter.format(new Date(`${value}T00:00:00`))
 }

@@ -4,16 +4,20 @@ PERA es un ERP horizontal para pequeñas y medianas empresas. Usa Java 21 y Spri
 
 ## Estado del proyecto
 
-El MVP actual entrega:
+PERA es un monorepo de microservicios de granularidad gruesa. La plataforma actual incluye:
 
-- `api-gateway`: entrada única, enrutamiento y validación JWT.
-- `identity-service`: empresas, usuarios, roles, permisos y autenticación.
-- `master-data-service`: clientes, proveedores, artículos, tarifas, notas y precios por cliente.
-- `sales-service`: presupuestos, albaranes, facturas, líneas, conversión y estado de cobro.
-- `finance-service`: formas de pago, vencimientos, recibos, remesas, riesgo, movimientos y caja.
-- PostgreSQL con una base de datos lógica por servicio en desarrollo local.
-- Flyway, Bean Validation, Spring Security, Actuator, OpenAPI y pruebas unitarias de reglas críticas.
-- Una interfaz React responsive para login, resumen, clientes, proveedores, catálogo, ventas y finanzas.
+- `api-gateway`: entrada única, CORS, JWT, auditoría de mutaciones, enrutamiento y control de licencia.
+- `identity-service`: empresas, usuarios, permisos, parámetros de empresa y almacenamiento seguro de logos.
+- `master-data-service`: clientes, proveedores, productos, jerarquías, impuestos, tarifas, reglas de precio y embalajes.
+- `sales-service`: numeraciones configurables, presupuestos, pedidos, albaranes, facturas, snapshots y conversiones.
+- `finance-service`: formas de pago, vencimientos, monedas, tipos de cambio y conversiones reproducibles.
+- `operations-service`: workflows configurables, transportistas, vehículos, rutas, fletes, expediciones y archivos enviados.
+- `activity-service`: historial central, exportación CSV y alertas personalizadas.
+- `licensing-service`: emisión, activación, validación periódica, suspensión y revocación de licencias.
+- React con rutas propias para operación y administración, selector persistente ES/EN y formatos por idioma/moneda.
+- PostgreSQL 17 con una base lógica por servicio propietario, Flyway, seguridad por permisos, Actuator y OpenAPI.
+
+La ampliación se controla con la matriz verificable de [`docs/11-ampliacion-plataforma.md`](docs/11-ampliacion-plataforma.md). PERA sigue siendo un producto en desarrollo: no debe presentarse todavía como un ERP contable/fiscal listo para producción.
 
 ## Arranque rápido
 
@@ -51,9 +55,19 @@ npm test
 npm run build
 ```
 
-## Validación del hito
+## Licencias de instalación
 
-El MVP se ha verificado con compilaciones de backend y frontend, 38 pruebas backend, 10 pruebas frontend y una ejecución real sobre PostgreSQL 17. El recorrido integrado cubre login/JWT, maestros, presupuesto, albarán, factura, vencimientos, cobro, validaciones 400/422 y enrutamiento del gateway. También se revisó visualmente en escritorio y móvil.
+El control permanece desactivado en desarrollo (`PERA_LICENSE_ENFORCEMENT_ENABLED=false`). Para activar una licencia emitida sin exponer el código en la línea de comandos:
+
+```powershell
+.\scripts\activate-license.ps1
+```
+
+El script devuelve las cuatro variables que deben guardarse en un gestor de secretos y configurarse en el gateway. Si se activa el control sin credenciales válidas, el gateway falla de forma cerrada.
+
+## Validación
+
+La verificación de cierre ejecuta el reactor Maven completo, las pruebas Vitest, el build de Vite, validación de Docker Compose, migraciones sobre PostgreSQL real y un recorrido HTTP a través del gateway. El contexto canónico, los comandos y las limitaciones actuales están en [`AGENTS.md`](AGENTS.md).
 
 ## Documentación
 

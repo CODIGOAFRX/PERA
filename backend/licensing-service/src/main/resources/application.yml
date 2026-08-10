@@ -1,0 +1,29 @@
+server:
+  port: ${SERVER_PORT:8087}
+
+spring:
+  application:
+    name: licensing-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/pera_licensing}
+    username: ${DB_USER:pera}
+    password: ${DB_PASSWORD:pera_dev_password}
+  jpa:
+    open-in-view: false
+    hibernate.ddl-auto: validate
+    properties.hibernate.jdbc.time_zone: UTC
+  flyway.enabled: true
+
+pera:
+  jwt.secret: ${PERA_JWT_SECRET:change-me-development-secret-at-least-32-bytes}
+  license:
+    hash-pepper: ${PERA_LICENSE_HASH_PEPPER:change-me-license-hash-pepper-at-least-32-bytes}
+    public-rate-limit:
+      requests: ${PERA_LICENSE_RATE_LIMIT_REQUESTS:120}
+      window-seconds: ${PERA_LICENSE_RATE_LIMIT_WINDOW_SECONDS:60}
+
+management:
+  endpoints.web.exposure.include: health,info,prometheus
+  endpoint.health.probes.enabled: true
+
+springdoc.swagger-ui.path: /swagger-ui.html

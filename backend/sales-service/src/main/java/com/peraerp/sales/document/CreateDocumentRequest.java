@@ -20,5 +20,13 @@ public record CreateDocumentRequest(
         UUID paymentMethodId,
         String notes,
         boolean confirm,
-        @NotEmpty List<@Valid DocumentLineRequest> lines
-) {}
+        @NotEmpty List<@Valid DocumentLineRequest> lines,
+        UUID numberingSchemeId
+) {
+    public CreateDocumentRequest(DocumentType type, UUID customerId, String customerCode, String customerName,
+                                 LocalDate issueDate, LocalDate dueDate, String currency, UUID paymentMethodId,
+                                 String notes, boolean confirm, List<DocumentLineRequest> lines) {
+        this(type, customerId, customerCode, customerName, issueDate, dueDate, currency, paymentMethodId,
+                notes, confirm, lines, null);
+    }
+}

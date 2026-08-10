@@ -11,6 +11,7 @@ $postgresData = Join-Path $runtimeRoot 'postgres'
 $postgresLog = Join-Path $runtimeRoot 'postgres.log'
 $postgresPort = 55432
 $jwtSecret = 'pera-local-development-secret-2026-minimum-32-bytes'
+$internalServiceKey = 'pera-local-internal-service-key-change-me'
 
 function Resolve-PostgresBin {
     if ($env:PG_BIN -and (Test-Path (Join-Path $env:PG_BIN 'pg_ctl.exe'))) {
@@ -58,7 +59,7 @@ function Start-JavaService {
 Set-Location $repoRoot
 New-Item -ItemType Directory -Force -Path $runtimeRoot, $logRoot | Out-Null
 
-foreach ($port in @(8080, 8081, 8082, 8083, 8084, 5173)) {
+foreach ($port in @(8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 5173)) {
     Assert-PortAvailable $port
 }
 
@@ -81,7 +82,7 @@ if ($LASTEXITCODE -ne 0) {
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo arrancar PostgreSQL.' }
 }
 
-foreach ($database in @('pera_identity', 'pera_master_data', 'pera_sales', 'pera_finance')) {
+foreach ($database in @('pera_identity', 'pera_master_data', 'pera_sales', 'pera_finance', 'pera_operations', 'pera_activity', 'pera_licensing')) {
     $exists = & $psql -h localhost -p $postgresPort -U pera -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$database'"
     if ($exists -ne '1') {
         & $createdb -h localhost -p $postgresPort -U pera $database
@@ -108,13 +109,30 @@ if (-not $SkipBuild) {
 
 Write-Host 'Arrancando servicios...'
 $env:PERA_BOOTSTRAP_ADMIN_PASSWORD = 'ChangeMe123!'
+$env:PERA_INTERNAL_SERVICE_KEY = $internalServiceKey
+$env:PERA_COMPANY_LOGO_STORAGE_ROOT = Join-Path $runtimeRoot 'company-logos'
+$env:MASTER_DATA_SERVICE_URL = 'http://localhost:8082'
 Start-JavaService 'identity' 8081 'backend\identity-service\target\identity-service-0.1.0-SNAPSHOT.jar' 'pera_identity'
 Start-JavaService 'master-data' 8082 'backend\master-data-service\target\master-data-service-0.1.0-SNAPSHOT.jar' 'pera_master_data'
 Start-JavaService 'sales' 8083 'backend\sales-service\target\sales-service-0.1.0-SNAPSHOT.jar' 'pera_sales'
 Start-JavaService 'finance' 8084 'backend\finance-service\target\finance-service-0.1.0-SNAPSHOT.jar' 'pera_finance'
+$env:PERA_SHIPMENT_DOCUMENT_STORAGE_ROOT = Join-Path $runtimeRoot 'shipment-documents'
+$env:PERA_SHIPMENT_DOCUMENT_MAX_BYTES = '10485760'
+Start-JavaService 'operations' 8085 'backend\operations-service\target\operations-service-0.1.0-SNAPSHOT.jar' 'pera_operations'
+Start-JavaService 'activity' 8086 'backend\activity-service\target\activity-service-0.1.0-SNAPSHOT.jar' 'pera_activity'
+$env:PERA_LICENSE_HASH_PEPPER = 'pera-local-license-hash-pepper-2026-at-least-32-bytes'
+Start-JavaService 'licensing' 8087 'backend\licensing-service\target\licensing-service-0.1.0-SNAPSHOT.jar' 'pera_licensing'
 
 $env:SERVER_PORT = '8080'
 $env:PERA_JWT_SECRET = $jwtSecret
+$env:PERA_INTERNAL_SERVICE_KEY = $internalServiceKey
+$env:OPERATIONS_SERVICE_URL = 'http://localhost:8085'
+$env:ACTIVITY_SERVICE_URL = 'http://localhost:8086'
+$env:LICENSING_SERVICE_URL = 'http://localhost:8087'
+$env:PERA_LICENSE_ENFORCEMENT_ENABLED = 'false'
+$env:PERA_LICENSE_INSTALLATION_ID = ''
+$env:PERA_LICENSE_INSTALLATION_TOKEN = ''
+$env:PERA_LICENSE_COMPANY_ID = ''
 $gateway = Start-Process -FilePath 'java' -ArgumentList @('-jar', (Join-Path $repoRoot 'backend\api-gateway\target\api-gateway-0.1.0-SNAPSHOT.jar')) `
     -WorkingDirectory $repoRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $logRoot 'gateway.out.log') `
     -RedirectStandardError (Join-Path $logRoot 'gateway.err.log') -PassThru
@@ -132,6 +150,9 @@ $healthUrls = @(
     'http://localhost:8082/actuator/health',
     'http://localhost:8083/actuator/health',
     'http://localhost:8084/actuator/health',
+    'http://localhost:8085/actuator/health',
+    'http://localhost:8086/actuator/health',
+    'http://localhost:8087/actuator/health',
     'http://127.0.0.1:5173'
 )
 $pending = @($healthUrls)

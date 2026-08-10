@@ -11,16 +11,28 @@ spring:
               predicates: [Path=/api/v1/auth/**]
             - id: identity-admin
               uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
-              predicates: ['Path=/api/v1/companies/**,/api/v1/users/**']
+              predicates: ['Path=/api/v1/companies/**,/api/v1/users/**,/api/v1/company-settings/**']
             - id: master-data
               uri: ${MASTER_DATA_SERVICE_URL:http://localhost:8082}
-              predicates: ['Path=/api/v1/customers/**,/api/v1/suppliers/**,/api/v1/products/**']
+              predicates: ['Path=/api/v1/customers/**,/api/v1/suppliers/**,/api/v1/products/**,/api/v1/product-natures/**,/api/v1/product-supertypes/**,/api/v1/product-types/**,/api/v1/product-groups/**,/api/v1/tax-codes/**,/api/v1/tariffs/**,/api/v1/pricing/**,/api/v1/packaging-types/**,/api/v1/product-packaging/**']
             - id: sales
               uri: ${SALES_SERVICE_URL:http://localhost:8083}
-              predicates: [Path=/api/v1/documents/**]
+              predicates: ['Path=/api/v1/documents/**,/api/v1/quotes/**,/api/v1/numbering-schemes/**']
             - id: finance
               uri: ${FINANCE_SERVICE_URL:http://localhost:8084}
-              predicates: ['Path=/api/v1/payment-methods/**,/api/v1/due-dates/**']
+              predicates: ['Path=/api/v1/payment-methods/**,/api/v1/due-dates/**,/api/v1/currencies/**,/api/v1/exchange-rates/**,/api/v1/currency-conversions/**']
+            - id: operations
+              uri: ${OPERATIONS_SERVICE_URL:http://localhost:8085}
+              predicates: ['Path=/api/v1/workflow-templates/**,/api/v1/work-executions/**,/api/v1/carriers/**,/api/v1/vehicles/**,/api/v1/delivery-routes/**,/api/v1/shipments/**,/api/v1/freight-rates/**']
+            - id: activity
+              uri: ${ACTIVITY_SERVICE_URL:http://localhost:8086}
+              predicates: ['Path=/api/v1/history/**,/api/v1/alert-rules/**,/api/v1/alerts/**']
+            - id: licensing-admin
+              uri: ${LICENSING_SERVICE_URL:http://localhost:8087}
+              predicates: ['Path=/api/v1/licenses/**']
+            - id: licensing-public
+              uri: ${LICENSING_SERVICE_URL:http://localhost:8087}
+              predicates: ['Path=/public/v1/licenses/**']
           globalcors:
             cors-configurations:
               '[/**]':
@@ -28,7 +40,20 @@ spring:
                 allowedMethods: [GET,POST,PUT,PATCH,DELETE,OPTIONS]
                 allowedHeaders: ['*']
                 allowCredentials: true
-pera.jwt.secret: ${PERA_JWT_SECRET:change-me-development-secret-at-least-32-bytes}
+pera:
+  jwt.secret: ${PERA_JWT_SECRET:change-me-development-secret-at-least-32-bytes}
+  services:
+    activity-url: ${ACTIVITY_SERVICE_URL:http://localhost:8086}
+    licensing-url: ${LICENSING_SERVICE_URL:http://localhost:8087}
+  internal.service-key: ${PERA_INTERNAL_SERVICE_KEY:pera-local-internal-service-key-change-me}
+  licensing:
+    enforcement-enabled: ${PERA_LICENSE_ENFORCEMENT_ENABLED:false}
+    licensing-url: ${LICENSING_SERVICE_URL:http://localhost:8087}
+    installation-id: ${PERA_LICENSE_INSTALLATION_ID:}
+    installation-token: ${PERA_LICENSE_INSTALLATION_TOKEN:}
+    company-id: ${PERA_LICENSE_COMPANY_ID:}
+    maximum-cache-duration: ${PERA_LICENSE_MAXIMUM_CACHE_DURATION:PT5M}
+    request-timeout: ${PERA_LICENSE_REQUEST_TIMEOUT:PT2S}
 management:
   endpoints.web.exposure.include: health,info,prometheus,gateway
   endpoint.health.probes.enabled: true

@@ -28,8 +28,21 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/customers/**").hasAuthority("customers:write")
                         .requestMatchers(HttpMethod.GET, "/api/v1/suppliers/**").hasAuthority("suppliers:read")
                         .requestMatchers("/api/v1/suppliers/**").hasAuthority("suppliers:write")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/products/**").hasAuthority("products:read")
-                        .requestMatchers("/api/v1/products/**").hasAuthority("products:write")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/product-natures/**",
+                                "/api/v1/product-supertypes/**", "/api/v1/product-types/**",
+                                "/api/v1/product-groups/**").hasAuthority("products:read")
+                        .requestMatchers("/api/v1/products/**", "/api/v1/product-natures/**",
+                                "/api/v1/product-supertypes/**", "/api/v1/product-types/**",
+                                "/api/v1/product-groups/**").hasAuthority("products:write")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tax-codes/**").hasAuthority("taxes:read")
+                        .requestMatchers("/api/v1/tax-codes/**").hasAuthority("taxes:write")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tariffs/**").hasAuthority("pricing:read")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/pricing/**").hasAuthority("pricing:read")
+                        .requestMatchers("/api/v1/tariffs/**").hasAuthority("pricing:write")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/packaging-types/**",
+                                "/api/v1/product-packaging/**").hasAuthority("packaging:read")
+                        .requestMatchers("/api/v1/packaging-types/**",
+                                "/api/v1/product-packaging/**").hasAuthority("packaging:write")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer.jwt(jwt ->
                         jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))

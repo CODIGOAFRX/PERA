@@ -1,19 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { documentTypeLabel, formatCurrency, formatDate, unitLabel } from './format'
+import { formatCurrency, formatDate, formatDateTime, formatNumber } from './format'
 
 describe('format helpers', () => {
-  it('formats monetary values for Spanish users', () => {
-    expect(formatCurrency(1234.5).replace('.', '')).toContain('1234,50')
-    expect(formatCurrency(null)).toContain('0,00')
+  it('formats the requested currency and locale', () => {
+    expect(formatCurrency(1234.5, 'EUR', 'es-ES').replace('.', '')).toContain('1234,50')
+    expect(formatCurrency(1234.5, 'USD', 'en-GB')).toContain('US$1,234.50')
+    expect(formatCurrency(null, 'GBP', 'en-GB')).toContain('£0.00')
   })
 
-  it('formats ISO dates without timezone drift', () => {
-    expect(formatDate('2026-08-07')).toMatch(/07.*ago.*2026/i)
-    expect(formatDate(null)).toBe('—')
+  it('formats ISO dates without timezone drift in both languages', () => {
+    expect(formatDate('2026-08-07', 'es-ES')).toMatch(/07.*ago.*2026/i)
+    expect(formatDate('2026-08-07', 'en-GB')).toMatch(/07.*Aug.*2026/i)
+    expect(formatDate(null, 'en-GB')).toBe('—')
   })
 
-  it('provides business labels instead of technical enum values', () => {
-    expect(documentTypeLabel.DELIVERY_NOTE).toBe('Albarán')
-    expect(unitLabel.SQUARE_METER).toBe('Metro cuadrado')
+  it('formats decimal values with the requested precision', () => {
+    expect(formatNumber(1234.5678, 'es-ES', 4)).toBe('1234,5678')
+    expect(formatNumber(1234.5, 'en-GB')).toBe('1,234.5')
+  })
+
+  it('formats timestamps in the requested locale', () => {
+    expect(formatDateTime('2026-08-07T12:34:00Z', 'en-GB')).toMatch(/07.*Aug.*2026/i)
+    expect(formatDateTime(null, 'en-GB')).toBe('—')
   })
 })

@@ -2,7 +2,12 @@ package com.peraerp.sales.document;
 
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.sales.config.CurrentCompanyProvider;
+import com.peraerp.sales.currency.DocumentCurrencyService;
+import com.peraerp.sales.currency.DocumentCurrencySnapshot;
 import com.peraerp.sales.outbox.DomainEventRecorder;
+import com.peraerp.sales.masterdata.CustomerSnapshot;
+import com.peraerp.sales.masterdata.ResolvedDocumentLine;
+import com.peraerp.sales.masterdata.SalesMasterDataService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class DocumentServiceTest {
@@ -29,19 +35,34 @@ class DocumentServiceTest {
     @Mock DocumentNumberGenerator numberGenerator;
     @Mock CurrentCompanyProvider companyProvider;
     @Mock DomainEventRecorder events;
+    @Mock DocumentCurrencyService currencyService;
+    @Mock SalesMasterDataService masterDataService;
 
     private final UUID companyId = UUID.randomUUID();
     private DocumentService service;
 
     @BeforeEach
     void setUp() {
-        service = new DocumentService(documents, numberGenerator, new DocumentAmountsCalculator(), companyProvider, events);
+        service = new DocumentService(documents, numberGenerator, new DocumentAmountsCalculator(), companyProvider,
+                events, currencyService, masterDataService);
         when(companyProvider.requireCompanyId()).thenReturn(companyId);
+        lenient().when(masterDataService.requireActiveCustomer(any())).thenAnswer(invocation ->
+                new CustomerSnapshot(invocation.getArgument(0), "C001", "Cliente Demo", true));
+        lenient().when(masterDataService.resolveLine(any(), any(), any(), any())).thenAnswer(invocation -> {
+            DocumentLineRequest line = invocation.getArgument(1);
+            return new ResolvedDocumentLine(line.productId(), line.productCode(), line.description(), line.quantity(),
+                    line.quantity(), line.unitPrice(), line.discountPercentage(), line.taxPercentage(),
+                    null, null, null, null);
+        });
     }
 
     @Test
     void createsConfirmedDocumentWithReproducibleTotalsAndOutboxEvent() {
-        when(numberGenerator.next(companyId, DocumentType.QUOTE, 2026)).thenReturn("PRE-2026-000001");
+        when(numberGenerator.next(companyId, DocumentType.QUOTE, LocalDate.of(2026, 8, 7), null))
+                .thenReturn("PRE-2026-000001");
+        when(currencyService.resolve("EUR", LocalDate.of(2026, 8, 7)))
+                .thenReturn(new DocumentCurrencySnapshot("EUR", BigDecimal.ONE,
+                        LocalDate.of(2026, 8, 7), "IDENTITY"));
         when(documents.save(any(CommercialDocument.class))).thenAnswer(invocation -> withId(invocation.getArgument(0)));
 
         DocumentResponse response = service.create(request(DocumentType.QUOTE, true));
@@ -63,7 +84,7 @@ class DocumentServiceTest {
         source.recalculate(new DocumentAmountsCalculator());
         source.confirm();
         when(documents.findByIdAndCompanyId(sourceId, companyId)).thenReturn(Optional.of(source));
-        when(numberGenerator.next(eq(companyId), eq(DocumentType.DELIVERY_NOTE), any(Integer.class)))
+        when(numberGenerator.next(eq(companyId), eq(DocumentType.DELIVERY_NOTE), any(LocalDate.class), eq(null)))
                 .thenReturn("ALB-2026-000001");
         when(documents.save(any(CommercialDocument.class))).thenAnswer(invocation -> withId(invocation.getArgument(0)));
 

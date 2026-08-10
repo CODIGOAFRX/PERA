@@ -1,2 +1,2 @@
 package com.peraerp.sales.document;
-public enum DocumentType { QUOTE, DELIVERY_NOTE, INVOICE, WORK_ORDER }
+public enum DocumentType { QUOTE, SALES_ORDER, DELIVERY_NOTE, INVOICE, WORK_ORDER }

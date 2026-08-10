@@ -1,5 +1,6 @@
 import { CheckCircle2, X, XCircle } from 'lucide-react'
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { useTranslation } from '../i18n/I18nProvider'
 
 type ToastKind = 'success' | 'error'
 interface ToastItem { id: number; message: string; kind: ToastKind }
@@ -8,6 +9,7 @@ interface ToastContextValue { notify: (message: string, kind?: ToastKind) => voi
 const ToastContext = createContext<ToastContextValue | null>(null)
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation()
   const [items, setItems] = useState<ToastItem[]>([])
 
   const dismiss = useCallback((id: number) => setItems((current) => current.filter((item) => item.id !== id)), [])
@@ -26,7 +28,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div className={`toast toast-${item.kind}`} key={item.id}>
             {item.kind === 'success' ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
             <span>{item.message}</span>
-            <button type="button" onClick={() => dismiss(item.id)} aria-label="Cerrar aviso"><X size={16} /></button>
+            <button type="button" onClick={() => dismiss(item.id)} aria-label={t('common.close')}><X size={16} /></button>
           </div>
         ))}
       </div>
