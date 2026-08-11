@@ -15,5 +15,13 @@ public record DocumentLineRequest(
         @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantity,
         @NotNull @DecimalMin("0") BigDecimal unitPrice,
         @DecimalMin("0") @DecimalMax("100") BigDecimal discountPercentage,
-        @DecimalMin("0") @DecimalMax("100") BigDecimal taxPercentage
-) {}
+        @DecimalMin("0") @DecimalMax("100") BigDecimal taxPercentage,
+        boolean unitPriceOverridden,
+        boolean taxPercentageOverridden
+) {
+    public DocumentLineRequest(UUID productId, String productCode, String description, BigDecimal quantity,
+                               BigDecimal unitPrice, BigDecimal discountPercentage, BigDecimal taxPercentage) {
+        this(productId, productCode, description, quantity, unitPrice, discountPercentage, taxPercentage,
+                false, false);
+    }
+}

@@ -39,8 +39,9 @@ class DocumentNumberGeneratorTest {
         when(counters.findByCompanyIdAndSchemeIdAndPeriodKey(companyId, schemeId, "202608"))
                 .thenReturn(Optional.of(counter));
         when(counters.save(any(NumberingCounter.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        CommercialDocumentRepository documents = mock(CommercialDocumentRepository.class);
         DocumentNumberGenerator generator = new DocumentNumberGenerator(schemes, counters,
-                new NumberingPatternFormatter());
+                new NumberingPatternFormatter(), documents);
 
         String first = generator.next(companyId, DocumentType.INVOICE, LocalDate.of(2026, 8, 10), null);
         String second = generator.next(companyId, DocumentType.INVOICE, LocalDate.of(2026, 8, 10), null);
@@ -58,12 +59,43 @@ class DocumentNumberGeneratorTest {
         NumberingSchemeRepository schemes = mock(NumberingSchemeRepository.class);
         when(schemes.findByIdAndCompanyId(schemeId, companyId)).thenReturn(Optional.empty());
         DocumentNumberGenerator generator = new DocumentNumberGenerator(schemes,
-                mock(NumberingCounterRepository.class), new NumberingPatternFormatter());
+                mock(NumberingCounterRepository.class), new NumberingPatternFormatter(),
+                mock(CommercialDocumentRepository.class));
 
         assertThatThrownBy(() -> generator.next(companyId, DocumentType.QUOTE,
                 LocalDate.of(2026, 8, 10), schemeId))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("empresa activa");
+    }
+
+    @Test
+    void skipsNumbersAlreadyUsedWhenCounterIsBehindExistingDocuments() {
+        UUID companyId = UUID.randomUUID();
+        UUID schemeId = UUID.randomUUID();
+        NumberingScheme scheme = scheme(companyId, schemeId, DocumentType.INVOICE, true);
+        NumberingCounter counter = new NumberingCounter(companyId, schemeId, "202608", 41);
+        NumberingSchemeRepository schemes = mock(NumberingSchemeRepository.class);
+        NumberingCounterRepository counters = mock(NumberingCounterRepository.class);
+        CommercialDocumentRepository documents = mock(CommercialDocumentRepository.class);
+        when(schemes.findByCompanyIdAndDocumentTypeAndDefaultSchemeTrueAndActiveTrue(companyId, DocumentType.INVOICE))
+                .thenReturn(Optional.of(scheme));
+        when(counters.findByCompanyIdAndSchemeIdAndPeriodKey(companyId, schemeId, "202608"))
+                .thenReturn(Optional.of(counter));
+        when(documents.existsByCompanyIdAndTypeAndDocumentNumber(
+                companyId, DocumentType.INVOICE, "FAC-20260810-000041"))
+                .thenReturn(true);
+        when(documents.existsByCompanyIdAndTypeAndDocumentNumber(
+                companyId, DocumentType.INVOICE, "FAC-20260810-000042"))
+                .thenReturn(false);
+
+        DocumentNumberGenerator generator = new DocumentNumberGenerator(schemes, counters,
+                new NumberingPatternFormatter(), documents);
+
+        String number = generator.next(companyId, DocumentType.INVOICE, LocalDate.of(2026, 8, 10), null);
+
+        assertThat(number).isEqualTo("FAC-20260810-000042");
+        assertThat(counter.getNextValue()).isEqualTo(43);
+        verify(counters).save(counter);
     }
 
     private NumberingScheme scheme(UUID companyId, UUID id, DocumentType type, boolean active) {

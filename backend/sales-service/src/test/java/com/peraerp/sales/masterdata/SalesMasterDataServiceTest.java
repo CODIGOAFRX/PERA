@@ -13,8 +13,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 class SalesMasterDataServiceTest {
@@ -65,6 +67,30 @@ class SalesMasterDataServiceTest {
         assertThat(resolved.displayUnitPrice()).isEqualByComparingTo("25");
         assertThat(resolved.taxPercentage()).isEqualByComparingTo("7");
         assertThat(resolved.pricingResolvedAmount()).isNull();
+    }
+
+    @Test
+    void productLineKeepsExplicitPriceAndTaxOverrides() {
+        UUID customerId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID taxCodeId = UUID.randomUUID();
+        LocalDate issueDate = LocalDate.of(2026, 8, 10);
+        when(client.findProduct(productId)).thenReturn(new ProductSnapshot(productId, "P-MANUAL", "Producto",
+                new BigDecimal("100"), new BigDecimal("21"), true, taxCodeId));
+        DocumentLineRequest request = new DocumentLineRequest(productId, "IGNORADO", "Precio negociado",
+                new BigDecimal("2"), new BigDecimal("525"), BigDecimal.ZERO, new BigDecimal("10"),
+                true, true);
+
+        ResolvedDocumentLine resolved = service.resolveLine(customerId, request, issueDate, "EUR");
+
+        assertThat(resolved.displayUnitPrice()).isEqualByComparingTo("525");
+        assertThat(resolved.taxPercentage()).isEqualByComparingTo("10");
+        assertThat(resolved.billedQuantity()).isEqualByComparingTo("2");
+        assertThat(resolved.pricingResolvedAmount()).isNull();
+        assertThat(resolved.tariffId()).isNull();
+        assertThat(resolved.taxCodeId()).isNull();
+        verify(client, never()).resolvePrice(any(), any(), any(), any(), any(), any());
+        verify(client, never()).findTaxCode(any());
     }
 
     @Test

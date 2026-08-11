@@ -717,7 +717,7 @@ function TariffsTab() {
   return <>
     <section className="panel table-panel">
       <TableToolbar value={query} onChange={setQuery} placeholder={copy.searchTariff}><button className="button button-primary" type="button" onClick={() => setEditingTariff('new')}><Plus size={16} />{copy.newTariff}</button></TableToolbar>
-      <div className="form-grid">
+      <div className="form-grid tariff-filter-grid">
         <Field label={copy.filterCustomer} htmlFor="tariff-filter-customer"><select id="tariff-filter-customer" value={filters.customerId} onChange={(event) => setFilters((current) => ({ ...current, customerId: event.target.value }))}><option value="">{copy.allOptions}</option>{customers.items.map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>
         <Field label={copy.filterNature} htmlFor="tariff-filter-nature"><select id="tariff-filter-nature" value={filters.natureId} onChange={(event) => setFilters((current) => ({ ...current, natureId: event.target.value }))}><option value="">{copy.allOptions}</option>{natures.items.map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>
         <Field label={copy.filterSupertype} htmlFor="tariff-filter-supertype"><select id="tariff-filter-supertype" value={filters.supertypeId} onChange={(event) => setFilters((current) => ({ ...current, supertypeId: event.target.value }))}><option value="">{copy.allOptions}</option>{supertypes.items.map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>
@@ -725,7 +725,7 @@ function TariffsTab() {
         <Field label={copy.filterScope} htmlFor="tariff-filter-scope"><select id="tariff-filter-scope" value={filters.scope} onChange={(event) => setFilters((current) => ({ ...current, scope: event.target.value }))}><option value="">{copy.allOptions}</option>{(['GENERAL', 'CUSTOMER', 'PRODUCT_NATURE', 'PRODUCT_SUPERTYPE', 'PRODUCT_TYPE', 'PRODUCT_GROUP', 'PRODUCT'] as PricingScope[]).map((scope) => <option key={scope} value={scope}>{scopeLabel(scope, copy)}</option>)}</select></Field>
         <Field label={copy.filterStatus} htmlFor="tariff-filter-active"><select id="tariff-filter-active" value={filters.active} onChange={(event) => setFilters((current) => ({ ...current, active: event.target.value }))}><option value="">{copy.allOptions}</option><option value="true">{copy.activeOnly}</option><option value="false">{copy.inactiveOnly}</option></select></Field>
         <Field label={copy.filterValidity} htmlFor="tariff-filter-validity"><input id="tariff-filter-validity" type="date" value={filters.validOn} onChange={(event) => setFilters((current) => ({ ...current, validOn: event.target.value }))} /></Field>
-        <div className="form-actions"><button className="button button-ghost" type="button" onClick={() => { setQuery(''); setFilters({ customerId: '', natureId: '', supertypeId: '', typeId: '', scope: '', active: '', validOn: '' }) }}>{copy.clearFilters}</button></div>
+        <div className="tariff-filter-actions"><button className="button button-ghost" type="button" onClick={() => { setQuery(''); setFilters({ customerId: '', natureId: '', supertypeId: '', typeId: '', scope: '', active: '', validOn: '' }) }}>{copy.clearFilters}</button></div>
       </div>
       <ErrorBlock error={actionError || tariffs.error || lookupError} />
       {tariffs.loading ? <LoadingState /> : rows.length === 0 ? <EmptyState title={copy.noData} description={hasTariffFilters ? copy.noResults : copy.createFirstTariff} /> :
@@ -854,7 +854,7 @@ function PricingSimulator({ lookup }: { lookup: PricingLookups }) {
 
   return <section className="panel table-panel">
     <div className="table-toolbar"><div><strong>{copy.simulator}</strong><small> · {copy.simulatorHint}</small></div></div>
-    <form onSubmit={submit}>
+    <form className="embedded-panel-form" onSubmit={submit}>
       <div className="form-grid">
         <Field label={copy.optionalCustomer} htmlFor="pricing-customer"><select id="pricing-customer" value={form.customerId} onChange={(event) => update('customerId', event.target.value)}><option value="">{copy.allCustomers}</option>{lookup.customers.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>
         <Field label={copy.optionalProduct} htmlFor="pricing-product"><select id="pricing-product" value={form.productId} onChange={(event) => selectProduct(event.target.value)}><option value="">{copy.select}</option>{lookup.products.filter((item) => item.active).map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>

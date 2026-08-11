@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
 
@@ -75,6 +76,31 @@ class QuoteServiceTest {
     void rejectsInvalidValidityBeforeCreatingDocument() {
         CreateQuoteRequest invalid = request(false, LocalDate.of(2026, 8, 9));
         assertThatThrownBy(() -> service.create(invalid)).isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    void deletesDraftQuote() {
+        CommercialDocument quote = quote();
+        when(repository.findByIdAndCompanyIdAndType(quote.getId(), companyId, DocumentType.QUOTE))
+                .thenReturn(Optional.of(quote));
+
+        service.delete(quote.getId());
+
+        verify(repository).delete(quote);
+        verify(events).record(eq("CommercialDocument"), eq(quote.getId()), eq("QuoteDeleted"), any());
+    }
+
+    @Test
+    void refusesToDeleteQuoteThatIsNoLongerDraft() {
+        CommercialDocument quote = quote();
+        quote.confirm();
+        when(repository.findByIdAndCompanyIdAndType(quote.getId(), companyId, DocumentType.QUOTE))
+                .thenReturn(Optional.of(quote));
+
+        assertThatThrownBy(() -> service.delete(quote.getId()))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("borrador");
+        verify(repository, never()).delete(quote);
     }
 
     private CreateQuoteRequest request(boolean send, LocalDate validUntil) {

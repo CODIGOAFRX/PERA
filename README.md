@@ -14,7 +14,7 @@ PERA es un monorepo de microservicios de granularidad gruesa. La plataforma actu
 - `operations-service`: workflows configurables, transportistas, vehículos, rutas, fletes, expediciones y archivos enviados.
 - `activity-service`: historial central, exportación CSV y alertas personalizadas.
 - `licensing-service`: emisión, activación, validación periódica, suspensión y revocación de licencias.
-- React con rutas propias para operación y administración, selector persistente ES/EN y formatos por idioma/moneda.
+- React con dashboard económico comparativo, centro de informes imprimibles, rutas protegidas por perfil, administración de usuarios, barra lateral ajustable, selector persistente ES/EN y formatos por idioma/moneda.
 - PostgreSQL 17 con una base lógica por servicio propietario, Flyway, seguridad por permisos, Actuator y OpenAPI.
 
 La ampliación se controla con la matriz verificable de [`docs/11-ampliacion-plataforma.md`](docs/11-ampliacion-plataforma.md). PERA sigue siendo un producto en desarrollo: no debe presentarse todavía como un ERP contable/fiscal listo para producción.
@@ -30,7 +30,15 @@ cp infra/.env.example infra/.env
 docker compose --env-file infra/.env -f infra/docker-compose.yml up --build
 ```
 
-La aplicación queda en `http://localhost:5173`. Las credenciales del ejemplo son `admin` / `ChangeMe123!`.
+La aplicación queda en `http://localhost:5173`. Los cinco usuarios de demostración comparten la contraseña `ChangeMe123!`:
+
+| Usuario | Perfil | Acceso principal |
+|---|---|---|
+| `admin` | Propietario | Todo, incluida la protección del perfil propietario |
+| `administracion` | Administrador | Todo y gestión de usuarios no propietarios |
+| `economia` | Economía | Clientes, presupuestos, ventas y finanzas |
+| `logistica` | Logística | Proveedores, logística y procesos |
+| `catalogo` | Catálogo | Productos, precios, impuestos y embalajes |
 
 ### Windows sin Docker
 

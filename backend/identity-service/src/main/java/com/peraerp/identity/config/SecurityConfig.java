@@ -33,6 +33,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/companies").hasAuthority("platform:companies:manage")
                         .requestMatchers("/api/v1/companies/**").hasAuthority("companies:manage")
                         .requestMatchers("/api/v1/users/**").hasAuthority("users:manage")
+                        .requestMatchers("/api/v1/roles/**").hasAuthority("users:manage")
                         .requestMatchers(HttpMethod.GET, "/api/v1/company-settings/**").hasAuthority("company-settings:read")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/company-settings/**").hasAuthority("company-settings:write")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/company-settings/**").hasAuthority("company-settings:write")

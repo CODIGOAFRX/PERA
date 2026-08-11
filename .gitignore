@@ -19,6 +19,7 @@
 logs/
 *.log
 .runtime/
+/AGENTS.md
 
 # Operating systems
 .DS_Store

@@ -35,6 +35,15 @@ public class AppUser extends AuditableEntity {
         this.email = email;
     }
 
+    public void updateProfile(String displayName, String email) {
+        this.displayName = displayName;
+        this.email = email;
+    }
+
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     public String getUsername() { return username; }
     public String getPasswordHash() { return passwordHash; }
     public String getDisplayName() { return displayName; }

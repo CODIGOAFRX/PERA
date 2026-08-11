@@ -180,4 +180,5 @@ Write-Host ''
 Write-Host 'PERA ERP esta listo en http://localhost:5173' -ForegroundColor Green
 Write-Host 'Usuario: admin'
 Write-Host 'Contrasena: ChangeMe123!'
+Write-Host 'Perfiles demo: admin, administracion, economia, logistica y catalogo'
 Write-Host 'Para detenerlo: .\scripts\stop-local.ps1'

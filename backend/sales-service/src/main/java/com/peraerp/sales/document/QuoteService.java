@@ -94,6 +94,18 @@ public class QuoteService {
         return documentService.convert(id);
     }
 
+    @Transactional
+    public void delete(UUID id) {
+        CommercialDocument quote = requireQuote(id);
+        if (quote.getQuoteStatus() != QuoteStatus.DRAFT) {
+            throw new BusinessRuleException("Solo se pueden eliminar presupuestos en borrador.");
+        }
+        events.record("CommercialDocument", quote.getId(), "QuoteDeleted",
+                Map.of("documentId", quote.getId(), "number", quote.getDocumentNumber(),
+                        "companyId", quote.getCompanyId()));
+        repository.delete(quote);
+    }
+
     private CommercialDocument requireQuote(UUID id) {
         return requireQuote(id, companyProvider.requireCompanyId());
     }

@@ -14,4 +14,10 @@ public interface UserCompanyRepository extends JpaRepository<UserCompany, UUID> 
 
     @EntityGraph(attributePaths = {"roles", "roles.permissions"})
     Optional<UserCompany> findByUserIdAndCompanyIdAndActiveTrue(UUID userId, UUID companyId);
+
+    @EntityGraph(attributePaths = {"user", "roles", "roles.permissions"})
+    Optional<UserCompany> findByUserIdAndCompanyId(UUID userId, UUID companyId);
+
+    @EntityGraph(attributePaths = {"user", "roles", "roles.permissions"})
+    List<UserCompany> findAllByCompanyIdOrderByCreatedAtAsc(UUID companyId);
 }

@@ -19,6 +19,8 @@ import java.util.UUID;
 @Component
 public class DocumentNumberGenerator {
 
+    private static final int MAX_OCCUPIED_NUMBERS_TO_SKIP = 10_000;
+
     private static final Map<DocumentType, String> PREFIXES = Map.of(
             DocumentType.QUOTE, "PRE",
             DocumentType.SALES_ORDER, "PED",
@@ -29,12 +31,14 @@ public class DocumentNumberGenerator {
     private final NumberingSchemeRepository schemes;
     private final NumberingCounterRepository counters;
     private final NumberingPatternFormatter formatter;
+    private final CommercialDocumentRepository documents;
 
     public DocumentNumberGenerator(NumberingSchemeRepository schemes, NumberingCounterRepository counters,
-                                   NumberingPatternFormatter formatter) {
+                                   NumberingPatternFormatter formatter, CommercialDocumentRepository documents) {
         this.schemes = schemes;
         this.counters = counters;
         this.formatter = formatter;
+        this.documents = documents;
     }
 
     @Transactional
@@ -46,9 +50,16 @@ public class DocumentNumberGenerator {
                 scheme.getInitialValue(), now);
         NumberingCounter counter = counters.findByCompanyIdAndSchemeIdAndPeriodKey(companyId, scheme.getId(), periodKey)
                 .orElseThrow(() -> new IllegalStateException("No se pudo inicializar el contador de numeración."));
-        long value = counter.takeNext();
-        counters.save(counter);
-        return formatter.format(scheme.getPattern(), scheme.getSeries(), date, value);
+        for (int attempt = 0; attempt < MAX_OCCUPIED_NUMBERS_TO_SKIP; attempt++) {
+            long value = counter.takeNext();
+            String candidate = formatter.format(scheme.getPattern(), scheme.getSeries(), date, value);
+            if (!documents.existsByCompanyIdAndTypeAndDocumentNumber(companyId, type, candidate)) {
+                counters.save(counter);
+                return candidate;
+            }
+        }
+        throw new BusinessRuleException(
+                "No se pudo obtener un número libre. Revisa el contador y el patrón de la numeración seleccionada.");
     }
 
     public String next(UUID companyId, DocumentType type, int year) {

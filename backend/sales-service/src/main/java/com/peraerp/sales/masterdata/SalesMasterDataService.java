@@ -38,7 +38,17 @@ public class SalesMasterDataService {
         }
         ProductSnapshot product = client.findProduct(line.productId());
         if (!product.active()) throw new BusinessRuleException("El producto " + product.code() + " está inactivo.");
-        TaxCodeSnapshot taxCode = resolveTaxCode(product, issueDate);
+        TaxCodeSnapshot taxCode = line.taxPercentageOverridden() ? null : resolveTaxCode(product, issueDate);
+        BigDecimal taxPercentage = line.taxPercentageOverridden()
+                ? defaultZero(line.taxPercentage())
+                : taxCode == null ? product.taxRate() : taxCode.percentage();
+        if (line.unitPriceOverridden()) {
+            return new ResolvedDocumentLine(product.id(), product.code(), line.description().trim(), line.quantity(),
+                    line.quantity(), line.unitPrice(), defaultZero(line.discountPercentage()), taxPercentage,
+                    null, null, null, null, taxCode == null ? null : taxCode.id(),
+                    taxCode == null ? null : taxCode.code(), taxCode == null ? null : taxCode.countryCode(),
+                    taxCode == null ? null : taxCode.name(), taxCode == null ? null : taxCode.exempt());
+        }
         PricingSnapshot price = client.resolvePrice(customerId, product.id(), line.quantity(), issueDate,
                 product.basePrice(), currency.trim().toUpperCase(Locale.ROOT));
         if (price.billedQuantity().signum() <= 0 || price.finalPrice().signum() < 0) {
@@ -47,7 +57,7 @@ public class SalesMasterDataService {
         BigDecimal displayUnitPrice = price.finalPrice().divide(price.billedQuantity(), 4, RoundingMode.HALF_UP);
         return new ResolvedDocumentLine(product.id(), product.code(), line.description().trim(), line.quantity(),
                 price.billedQuantity(), displayUnitPrice, defaultZero(line.discountPercentage()),
-                taxCode == null ? product.taxRate() : taxCode.percentage(), price.tariffId(), price.tariffCode(),
+                taxPercentage, price.tariffId(), price.tariffCode(),
                 price.finalPrice(), serializeTrace(price), taxCode == null ? null : taxCode.id(),
                 taxCode == null ? null : taxCode.code(), taxCode == null ? null : taxCode.countryCode(),
                 taxCode == null ? null : taxCode.name(), taxCode == null ? null : taxCode.exempt());

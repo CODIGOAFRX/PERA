@@ -2,6 +2,7 @@ import { ArrowRight, BarChart3, Check, Eye, EyeOff, Leaf, LockKeyhole, ShieldChe
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { LanguageSelector } from '../components/LanguageSelector'
+import { PearBrandMark } from '../components/PearBrandMark'
 import { useTranslation } from '../i18n/I18nProvider'
 import { errorMessage } from '../lib/api'
 import type { CompanyOption } from '../types/api'
@@ -35,7 +36,7 @@ export function LoginPage() {
       <div className="login-language"><LanguageSelector compact /></div>
       <section className="login-panel">
         <div className="login-brand brand">
-          <span className="brand-mark">P</span>
+          <PearBrandMark />
           <span><strong>PERA</strong><small>ERP</small></span>
         </div>
         <div className="login-copy">

@@ -24,6 +24,47 @@ export interface LoginResponse {
   companies: CompanyOption[]
 }
 
+export interface ManagedUser {
+  id: string
+  username: string
+  displayName: string
+  email: string | null
+  companyId: string
+  roles: string[]
+  active: boolean
+}
+
+export interface RoleProfile {
+  code: string
+  name: string
+  permissions: string[]
+}
+
+export interface MonthlyRevenuePoint {
+  month: string
+  total: number
+}
+
+export interface DailyRevenuePoint {
+  day: number
+  currentCumulative: number | null
+  previousCumulative: number
+}
+
+export interface SalesDashboardAnalytics {
+  currency: string
+  asOfDate: string
+  currentMonthTotal: number
+  previousMonthTotal: number
+  previousMonthToDate: number
+  expectedByToday: number
+  varianceAmount: number
+  performancePercentage: number
+  monthProgressPercentage: number
+  monthlyRevenue: MonthlyRevenuePoint[]
+  dailyRevenue: DailyRevenuePoint[]
+}
+
 export interface ProblemDetail {
   type?: string
   title?: string
@@ -52,6 +93,7 @@ export interface Customer {
   creditLimit: number
   riskWarningThreshold: number
   riskPolicy: RiskPolicy
+  createdAt: string
 }
 
 export interface CustomerInput {
@@ -84,6 +126,8 @@ export interface Supplier {
   carrier: string | null
   route: string | null
   defaultPaymentMethodId: string | null
+  observations: string | null
+  createdAt: string
 }
 
 export interface SupplierInput {
@@ -116,6 +160,7 @@ export interface Product {
   basePrice: number
   taxRate: number
   active: boolean
+  createdAt: string
 }
 
 export interface ProductInput {
@@ -207,6 +252,8 @@ export interface CreateDocumentInput {
     unitPrice: number
     discountPercentage: number
     taxPercentage: number
+    unitPriceOverridden: boolean
+    taxPercentageOverridden: boolean
   }>
 }
 

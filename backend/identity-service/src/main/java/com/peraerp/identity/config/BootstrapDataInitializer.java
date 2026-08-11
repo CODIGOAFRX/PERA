@@ -19,7 +19,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Component
 public class BootstrapDataInitializer implements ApplicationRunner {
@@ -39,6 +42,23 @@ public class BootstrapDataInitializer implements ApplicationRunner {
             "license:read", "license:manage"
     );
     private static final List<String> PLATFORM_PERMISSIONS = List.of("platform:companies:manage");
+    private static final List<RoleDefinition> ROLE_DEFINITIONS = List.of(
+            new RoleDefinition("OWNER", "Propietario", TENANT_PERMISSIONS),
+            new RoleDefinition("ADMIN", "Administrador", TENANT_PERMISSIONS),
+            new RoleDefinition("ECONOMY", "Economía", List.of(
+                    "customers:read", "products:read", "documents:read", "documents:write",
+                    "quotes:read", "quotes:write", "finance:read", "finance:write",
+                    "company-settings:read", "numbering:read", "currencies:read", "pricing:read", "taxes:read")),
+            new RoleDefinition("LOGISTICS", "Logística y procesos", List.of(
+                    "suppliers:read", "suppliers:write", "products:read",
+                    "company-settings:read", "currencies:read", "workflows:read", "workflows:manage",
+                    "workflows:execute", "logistics:read", "logistics:write", "logistics:manage",
+                    "logistics:dispatch", "freight:read", "freight:write")),
+            new RoleDefinition("CATALOG", "Catálogo y maestros", List.of(
+                    "customers:read", "products:read", "products:write", "company-settings:read",
+                    "currencies:read", "taxes:read", "taxes:write", "pricing:read", "pricing:write",
+                    "packaging:read", "packaging:write"))
+    );
 
     private final CompanyRepository companyRepository;
     private final CompanySettingsRepository companySettingsRepository;
@@ -70,29 +90,44 @@ public class BootstrapDataInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         Company company = companyRepository.findByCodeIgnoreCase("DEMO")
                 .orElseGet(() -> companyRepository.save(new Company("DEMO", "PERA ERP Demo", "B00000000")));
-        Company bootstrapCompany = company;
         companySettingsRepository.findByCompanyId(company.getId())
-                .orElseGet(() -> companySettingsRepository.save(
-                        CompanySettings.defaults(bootstrapCompany.getId(), bootstrapCompany.getName())));
+                .orElseGet(() -> companySettingsRepository.save(CompanySettings.defaults(company.getId(), company.getName())));
 
-        List<Permission> permissions = TENANT_PERMISSIONS.stream()
-                .map(code -> permissionRepository.findByCode(code)
-                        .orElseGet(() -> permissionRepository.save(new Permission(code, code))))
-                .toList();
+        Map<String, Permission> permissions = new LinkedHashMap<>();
+        TENANT_PERMISSIONS.forEach(code -> permissions.put(code, permissionRepository.findByCode(code)
+                .orElseGet(() -> permissionRepository.save(new Permission(code, code)))));
         PLATFORM_PERMISSIONS.forEach(code -> permissionRepository.findByCode(code)
                 .orElseGet(() -> permissionRepository.save(new Permission(code, code))));
 
-        Role admin = roleRepository.findByCompanyIdAndCodeIgnoreCase(company.getId(), "ADMIN")
-                .orElseGet(() -> new Role(company.getId(), "ADMIN", "Administrador"));
-        permissions.forEach(admin::grant);
-        admin = roleRepository.save(admin);
+        Map<String, Role> roles = new LinkedHashMap<>();
+        for (RoleDefinition definition : ROLE_DEFINITIONS) {
+            Role role = roleRepository.findByCompanyIdAndCodeIgnoreCase(company.getId(), definition.code())
+                    .orElseGet(() -> new Role(company.getId(), definition.code(), definition.name()));
+            role.replacePermissions(definition.permissions().stream().map(permissions::get).toList());
+            roles.put(definition.code(), roleRepository.save(role));
+        }
 
-        if (userRepository.findByUsernameIgnoreCase("admin").isEmpty()) {
-            AppUser user = userRepository.save(new AppUser("admin", passwordEncoder.encode(adminPassword),
-                    "Administrador", "admin@pera-erp.local"));
-            UserCompany membership = new UserCompany(user, company.getId());
-            membership.assignRole(admin);
+        ensureDemoUser(company, roles.get("OWNER"), "admin", "Propietario", "admin@pera-erp.local", true);
+        ensureDemoUser(company, roles.get("ADMIN"), "administracion", "Administración", "administracion@pera-erp.local", false);
+        ensureDemoUser(company, roles.get("ECONOMY"), "economia", "Equipo de economía", "economia@pera-erp.local", false);
+        ensureDemoUser(company, roles.get("LOGISTICS"), "logistica", "Equipo de logística", "logistica@pera-erp.local", false);
+        ensureDemoUser(company, roles.get("CATALOG"), "catalogo", "Equipo de catálogo", "catalogo@pera-erp.local", false);
+    }
+
+    private void ensureDemoUser(Company company, Role role, String username, String displayName, String email,
+                                boolean synchronizeRole) {
+        AppUser user = userRepository.findByUsernameIgnoreCase(username)
+                .orElseGet(() -> userRepository.save(new AppUser(username, passwordEncoder.encode(adminPassword),
+                        displayName, email)));
+        var existing = membershipRepository.findByUserIdAndCompanyId(user.getId(), company.getId());
+        UserCompany membership = existing.orElseGet(() -> new UserCompany(user, company.getId()));
+        if (existing.isEmpty() || synchronizeRole) {
+            membership.replaceRoles(Set.of(role));
+            membership.setActive(true);
             membershipRepository.save(membership);
         }
+    }
+
+    private record RoleDefinition(String code, String name, List<String> permissions) {
     }
 }

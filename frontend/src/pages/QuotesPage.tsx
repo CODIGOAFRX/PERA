@@ -25,10 +25,13 @@ export function QuotesPage() {
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
   const [selected, setSelected] = useState<CommercialDocument | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [deleting, setDeleting] = useState(false)
   const [refresh, setRefresh] = useState(0)
   const { notify } = useToast()
 
   useEffect(() => setPage(0), [status])
+  useEffect(() => setSelectedIds(new Set()), [page, status, refresh])
   useEffect(() => {
     let active = true
     setLoading(true)
@@ -55,6 +58,30 @@ export function QuotesPage() {
     }
   }
 
+  const draftIds = data?.content.filter((quote) => (quote.quoteStatus ?? 'DRAFT') === 'DRAFT').map((quote) => quote.id) ?? []
+  const allDraftsSelected = draftIds.length > 0 && draftIds.every((id) => selectedIds.has(id))
+  const toggleSelection = (id: string, checked: boolean) => setSelectedIds((current) => {
+    const next = new Set(current)
+    if (checked) next.add(id); else next.delete(id)
+    return next
+  })
+  const toggleAllDrafts = (checked: boolean) => setSelectedIds(checked ? new Set(draftIds) : new Set())
+  const deleteSelected = async () => {
+    if (selectedIds.size === 0 || !window.confirm(t('quotes.deleteConfirmation', { count: selectedIds.size }))) return
+    setDeleting(true)
+    try {
+      await Promise.all([...selectedIds].map((id) => apiFetch(`/api/v1/quotes/${id}`, { method: 'DELETE' })))
+      notify(t('quotes.deleted', { count: selectedIds.size }))
+      setSelectedIds(new Set())
+      setRefresh((value) => value + 1)
+    } catch (cause) {
+      notify(errorMessage(cause), 'error')
+      setRefresh((value) => value + 1)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return <div className="page-stack">
     <PageHeader eyebrow={t('quotes.eyebrow')} title={t('quotes.title')} description={t('quotes.description')} icon={FileCheck2}
       actions={<button className="button button-primary" type="button" onClick={() => setCreating(true)}><Plus size={17} />{t('quotes.new')}</button>} />
@@ -64,11 +91,13 @@ export function QuotesPage() {
           <option value="">{t('quotes.allStatuses')}</option>
           {quoteStatuses.map((item) => <option key={item} value={item}>{t(`quote.status.${item}`)}</option>)}
         </select>
+        <button className="button button-danger" type="button" disabled={selectedIds.size === 0 || deleting} onClick={() => void deleteSelected()}><Trash2 size={16} />{deleting ? t('quotes.deleting') : t('quotes.deleteSelected')}{selectedIds.size > 0 && ` (${selectedIds.size})`}</button>
       </TableToolbar>
       {error && <div className="inline-error">{error}</div>}
       {loading ? <LoadingState /> : data && data.content.length > 0 ? <>
-        <div className="table-scroll"><table><thead><tr><th>{t('sales.number')}</th><th>{t('sales.customer')}</th><th>{t('sales.issueDate')}</th><th>{t('quotes.validUntil')}</th><th>{t('sales.status')}</th><th className="align-right">{t('sales.total')}</th></tr></thead>
+        <div className="table-scroll"><table><thead><tr><th className="selection-cell"><input className="selection-checkbox" type="checkbox" aria-label={t('quotes.selectAllDrafts')} checked={allDraftsSelected} disabled={draftIds.length === 0} onChange={(event) => toggleAllDrafts(event.target.checked)} /></th><th>{t('sales.number')}</th><th>{t('sales.customer')}</th><th>{t('sales.issueDate')}</th><th>{t('quotes.validUntil')}</th><th>{t('sales.status')}</th><th className="align-right">{t('sales.total')}</th></tr></thead>
           <tbody>{data.content.map((quote) => <tr key={quote.id} className="clickable-row" onClick={() => setSelected(quote)}>
+            <td className="selection-cell" onClick={(event) => event.stopPropagation()}>{(quote.quoteStatus ?? 'DRAFT') === 'DRAFT' ? <input className="selection-checkbox" type="checkbox" aria-label={t('quotes.selectQuote', { number: quote.number })} checked={selectedIds.has(quote.id)} onChange={(event) => toggleSelection(quote.id, event.target.checked)} /> : <span className="selection-unavailable" aria-hidden="true">—</span>}</td>
             <td><strong className="document-number">{quote.number}</strong></td>
             <td><strong>{quote.customerName}</strong><small>{quote.customerCode}</small></td>
             <td>{formatDate(quote.issueDate, locale)}</td><td>{formatDate(quote.quoteValidUntil, locale)}</td>
@@ -119,12 +148,18 @@ function CreateQuoteForm({ onCancel, onSaved }: { onCancel: () => void; onSaved:
     }).catch((cause) => setError(errorMessage(cause))).finally(() => setLoading(false))
   }, [])
 
-  const updateLine = (index: number, name: string, value: string) => setLines((current) => current.map((line, itemIndex) => itemIndex === index ? { ...line, [name]: value } : line))
+  const updateLine = (index: number, name: string, value: string) => setLines((current) => current.map((line, itemIndex) => {
+    if (itemIndex !== index) return line
+    if (name === 'unitPrice') return { ...line, unitPrice: value, unitPriceOverridden: true }
+    if (name === 'taxPercentage') return { ...line, taxPercentage: value, taxPercentageOverridden: true }
+    return { ...line, [name]: value }
+  }))
   const chooseProduct = (index: number, productId: string) => {
     const product = products.find((item) => item.id === productId)
     setLines((current) => current.map((line, itemIndex) => itemIndex === index ? {
       ...line, productId, productCode: product?.code ?? '', description: product?.name ?? '',
       unitPrice: String(product?.basePrice ?? 0), taxPercentage: String(product?.taxRate ?? 0),
+      unitPriceOverridden: false, taxPercentageOverridden: false,
     } : line))
   }
   const totals = useMemo(() => calculateDocumentPreview(lines), [lines])
@@ -143,7 +178,8 @@ function CreateQuoteForm({ onCancel, onSaved }: { onCancel: () => void; onSaved:
       sendOnCreate: form.sendOnCreate,
       lines: lines.map((line) => ({ productId: line.productId || null, productCode: line.productCode || null,
         description: line.description.trim(), quantity: Number(line.quantity), unitPrice: Number(line.unitPrice),
-        discountPercentage: Number(line.discountPercentage), taxPercentage: Number(line.taxPercentage) })),
+        discountPercentage: Number(line.discountPercentage), taxPercentage: Number(line.taxPercentage),
+        unitPriceOverridden: line.unitPriceOverridden, taxPercentageOverridden: line.taxPercentageOverridden })),
     }
     try { await apiFetch('/api/v1/quotes', { method: 'POST', body: JSON.stringify(payload) }); onSaved() }
     catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
@@ -194,7 +230,7 @@ function QuoteDetail({ quote, onAction }: { quote: CommercialDocument; onAction:
 }
 
 function emptyLine() {
-  return { productId: '', productCode: '', description: '', quantity: '1', unitPrice: '0', discountPercentage: '0', taxPercentage: '21' }
+  return { productId: '', productCode: '', description: '', quantity: '1', unitPrice: '0', discountPercentage: '0', taxPercentage: '21', unitPriceOverridden: false, taxPercentageOverridden: false }
 }
 
 function quoteTone(status: QuoteStatus | null): BadgeTone {

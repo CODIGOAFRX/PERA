@@ -8,7 +8,7 @@
 4. Confirmación, cancelación y rectificación documental con permisos y auditoría.
 5. Publicador de outbox y consumidor financiero idempotente.
 6. Riesgo calculado a partir de facturas/vencimientos y política warn/confirm/block.
-7. Dashboard REST con métricas diarias; refresco en frontend cada 5–10 segundos.
+7. Objetivos mensuales configurables y refresco periódico sobre el dashboard REST ya disponible.
 8. Descubrimiento de inventario y compras como capacidades horizontales; no reutilizar modelos sectoriales sin validarlos.
 
 ## Preguntas de dominio prioritarias

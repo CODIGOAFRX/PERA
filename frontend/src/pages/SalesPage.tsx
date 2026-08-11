@@ -79,7 +79,7 @@ function CreateDocumentForm({ onCancel, onSaved }: { onCancel: () => void; onSav
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ type: 'QUOTE' as DocumentType, customerId: '', issueDate: new Date().toISOString().slice(0, 10), dueDate: '', currency: 'EUR', paymentMethodId: '', notes: '', confirm: true })
-  const [lines, setLines] = useState([{ productId: '', productCode: '', description: '', quantity: '1', unitPrice: '0', discountPercentage: '0', taxPercentage: '21' }])
+  const [lines, setLines] = useState([{ productId: '', productCode: '', description: '', quantity: '1', unitPrice: '0', discountPercentage: '0', taxPercentage: '21', unitPriceOverridden: false, taxPercentageOverridden: false }])
 
   useEffect(() => {
     Promise.all([
@@ -98,10 +98,15 @@ function CreateDocumentForm({ onCancel, onSaved }: { onCancel: () => void; onSav
     }).catch((cause) => setError(errorMessage(cause))).finally(() => setLoadingOptions(false))
   }, [])
 
-  const updateLine = (index: number, name: string, value: string) => setLines((current) => current.map((line, lineIndex) => lineIndex === index ? { ...line, [name]: value } : line))
+  const updateLine = (index: number, name: string, value: string) => setLines((current) => current.map((line, lineIndex) => {
+    if (lineIndex !== index) return line
+    if (name === 'unitPrice') return { ...line, unitPrice: value, unitPriceOverridden: true }
+    if (name === 'taxPercentage') return { ...line, taxPercentage: value, taxPercentageOverridden: true }
+    return { ...line, [name]: value }
+  }))
   const chooseProduct = (index: number, productId: string) => {
     const product = products.find((item) => item.id === productId)
-    setLines((current) => current.map((line, lineIndex) => lineIndex === index ? { ...line, productId, productCode: product?.code || '', description: product?.name || '', unitPrice: String(product?.basePrice ?? 0), taxPercentage: String(product?.taxRate ?? 0) } : line))
+    setLines((current) => current.map((line, lineIndex) => lineIndex === index ? { ...line, productId, productCode: product?.code || '', description: product?.name || '', unitPrice: String(product?.basePrice ?? 0), taxPercentage: String(product?.taxRate ?? 0), unitPriceOverridden: false, taxPercentageOverridden: false } : line))
   }
   const totals = useMemo(() => calculateDocumentPreview(lines), [lines])
 
@@ -114,7 +119,7 @@ function CreateDocumentForm({ onCancel, onSaved }: { onCancel: () => void; onSav
       type: form.type, customerId: customer.id, customerCode: customer.code, customerName: customer.legalName,
       issueDate: form.issueDate, dueDate: form.dueDate || null, currency: form.currency, paymentMethodId: form.paymentMethodId || null,
       notes: form.notes.trim() || null, confirm: form.confirm,
-      lines: lines.map((line) => ({ productId: line.productId || null, productCode: line.productCode || null, description: line.description.trim(), quantity: Number(line.quantity), unitPrice: Number(line.unitPrice), discountPercentage: Number(line.discountPercentage), taxPercentage: Number(line.taxPercentage) })),
+      lines: lines.map((line) => ({ productId: line.productId || null, productCode: line.productCode || null, description: line.description.trim(), quantity: Number(line.quantity), unitPrice: Number(line.unitPrice), discountPercentage: Number(line.discountPercentage), taxPercentage: Number(line.taxPercentage), unitPriceOverridden: line.unitPriceOverridden, taxPercentageOverridden: line.taxPercentageOverridden })),
     }
     try { await apiFetch<CommercialDocument>('/api/v1/documents', { method: 'POST', body: JSON.stringify(payload) }); onSaved() }
     catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
@@ -131,7 +136,7 @@ function CreateDocumentForm({ onCancel, onSaved }: { onCancel: () => void; onSav
       <Field label={t('sales.paymentMethod')} htmlFor="document-payment"><select id="document-payment" value={form.paymentMethodId} onChange={(event) => setForm({ ...form, paymentMethodId: event.target.value })}><option value="">{t('sales.noPaymentMethod')}</option>{paymentMethods.map((method) => <option key={method.id} value={method.id}>{method.code} · {method.name}</option>)}</select></Field>
       <Field label={t('sales.initialStatus')} htmlFor="document-confirm"><label className="switch-row" htmlFor="document-confirm"><input id="document-confirm" type="checkbox" checked={form.confirm} onChange={(event) => setForm({ ...form, confirm: event.target.checked })} /><span>{t('sales.confirmOnSave')}</span></label></Field>
     </div>
-    <div className="document-lines-heading"><div><span className="eyebrow">{t('sales.detail')}</span><h3>{t('sales.documentLines')}</h3></div><button className="button button-secondary button-small" type="button" onClick={() => setLines((current) => [...current, { productId: '', productCode: '', description: '', quantity: '1', unitPrice: '0', discountPercentage: '0', taxPercentage: '21' }])}><Plus size={15} />{t('sales.addLine')}</button></div>
+    <div className="document-lines-heading"><div><span className="eyebrow">{t('sales.detail')}</span><h3>{t('sales.documentLines')}</h3></div><button className="button button-secondary button-small" type="button" onClick={() => setLines((current) => [...current, { productId: '', productCode: '', description: '', quantity: '1', unitPrice: '0', discountPercentage: '0', taxPercentage: '21', unitPriceOverridden: false, taxPercentageOverridden: false }])}><Plus size={15} />{t('sales.addLine')}</button></div>
     <div className="line-editor">{lines.map((line, index) => <div className="line-editor-row" key={index}>
       <div className="line-product"><label htmlFor={`line-product-${index}`}>{t('sales.product')}</label><select id={`line-product-${index}`} value={line.productId} onChange={(event) => chooseProduct(index, event.target.value)}><option value="">{t('sales.freeLine')}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.code} · {product.name}</option>)}</select></div>
       <div className="line-description"><label htmlFor={`line-description-${index}`}>{t('sales.lineDescription')}</label><input id={`line-description-${index}`} value={line.description} onChange={(event) => updateLine(index, 'description', event.target.value)} required /></div>

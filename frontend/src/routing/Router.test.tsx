@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { Link, matchPath, RouterProvider, useRouter } from './Router'
-import { appRoutes, matchAppRoute } from './routes'
+import { appRoutes, isRouteAllowed, matchAppRoute } from './routes'
 
 function Probe() {
   const { path, search } = useRouter()
@@ -31,6 +31,15 @@ describe('RouterProvider', () => {
   it('keeps the current routes unique in the canonical registry', () => {
     const paths = appRoutes.map((route) => route.path)
     expect(new Set(paths).size).toBe(paths.length)
-    expect(paths).toEqual(['/', '/clientes', '/proveedores', '/catalogo', '/maestros', '/presupuestos', '/ventas', '/finanzas', '/operaciones', '/historial', '/configuracion'])
+    expect(paths).toEqual(['/', '/impresion', '/clientes', '/proveedores', '/catalogo', '/maestros', '/presupuestos', '/ventas', '/finanzas', '/operaciones', '/historial', '/configuracion', '/usuarios'])
+  })
+
+  it('keeps economic and logistics workspaces separated by role', () => {
+    const finance = appRoutes.find((route) => route.id === 'finance')!
+    const operations = appRoutes.find((route) => route.id === 'operations')!
+    expect(isRouteAllowed(finance, ['ECONOMY'])).toBe(true)
+    expect(isRouteAllowed(finance, ['LOGISTICS'])).toBe(false)
+    expect(isRouteAllowed(operations, ['LOGISTICS'])).toBe(true)
+    expect(isRouteAllowed(operations, ['ECONOMY'])).toBe(false)
   })
 })
