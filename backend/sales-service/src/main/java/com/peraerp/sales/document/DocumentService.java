@@ -3,7 +3,12 @@ package com.peraerp.sales.document;
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
 import com.peraerp.sales.config.CurrentCompanyProvider;
+import com.peraerp.sales.currency.DocumentCurrencyService;
+import com.peraerp.sales.currency.DocumentCurrencySnapshot;
 import com.peraerp.sales.outbox.DomainEventRecorder;
+import com.peraerp.sales.masterdata.CustomerSnapshot;
+import com.peraerp.sales.masterdata.ResolvedDocumentLine;
+import com.peraerp.sales.masterdata.SalesMasterDataService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -11,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
+import java.util.List;
+import java.util.Locale;
 
 @Service
 public class DocumentService {
@@ -19,25 +26,37 @@ public class DocumentService {
     private final DocumentAmountsCalculator calculator;
     private final CurrentCompanyProvider companyProvider;
     private final DomainEventRecorder events;
+    private final DocumentCurrencyService currencyService;
+    private final SalesMasterDataService masterDataService;
 
     public DocumentService(CommercialDocumentRepository repository, DocumentNumberGenerator numberGenerator,
                            DocumentAmountsCalculator calculator, CurrentCompanyProvider companyProvider,
-                           DomainEventRecorder events) {
+                           DomainEventRecorder events, DocumentCurrencyService currencyService,
+                           SalesMasterDataService masterDataService) {
         this.repository=repository; this.numberGenerator=numberGenerator; this.calculator=calculator;
-        this.companyProvider=companyProvider; this.events=events;
+        this.companyProvider=companyProvider; this.events=events; this.currencyService=currencyService;
+        this.masterDataService=masterDataService;
     }
 
     @Transactional
     public DocumentResponse create(CreateDocumentRequest request) {
         UUID companyId = companyProvider.requireCompanyId();
-        String number = numberGenerator.next(companyId, request.type(), request.issueDate().getYear());
-        CommercialDocument document = new CommercialDocument(companyId, number, request.type(), request.customerId(),
-                request.customerCode(), request.customerName(), request.issueDate(), request.dueDate(), request.currency(),
+        CustomerSnapshot customer = masterDataService.requireActiveCustomer(request.customerId());
+        String currency = request.currency() == null ? "EUR" : request.currency().trim().toUpperCase(Locale.ROOT);
+        List<ResolvedDocumentLine> resolvedLines = request.lines().stream()
+                .map(line -> masterDataService.resolveLine(customer.id(), line, request.issueDate(), currency))
+                .toList();
+        String number = numberGenerator.next(companyId, request.type(), request.issueDate(), request.numberingSchemeId());
+        CommercialDocument document = new CommercialDocument(companyId, number, request.type(), customer.id(),
+                customer.code(), customer.legalName(), request.issueDate(), request.dueDate(), currency,
                 null, request.paymentMethodId(), request.notes());
-        for (DocumentLineRequest line : request.lines()) {
+        for (ResolvedDocumentLine line : resolvedLines) {
             document.addLine(toLine(line));
         }
         document.recalculate(calculator);
+        DocumentCurrencySnapshot currencySnapshot = currencyService.resolve(document.getCurrency(), request.issueDate());
+        document.applyCurrencySnapshot(currencySnapshot.baseCurrency(), currencySnapshot.exchangeRate(),
+                currencySnapshot.rateDate(), currencySnapshot.source());
         if (request.confirm()) document.confirm();
         document = repository.save(document);
         events.record("CommercialDocument", document.getId(), "DocumentCreated",
@@ -60,6 +79,9 @@ public class DocumentService {
     public DocumentResponse convert(UUID sourceId) {
         UUID companyId = companyProvider.requireCompanyId();
         CommercialDocument source = requireDocument(sourceId);
+        if (source.getType() == DocumentType.QUOTE) {
+            source.expireQuoteIfDue(LocalDate.now());
+        }
         if (source.getStatus() != DocumentStatus.CONFIRMED) {
             throw new BusinessRuleException("Solo se pueden convertir documentos confirmados.");
         }
@@ -70,15 +92,15 @@ public class DocumentService {
         };
         LocalDate issueDate = LocalDate.now();
         CommercialDocument target = new CommercialDocument(companyId,
-                numberGenerator.next(companyId, targetType, issueDate.getYear()), targetType, source.getCustomerId(),
+                numberGenerator.next(companyId, targetType, issueDate, null), targetType, source.getCustomerId(),
                 source.getCustomerCodeSnapshot(), source.getCustomerNameSnapshot(), issueDate, source.getDueDate(),
                 source.getCurrency(), source.getId(), source.getPaymentMethodId(), source.getNotes());
         for (DocumentLine line : source.getLines()) {
-            target.addLine(new DocumentLine(line.getProductId(), line.getProductCodeSnapshot(),
-                    line.getDescription(), line.getQuantity(), line.getUnitPrice(),
-                    line.getDiscountPercentage(), line.getTaxPercentage()));
+            target.addLine(line.copySnapshot());
         }
         target.recalculate(calculator);
+        target.applyCurrencySnapshot(source.getBaseCurrency(), source.getExchangeRate(), source.getExchangeRateDate(),
+                source.getExchangeRateSource());
         target.confirm();
         source.markConverted();
         target = repository.save(target);
@@ -107,8 +129,10 @@ public class DocumentService {
         return repository.findByIdAndCompanyId(id, companyProvider.requireCompanyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Documento", id));
     }
-    private DocumentLine toLine(DocumentLineRequest line) {
-        return new DocumentLine(line.productId(), line.productCode(), line.description(), line.quantity(),
-                line.unitPrice(), line.discountPercentage(), line.taxPercentage());
+    private DocumentLine toLine(ResolvedDocumentLine line) {
+        return new DocumentLine(line.productId(), line.productCode(), line.description(), line.requestedQuantity(),
+                line.billedQuantity(), line.displayUnitPrice(), line.discountPercentage(), line.taxPercentage(),
+                line.tariffId(), line.tariffCode(), line.pricingResolvedAmount(), line.pricingTraceJson(),
+                line.taxCodeId(), line.taxCode(), line.taxCountryCode(), line.taxName(), line.taxExempt());
     }
 }

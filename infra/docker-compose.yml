@@ -3,13 +3,20 @@ name: pera-erp
 x-service-common: &service-common
   restart: unless-stopped
   networks: [pera-network]
+  healthcheck:
+    test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:$${SERVER_PORT}/actuator/health"]
+    interval: 10s
+    timeout: 5s
+    retries: 12
+    start_period: 20s
   environment: &service-environment
     DB_USER: ${POSTGRES_USER:-pera}
     DB_PASSWORD: ${POSTGRES_PASSWORD:-pera_dev_password}
     PERA_JWT_SECRET: ${PERA_JWT_SECRET:-change-me-development-secret-at-least-32-bytes}
+    PERA_INTERNAL_SERVICE_KEY: ${PERA_INTERNAL_SERVICE_KEY:-pera-local-internal-service-key-change-me}
   depends_on:
-    postgres:
-      condition: service_healthy
+    database-provisioner:
+      condition: service_completed_successfully
 
 services:
   postgres:
@@ -31,6 +38,22 @@ services:
       retries: 20
     networks: [pera-network]
 
+  database-provisioner:
+    image: postgres:17-alpine
+    restart: "no"
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: ${POSTGRES_USER:-pera}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-pera_dev_password}
+    volumes:
+      - ./postgres/provision-databases.sh:/scripts/provision-databases.sh:ro
+    command: ["sh", "/scripts/provision-databases.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [pera-network]
+
   identity-service:
     <<: *service-common
     build:
@@ -42,7 +65,10 @@ services:
       SERVER_PORT: 8081
       DB_URL: jdbc:postgresql://postgres:5432/pera_identity
       PERA_BOOTSTRAP_ADMIN_PASSWORD: ${PERA_BOOTSTRAP_ADMIN_PASSWORD:-ChangeMe123!}
-    ports: ["8081:8081"]
+      PERA_COMPANY_LOGO_STORAGE_ROOT: /data/company-logos
+    volumes:
+      - company-logo-data:/data/company-logos
+    expose: ["8081"]
 
   master-data-service:
     <<: *service-common
@@ -54,7 +80,7 @@ services:
       <<: *service-environment
       SERVER_PORT: 8082
       DB_URL: jdbc:postgresql://postgres:5432/pera_master_data
-    ports: ["8082:8082"]
+    expose: ["8082"]
 
   sales-service:
     <<: *service-common
@@ -66,7 +92,10 @@ services:
       <<: *service-environment
       SERVER_PORT: 8083
       DB_URL: jdbc:postgresql://postgres:5432/pera_sales
-    ports: ["8083:8083"]
+      IDENTITY_SERVICE_URL: http://identity-service:8081
+      FINANCE_SERVICE_URL: http://finance-service:8084
+      MASTER_DATA_SERVICE_URL: http://master-data-service:8082
+    expose: ["8083"]
 
   finance-service:
     <<: *service-common
@@ -78,7 +107,54 @@ services:
       <<: *service-environment
       SERVER_PORT: 8084
       DB_URL: jdbc:postgresql://postgres:5432/pera_finance
-    ports: ["8084:8084"]
+    expose: ["8084"]
+
+  operations-service:
+    <<: *service-common
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args: { SERVICE: operations-service }
+    environment:
+      <<: *service-environment
+      SERVER_PORT: 8085
+      DB_URL: jdbc:postgresql://postgres:5432/pera_operations
+      PERA_SHIPMENT_DOCUMENT_STORAGE_ROOT: /data/shipment-documents
+      PERA_SHIPMENT_DOCUMENT_MAX_BYTES: ${PERA_SHIPMENT_DOCUMENT_MAX_BYTES:-10485760}
+      PERA_SHIPMENT_DOCUMENT_MULTIPART_MAX_FILE_SIZE: ${PERA_SHIPMENT_DOCUMENT_MULTIPART_MAX_FILE_SIZE:-10MB}
+      PERA_SHIPMENT_DOCUMENT_MULTIPART_MAX_REQUEST_SIZE: ${PERA_SHIPMENT_DOCUMENT_MULTIPART_MAX_REQUEST_SIZE:-11MB}
+    volumes:
+      - shipment-document-data:/data/shipment-documents
+    expose: ["8085"]
+
+  activity-service:
+    <<: *service-common
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args: { SERVICE: activity-service }
+    environment:
+      <<: *service-environment
+      SERVER_PORT: 8086
+      DB_URL: jdbc:postgresql://postgres:5432/pera_activity
+      PERA_AUDIT_RETENTION_ENABLED: ${PERA_AUDIT_RETENTION_ENABLED:-true}
+      PERA_AUDIT_RETENTION_DAYS: ${PERA_AUDIT_RETENTION_DAYS:-365}
+      PERA_AUDIT_RETENTION_BATCH_SIZE: ${PERA_AUDIT_RETENTION_BATCH_SIZE:-1000}
+      PERA_AUDIT_RETENTION_MAXIMUM_BATCHES: ${PERA_AUDIT_RETENTION_MAXIMUM_BATCHES:-10}
+    expose: ["8086"]
+
+  licensing-service:
+    <<: *service-common
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args: { SERVICE: licensing-service }
+    environment:
+      <<: *service-environment
+      SERVER_PORT: 8087
+      DB_URL: jdbc:postgresql://postgres:5432/pera_licensing
+      PERA_LICENSE_HASH_PEPPER: ${PERA_LICENSE_HASH_PEPPER:-change-me-license-hash-pepper-at-least-32-bytes}
+    expose: ["8087"]
 
   api-gateway:
     restart: unless-stopped
@@ -94,12 +170,31 @@ services:
       MASTER_DATA_SERVICE_URL: http://master-data-service:8082
       SALES_SERVICE_URL: http://sales-service:8083
       FINANCE_SERVICE_URL: http://finance-service:8084
+      OPERATIONS_SERVICE_URL: http://operations-service:8085
+      ACTIVITY_SERVICE_URL: http://activity-service:8086
+      LICENSING_SERVICE_URL: http://licensing-service:8087
+      PERA_INTERNAL_SERVICE_KEY: ${PERA_INTERNAL_SERVICE_KEY:-pera-local-internal-service-key-change-me}
+      PERA_LICENSE_ENFORCEMENT_ENABLED: ${PERA_LICENSE_ENFORCEMENT_ENABLED:-false}
+      PERA_LICENSE_INSTALLATION_ID: ${PERA_LICENSE_INSTALLATION_ID:-}
+      PERA_LICENSE_INSTALLATION_TOKEN: ${PERA_LICENSE_INSTALLATION_TOKEN:-}
+      PERA_LICENSE_COMPANY_ID: ${PERA_LICENSE_COMPANY_ID:-}
+      PERA_LICENSE_MAXIMUM_CACHE_DURATION: ${PERA_LICENSE_MAXIMUM_CACHE_DURATION:-PT5M}
+      PERA_LICENSE_REQUEST_TIMEOUT: ${PERA_LICENSE_REQUEST_TIMEOUT:-PT2S}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     depends_on:
-      - identity-service
-      - master-data-service
-      - sales-service
-      - finance-service
+      identity-service: { condition: service_healthy }
+      master-data-service: { condition: service_healthy }
+      sales-service: { condition: service_healthy }
+      finance-service: { condition: service_healthy }
+      operations-service: { condition: service_healthy }
+      activity-service: { condition: service_healthy }
+      licensing-service: { condition: service_healthy }
     ports: ["8080:8080"]
 
   frontend:
@@ -110,12 +205,14 @@ services:
       dockerfile: frontend/Dockerfile
     depends_on:
       api-gateway:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "${FRONTEND_PORT:-5173}:80"
 
 volumes:
   postgres-data:
+  company-logo-data:
+  shipment-document-data:
 
 networks:
   pera-network:

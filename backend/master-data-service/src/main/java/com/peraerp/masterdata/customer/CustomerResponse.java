@@ -4,6 +4,7 @@ import com.peraerp.masterdata.party.Party;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 public record CustomerResponse(
@@ -12,7 +13,7 @@ public record CustomerResponse(
         UUID defaultPaymentMethodId, String supplierCode,
         @Schema(description = "Campo heredado congelado; no interviene en el cálculo horizontal de precios.", deprecated = true)
         @Deprecated(since = "0.2", forRemoval = false) BigDecimal calculationMultiplier,
-        BigDecimal creditLimit, BigDecimal riskWarningThreshold, RiskPolicy riskPolicy
+        BigDecimal creditLimit, BigDecimal riskWarningThreshold, RiskPolicy riskPolicy, Instant createdAt
 ) {
     @SuppressWarnings("deprecation") // Frontera de compatibilidad: el campo se devuelve, pero no se usa en reglas nuevas.
     static CustomerResponse from(CustomerProfile profile, Party party) {
@@ -20,6 +21,6 @@ public record CustomerResponse(
                 party.getTradeName(), party.getTaxId(), party.getPhone(), party.getEmail(), party.getObservations(),
                 party.isActive(), profile.getPriceListId(), profile.getDefaultPaymentMethodId(),
                 profile.getSupplierCode(), profile.getCalculationMultiplier(), profile.getCreditLimit(),
-                profile.getRiskWarningThreshold(), profile.getRiskPolicy());
+                profile.getRiskWarningThreshold(), profile.getRiskPolicy(), profile.getCreatedAt());
     }
 }

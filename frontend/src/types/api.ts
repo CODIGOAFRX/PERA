@@ -24,6 +24,47 @@ export interface LoginResponse {
   companies: CompanyOption[]
 }
 
+export interface ManagedUser {
+  id: string
+  username: string
+  displayName: string
+  email: string | null
+  companyId: string
+  roles: string[]
+  active: boolean
+}
+
+export interface RoleProfile {
+  code: string
+  name: string
+  permissions: string[]
+}
+
+export interface MonthlyRevenuePoint {
+  month: string
+  total: number
+}
+
+export interface DailyRevenuePoint {
+  day: number
+  currentCumulative: number | null
+  previousCumulative: number
+}
+
+export interface SalesDashboardAnalytics {
+  currency: string
+  asOfDate: string
+  currentMonthTotal: number
+  previousMonthTotal: number
+  previousMonthToDate: number
+  expectedByToday: number
+  varianceAmount: number
+  performancePercentage: number
+  monthProgressPercentage: number
+  monthlyRevenue: MonthlyRevenuePoint[]
+  dailyRevenue: DailyRevenuePoint[]
+}
+
 export interface ProblemDetail {
   type?: string
   title?: string
@@ -52,6 +93,7 @@ export interface Customer {
   creditLimit: number
   riskWarningThreshold: number
   riskPolicy: RiskPolicy
+  createdAt: string
 }
 
 export interface CustomerInput {
@@ -84,6 +126,8 @@ export interface Supplier {
   carrier: string | null
   route: string | null
   defaultPaymentMethodId: string | null
+  observations: string | null
+  createdAt: string
 }
 
 export interface SupplierInput {
@@ -108,12 +152,15 @@ export interface Product {
   name: string
   description: string | null
   productTypeId: string | null
+  productGroupId?: string | null
+  taxCodeId?: string | null
   familyId: string | null
   categoryId: string | null
   unitOfMeasure: UnitOfMeasure
   basePrice: number
   taxRate: number
   active: boolean
+  createdAt: string
 }
 
 export interface ProductInput {
@@ -121,6 +168,8 @@ export interface ProductInput {
   name: string
   description?: string | null
   productTypeId?: string | null
+  productGroupId?: string | null
+  taxCodeId?: string | null
   familyId?: string | null
   categoryId?: string | null
   unitOfMeasure: UnitOfMeasure
@@ -129,9 +178,10 @@ export interface ProductInput {
   active: boolean
 }
 
-export type DocumentType = 'QUOTE' | 'DELIVERY_NOTE' | 'INVOICE' | 'WORK_ORDER'
+export type DocumentType = 'QUOTE' | 'SALES_ORDER' | 'DELIVERY_NOTE' | 'INVOICE' | 'WORK_ORDER'
 export type DocumentStatus = 'DRAFT' | 'CONFIRMED' | 'CONVERTED' | 'CANCELLED'
 export type PaymentStatus = 'NOT_APPLICABLE' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID'
+export type QuoteStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'CONVERTED'
 
 export interface DocumentLine {
   id: string
@@ -143,9 +193,19 @@ export interface DocumentLine {
   unitPrice: number
   discountPercentage: number
   taxPercentage: number
+  taxCodeId: string | null
+  taxCode: string | null
+  taxCountryCode: string | null
+  taxName: string | null
+  taxExempt: boolean | null
   netAmount: number
   taxAmount: number
   totalAmount: number
+  requestedQuantity: number
+  tariffId: string | null
+  tariffCode: string | null
+  pricingResolvedAmount: number | null
+  pricingTraceJson: string | null
 }
 
 export interface CommercialDocument {
@@ -167,6 +227,10 @@ export interface CommercialDocument {
   totalAmount: number
   notes: string | null
   lines: DocumentLine[]
+  quoteStatus: QuoteStatus | null
+  quoteValidUntil: string | null
+  quoteDecidedAt: string | null
+  quoteRejectionReason: string | null
 }
 
 export interface CreateDocumentInput {
@@ -188,7 +252,33 @@ export interface CreateDocumentInput {
     unitPrice: number
     discountPercentage: number
     taxPercentage: number
+    unitPriceOverridden: boolean
+    taxPercentageOverridden: boolean
   }>
+}
+
+export interface CreateQuoteInput {
+  customerId: string
+  customerCode: string
+  customerName: string
+  issueDate: string
+  validUntil: string
+  currency: string
+  paymentMethodId?: string | null
+  notes?: string | null
+  sendOnCreate: boolean
+  lines: CreateDocumentInput['lines']
+  numberingSchemeId?: string | null
+}
+
+export interface CurrencyDefinition {
+  id: string
+  code: string
+  name: string
+  symbol: string
+  decimalPlaces: number
+  baseCurrency: boolean
+  active: boolean
 }
 
 export interface PaymentRule {
@@ -221,4 +311,83 @@ export interface DueDate {
   amount: number
   paidAmount: number
   status: DueDateStatus
+}
+
+export type AuditOutcome = 'SUCCESS' | 'FAILURE' | 'DENIED'
+
+export interface AuditEvent {
+  id: string
+  eventId: string
+  companyId: string
+  occurredAt: string
+  sourceService: string
+  eventType: string
+  actorUserId: string | null
+  actorName: string | null
+  action: string
+  resourceType: string
+  resourceId: string | null
+  outcome: AuditOutcome
+  correlationId: string | null
+  metadata: Record<string, unknown>
+  ingestedAt: string
+}
+
+export type AlertSeverity = 'INFO' | 'WARNING' | 'CRITICAL'
+export type AlertDeliveryChannel = 'IN_APP'
+export type AlertStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
+export type AlertConditionOperator = 'EXISTS' | 'NOT_EXISTS' | 'EQUALS' | 'NOT_EQUALS' | 'CONTAINS' | 'GREATER_THAN' | 'GREATER_THAN_OR_EQUAL' | 'LESS_THAN' | 'LESS_THAN_OR_EQUAL'
+
+export interface AlertItem {
+  id: string
+  ruleId: string
+  ruleCode: string
+  sourceEventId: string
+  severity: AlertSeverity
+  title: string
+  message: string
+  status: AlertStatus
+  acknowledgedAt: string | null
+  acknowledgedBy: string | null
+  resolvedAt: string | null
+  resolvedBy: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AlertRule {
+  id: string
+  code: string
+  name: string
+  eventType: string
+  action: string | null
+  resourceType: string | null
+  conditionField: string | null
+  conditionOperator: AlertConditionOperator | null
+  conditionValue: string | null
+  severity: AlertSeverity
+  titleTemplate: string
+  messageTemplate: string
+  cooldownMinutes: number
+  deliveryChannel: AlertDeliveryChannel
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AlertRuleInput {
+  code: string
+  name: string
+  eventType: string
+  action?: string | null
+  resourceType?: string | null
+  conditionField?: string | null
+  conditionOperator?: AlertConditionOperator | null
+  conditionValue?: string | null
+  severity: AlertSeverity
+  titleTemplate: string
+  messageTemplate: string
+  cooldownMinutes: number
+  deliveryChannel: AlertDeliveryChannel
+  active: boolean
 }

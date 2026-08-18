@@ -63,15 +63,17 @@ Inventario del estado revisado el 7 de agosto de 2026. Cada uno de los 164 archi
 
 | Clase | Responsabilidad | Estado |
 |---|---|---|
-| `BootstrapDataInitializer` | Crea permisos, rol y administrador iniciales. | Activa |
+| `BootstrapDataInitializer` | Sincroniza permisos, cinco perfiles base y sus usuarios de demostración. | Activa |
 | `JwtProperties` | Configuración tipada del emisor JWT. | Activa |
 | `SecurityConfig` | Autenticación, hash de contraseña y permisos HTTP. | Activa |
 | `IdentityServiceApplication` | Arranque del servicio de identidad. | Activa |
 | `AppUser` | Usuario y credenciales cifradas. | Activa |
 | `AppUserRepository` | Persistencia y búsqueda de usuarios. | Activa |
 | `CreateUserRequest` | Contrato para crear usuario y pertenencia. | Activa |
-| `UserAdministrationController` | API administrativa de usuarios. | Activa |
-| `UserAdministrationService` | Alta de usuario, empresa y roles. | Activa |
+| `UpdateUserRequest` | Contrato para editar perfil, contraseña, roles y estado. | Activa |
+| `RoleCatalogController`, `RoleCatalogService`, `RoleResponse` | Catálogo asignable de perfiles y permisos del tenant. | Activa |
+| `UserAdministrationController` | API de listado, alta y edición de usuarios. | Activa |
+| `UserAdministrationService` | Administración tenant-scoped y protección del perfil propietario. | Activa |
 | `UserResponse` | Representación segura del usuario, sin contraseña. | Activa |
 
 ## Maestros — catálogo y precios
@@ -150,6 +152,8 @@ Inventario del estado revisado el 7 de agosto de 2026. Cada uno de los 164 archi
 | `SecurityConfig` | Autoriza documentos por permisos de lectura/escritura. | Activa |
 | `CommercialDocument` | Agregado de presupuesto, albarán, factura o parte. | Activa |
 | `CommercialDocumentRepository` | Persistencia y filtros de documentos comerciales. | Activa |
+| `SalesDashboardController`, `SalesDashboardService` | Agrega facturación mensual, acumulados diarios y ritmo esperado. | Activa |
+| `SalesDashboardResponse`, `MonthlyRevenuePoint`, `DailyRevenuePoint`, `InvoiceRevenueEntry` | Contratos inmutables del dashboard económico. | Activa |
 | `CreateDocumentRequest` | Contrato validado de creación documental. | Activa |
 | `DocumentAmountsCalculator` | Calcula neto, impuesto y total con `BigDecimal`. | Activa |
 | `DocumentController` | API de consulta, creación, conversión y cobro. | Activa |

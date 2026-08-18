@@ -23,6 +23,11 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/documents/**").hasAuthority("documents:read")
                         .requestMatchers("/api/v1/documents/**").hasAuthority("documents:write")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/quotes/**").hasAuthority("quotes:read")
+                        .requestMatchers("/api/v1/quotes/**").hasAuthority("quotes:write")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/sales-dashboard/**").hasAuthority("documents:read")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/numbering-schemes/**").hasAuthority("numbering:read")
+                        .requestMatchers("/api/v1/numbering-schemes/**").hasAuthority("numbering:write")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(server -> server.jwt(jwt ->
                         jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))).build();

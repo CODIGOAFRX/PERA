@@ -1,4 +1,6 @@
 import type { ProblemDetail } from '../types/api'
+import { translate } from '../i18n/catalogs'
+import { getStoredLanguage, getStoredLocale } from '../i18n/language'
 
 const TOKEN_KEY = 'pera.auth.token'
 
@@ -29,7 +31,8 @@ export function clearStoredToken() {
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getStoredToken()
   const headers = new Headers(init.headers)
-  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  if (!headers.has('Accept-Language')) headers.set('Accept-Language', getStoredLocale())
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
   const response = await fetch(path, { ...init, headers })
@@ -40,6 +43,21 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     throw new ApiError(response.status, problem?.detail || problem?.title || `Error HTTP ${response.status}`, problem)
   }
   return response.json() as Promise<T>
+}
+
+export async function apiDownload(path: string): Promise<{ blob: Blob; filename: string }> {
+  const token = getStoredToken()
+  const headers = new Headers({ 'Accept-Language': getStoredLocale() })
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const response = await fetch(path, { headers })
+  if (!response.ok) {
+    const problem = await readProblem(response)
+    if (response.status === 401 && token) window.dispatchEvent(new Event('pera:unauthorized'))
+    throw new ApiError(response.status, problem?.detail || problem?.title || `Error HTTP ${response.status}`, problem)
+  }
+  const disposition = response.headers.get('Content-Disposition') ?? ''
+  const filename = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? 'download'
+  return { blob: await response.blob(), filename }
 }
 
 async function readProblem(response: Response): Promise<ProblemDetail | undefined> {
@@ -57,5 +75,5 @@ export function errorMessage(error: unknown) {
     return error.message
   }
   if (error instanceof Error) return error.message
-  return 'Ha ocurrido un error inesperado.'
+  return translate(getStoredLanguage(), 'common.unexpectedError')
 }

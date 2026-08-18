@@ -10,6 +10,7 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -41,6 +42,11 @@ public class Role extends CompanyScopedEntity {
 
     public void grant(Permission permission) {
         permissions.add(permission);
+    }
+
+    public void replacePermissions(Collection<Permission> nextPermissions) {
+        permissions.clear();
+        permissions.addAll(nextPermissions);
     }
 
     public String getCode() { return code; }

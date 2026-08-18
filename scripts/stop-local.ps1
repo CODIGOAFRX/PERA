@@ -11,6 +11,9 @@ $expectedProcesses = @{
     8082 = 'master-data-service'
     8083 = 'sales-service'
     8084 = 'finance-service'
+    8085 = 'operations-service'
+    8086 = 'activity-service'
+    8087 = 'licensing-service'
     5173 = 'vite'
 }
 

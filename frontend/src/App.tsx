@@ -1,29 +1,21 @@
 import { useAuth } from './auth/AuthContext'
 import { AppShell } from './components/AppShell'
-import { CatalogPage } from './pages/CatalogPage'
-import { CustomersPage } from './pages/CustomersPage'
-import { DashboardPage } from './pages/DashboardPage'
-import { FinancePage } from './pages/FinancePage'
 import { LoginPage } from './pages/LoginPage'
-import { SalesPage } from './pages/SalesPage'
-import { SuppliersPage } from './pages/SuppliersPage'
+import { AccessDeniedPage } from './pages/AccessDeniedPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 import { useRouter } from './routing/Router'
+import { isRouteAllowed, matchAppRoute } from './routing/routes'
 
 export default function App() {
-  const { authenticated } = useAuth()
+  const { authenticated, identity } = useAuth()
   const { path } = useRouter()
   if (!authenticated) return <LoginPage />
 
-  const page = (() => {
-    switch (path) {
-      case '/clientes': return <CustomersPage />
-      case '/proveedores': return <SuppliersPage />
-      case '/catalogo': return <CatalogPage />
-      case '/ventas': return <SalesPage />
-      case '/finanzas': return <FinancePage />
-      default: return <DashboardPage />
-    }
-  })()
+  const match = matchAppRoute(path)
+  const Page = match?.route.component
+  const page = Page
+    ? isRouteAllowed(match.route, identity?.roles ?? []) ? <Page /> : <AccessDeniedPage />
+    : <NotFoundPage />
 
   return <AppShell>{page}</AppShell>
 }

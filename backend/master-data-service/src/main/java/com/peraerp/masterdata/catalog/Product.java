@@ -22,6 +22,10 @@ public class Product extends CompanyScopedEntity {
     private String description;
     @Column(name = "product_type_id")
     private UUID productTypeId;
+    @Column(name = "product_group_id")
+    private UUID productGroupId;
+    @Column(name = "tax_code_id")
+    private UUID taxCodeId;
     @Column(name = "family_id")
     private UUID familyId;
     @Column(name = "category_id")
@@ -41,11 +45,27 @@ public class Product extends CompanyScopedEntity {
     public Product(UUID companyId, String code, String name, String description, UUID productTypeId,
                    UUID familyId, UUID categoryId, UnitOfMeasure unitOfMeasure, BigDecimal basePrice,
                    BigDecimal taxRate) {
+        this(companyId, code, name, description, productTypeId, null, null, familyId, categoryId, unitOfMeasure,
+                basePrice, taxRate);
+    }
+
+    public Product(UUID companyId, String code, String name, String description, UUID productTypeId,
+                   UUID productGroupId, UUID familyId, UUID categoryId, UnitOfMeasure unitOfMeasure,
+                   BigDecimal basePrice, BigDecimal taxRate) {
+        this(companyId, code, name, description, productTypeId, productGroupId, null, familyId, categoryId,
+                unitOfMeasure, basePrice, taxRate);
+    }
+
+    public Product(UUID companyId, String code, String name, String description, UUID productTypeId,
+                   UUID productGroupId, UUID taxCodeId, UUID familyId, UUID categoryId,
+                   UnitOfMeasure unitOfMeasure, BigDecimal basePrice, BigDecimal taxRate) {
         super(companyId);
         this.code = code;
         this.name = name;
         this.description = description;
         this.productTypeId = productTypeId;
+        this.productGroupId = productGroupId;
+        this.taxCodeId = taxCodeId;
         this.familyId = familyId;
         this.categoryId = categoryId;
         this.unitOfMeasure = unitOfMeasure;
@@ -55,8 +75,24 @@ public class Product extends CompanyScopedEntity {
 
     public void update(String name, String description, UUID productTypeId, UUID familyId, UUID categoryId,
                        UnitOfMeasure unitOfMeasure, BigDecimal basePrice, BigDecimal taxRate, boolean active) {
+        update(name, description, productTypeId, productGroupId, taxCodeId, familyId, categoryId, unitOfMeasure,
+                basePrice, taxRate, active);
+    }
+
+    public void update(String name, String description, UUID productTypeId, UUID productGroupId, UUID familyId,
+                       UUID categoryId, UnitOfMeasure unitOfMeasure, BigDecimal basePrice, BigDecimal taxRate,
+                       boolean active) {
+        update(name, description, productTypeId, productGroupId, taxCodeId, familyId, categoryId, unitOfMeasure,
+                basePrice, taxRate, active);
+    }
+
+    public void update(String name, String description, UUID productTypeId, UUID productGroupId, UUID taxCodeId,
+                       UUID familyId, UUID categoryId, UnitOfMeasure unitOfMeasure, BigDecimal basePrice,
+                       BigDecimal taxRate, boolean active) {
         this.name = name; this.description = description; this.productTypeId = productTypeId;
-        this.familyId = familyId; this.categoryId = categoryId; this.unitOfMeasure = unitOfMeasure;
+        this.productGroupId = productGroupId; this.taxCodeId = taxCodeId; this.familyId = familyId;
+        this.categoryId = categoryId;
+        this.unitOfMeasure = unitOfMeasure;
         this.basePrice = basePrice; this.taxRate = taxRate; this.active = active;
     }
 
@@ -64,6 +100,8 @@ public class Product extends CompanyScopedEntity {
     public String getName() { return name; }
     public String getDescription() { return description; }
     public UUID getProductTypeId() { return productTypeId; }
+    public UUID getProductGroupId() { return productGroupId; }
+    public UUID getTaxCodeId() { return taxCodeId; }
     public UUID getFamilyId() { return familyId; }
     public UUID getCategoryId() { return categoryId; }
     public UnitOfMeasure getUnitOfMeasure() { return unitOfMeasure; }

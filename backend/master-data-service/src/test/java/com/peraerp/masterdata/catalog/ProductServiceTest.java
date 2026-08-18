@@ -34,7 +34,7 @@ class ProductServiceTest {
     @Test
     void createsNormalizedProduct() {
         when(companyProvider.requireCompanyId()).thenReturn(companyId);
-        when(products.existsByCompanyIdAndCodeIgnoreCase(companyId, " a001 ")).thenReturn(false);
+        when(products.existsByCompanyIdAndCodeIgnoreCase(companyId, "A001")).thenReturn(false);
         when(products.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ProductResponse response = service.create(request(" a001 ", " Servicio mensual ", true));

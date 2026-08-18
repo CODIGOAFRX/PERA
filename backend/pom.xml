@@ -24,6 +24,9 @@
         <module>master-data-service</module>
         <module>sales-service</module>
         <module>finance-service</module>
+        <module>operations-service</module>
+        <module>activity-service</module>
+        <module>licensing-service</module>
         <module>api-gateway</module>
     </modules>
 

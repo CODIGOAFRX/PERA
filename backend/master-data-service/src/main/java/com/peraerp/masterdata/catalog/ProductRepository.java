@@ -12,6 +12,7 @@ import java.util.UUID;
 public interface ProductRepository extends JpaRepository<Product, UUID> {
     Optional<Product> findByIdAndCompanyId(UUID id, UUID companyId);
     boolean existsByCompanyIdAndCodeIgnoreCase(UUID companyId, String code);
+    boolean existsByCompanyIdAndProductGroupId(UUID companyId, UUID productGroupId);
 
     @Query("select p from Product p where p.companyId = :companyId and (:query is null " +
             "or lower(p.code) like lower(concat('%', :query, '%')) " +

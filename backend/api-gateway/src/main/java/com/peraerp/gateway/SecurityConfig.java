@@ -12,7 +12,9 @@ import java.nio.charset.StandardCharsets;
 public class SecurityConfig {
     @Bean SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http){
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
-                .authorizeExchange(exchange->exchange.pathMatchers("/api/v1/auth/login","/actuator/health/**").permitAll().anyExchange().authenticated())
+                .authorizeExchange(exchange->exchange
+                        .pathMatchers("/api/v1/auth/login", "/public/v1/licenses/**", "/actuator/health/**").permitAll()
+                        .anyExchange().authenticated())
                 .oauth2ResourceServer(server->server.jwt(Customizer.withDefaults())).build();
     }
     @Bean ReactiveJwtDecoder reactiveJwtDecoder(@Value("${pera.jwt.secret}") String secret){

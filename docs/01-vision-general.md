@@ -5,7 +5,7 @@ PERA ERP es una plataforma de gestión horizontal para pequeñas y medianas empr
 ## Objetivos
 
 - Operar varias empresas desde una misma plataforma, con acceso y datos aislados por empresa.
-- Reducir la navegación con un futuro dashboard y accesos directos a las tareas frecuentes.
+- Reducir la navegación con un dashboard comparativo y accesos directos a las tareas frecuentes.
 - Cubrir el flujo comercial inicial: clientes, proveedores, artículos, presupuesto, albarán, factura y cobro.
 - Dejar límites claros para incorporar vencimientos, recibos, remesas, riesgo, cartera, caja y factura electrónica.
 - Ofrecer capacidades transversales configurables para comercio, distribución y servicios.
