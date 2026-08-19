@@ -43,6 +43,9 @@ function invoiceFixture(overrides: Partial<CommercialDocument>): CommercialDocum
     customerCode: 'C-001', customerName: 'Cliente Uno', issueDate: '2026-08-01', dueDate: null,
     currency: 'EUR', sourceDocumentId: null, paymentMethodId: null, paymentStatus: 'PENDING',
     netAmount: 100, taxAmount: 21, totalAmount: 121, notes: null, lines: [], quoteStatus: null,
-    quoteValidUntil: null, quoteDecidedAt: null, quoteRejectionReason: null, ...overrides,
+    quoteValidUntil: null, quoteDecidedAt: null, quoteRejectionReason: null,
+    invoiceKind: 'F1', rectificationType: null, rectifiedDocumentId: null, rectifiedNumber: null,
+    rectifiedIssueDate: null, issued: true,
+    customerTaxId: 'B75777847', customerTaxIdentificationType: 'NIF', customerTaxCountry: 'ES', ...overrides,
   }
 }

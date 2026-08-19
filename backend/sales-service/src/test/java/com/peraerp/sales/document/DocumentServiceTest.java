@@ -37,6 +37,7 @@ class DocumentServiceTest {
     @Mock DomainEventRecorder events;
     @Mock DocumentCurrencyService currencyService;
     @Mock SalesMasterDataService masterDataService;
+    @Mock com.peraerp.sales.verifactu.VerifactuIssuanceService verifactuIssuance;
 
     private final UUID companyId = UUID.randomUUID();
     private DocumentService service;
@@ -44,7 +45,7 @@ class DocumentServiceTest {
     @BeforeEach
     void setUp() {
         service = new DocumentService(documents, numberGenerator, new DocumentAmountsCalculator(), companyProvider,
-                events, currencyService, masterDataService);
+                events, currencyService, masterDataService, verifactuIssuance);
         when(companyProvider.requireCompanyId()).thenReturn(companyId);
         lenient().when(masterDataService.requireActiveCustomer(any())).thenAnswer(invocation ->
                 new CustomerSnapshot(invocation.getArgument(0), "C001", "Cliente Demo", true));

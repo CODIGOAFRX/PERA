@@ -34,8 +34,9 @@ public class CustomerService {
             throw new BusinessRuleException("Ya existe un tercero con el código " + request.code());
         }
         Party party = partyRepository.save(new Party(companyId, request.code().trim().toUpperCase(),
-                request.legalName().trim(), request.tradeName(), request.taxId(), request.phone(), request.email(),
-                request.observations()));
+                request.legalName().trim(), request.tradeName(), request.taxId(),
+                request.taxIdentificationType(), request.taxCountryCode(),
+                request.phone(), request.email(), request.observations()));
         CustomerProfile profile = customerRepository.save(new CustomerProfile(companyId, party.getId(),
                 request.priceListId(), request.defaultPaymentMethodId(), request.supplierCode(),
                 request.calculationMultiplier(), request.creditLimit(), request.riskWarningThreshold(), request.riskPolicy()));
@@ -53,7 +54,8 @@ public class CustomerService {
         if (!party.getCode().equalsIgnoreCase(request.code())) {
             throw new BusinessRuleException("El código del cliente no se puede modificar.");
         }
-        party.update(request.legalName().trim(), request.tradeName(), request.taxId(), request.phone(),
+        party.update(request.legalName().trim(), request.tradeName(), request.taxId(),
+                request.taxIdentificationType(), request.taxCountryCode(), request.phone(),
                 request.email(), request.observations(), request.active() == null || request.active());
         profile.update(request.priceListId(), request.defaultPaymentMethodId(), request.supplierCode(),
                 request.calculationMultiplier(), request.creditLimit(), request.riskWarningThreshold(),

@@ -24,6 +24,22 @@ El informe de cobros pendientes calcula el saldo con los vencimientos existentes
 
 La interfaz usa blanco, crema muy suave y un verde pera vivo. La marca emplea una pera lineal en SVG en lugar de una inicial. No depende de animaciones para comunicar estado, mantiene foco visible, respeta `prefers-reduced-motion` y adapta navegación, formularios y paneles a escritorio y móvil. La barra lateral se puede redimensionar con puntero o teclado; se compacta y termina ocultándose, con un control para recuperarla.
 
+### Mayúsculas en el texto visible
+
+Todo texto que ve el usuario empieza en mayúscula: etiquetas, valores, chips, insignias de estado,
+estados vacíos, mensajes y opciones de desplegable. Se escribe `Primer registro de la cadena`, no
+`primer registro de la cadena`; `N.º 1`, no `nº 1`.
+
+La única excepción es un fragmento que continúa una frase empezada en el elemento anterior, como la
+segunda línea de un titular partido con `<br />`.
+
+Dentro de una frase la mayúscula va solo en la primera palabra, nunca en cada palabra: `Nueva
+licencia`, no `Nueva Licencia`. En inglés se sigue el mismo criterio de frase, no el capitalizado
+de titular anglosajón.
+
+Se usan las abreviaturas correctas del español: `N.º` para número —no `Nº` ni `nº`— y `n.os` en
+plural.
+
 ## Arquitectura
 
 React conserva la sesión en el navegador, extrae del JWT firmado la identidad, roles y permisos para adaptar la experiencia, adjunta ese JWT a cada llamada y centraliza la traducción de errores `ProblemDetail`. El backend vuelve a comprobar cada permiso y es la autoridad final. Un enrutador pequeño basado en History API evita una dependencia adicional. En desarrollo, Vite reenvía `/api` al gateway; en Docker lo hace Nginx.

@@ -12,6 +12,12 @@ $postgresLog = Join-Path $runtimeRoot 'postgres.log'
 $postgresPort = 55432
 $jwtSecret = 'pera-local-development-secret-2026-minimum-32-bytes'
 $internalServiceKey = 'pera-local-internal-service-key-change-me'
+# NIF del productor del software ante la AEAT. En desarrollo se usa el NIF de ejemplo que la propia
+# AEAT emplea en su documentacion. En produccion es el NIF real de quien comercializa PERA y debe
+# llegar por PERA_VERIFACTU_DEVELOPER_TAX_ID; si ya viene definido, este script lo respeta.
+if (-not $env:PERA_VERIFACTU_DEVELOPER_TAX_ID) {
+    $env:PERA_VERIFACTU_DEVELOPER_TAX_ID = '89890001K'
+}
 
 function Resolve-PostgresBin {
     if ($env:PG_BIN -and (Test-Path (Join-Path $env:PG_BIN 'pg_ctl.exe'))) {

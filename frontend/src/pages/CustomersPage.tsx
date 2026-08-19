@@ -11,9 +11,9 @@ import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { apiFetch, errorMessage } from '../lib/api'
 import { formatCurrency } from '../lib/format'
-import { riskPolicyKey } from '../i18n/businessLabels'
+import { riskPolicyKey, taxIdentificationTypeKey } from '../i18n/businessLabels'
 import { useTranslation } from '../i18n/I18nProvider'
-import type { Customer, CustomerInput, PageResponse, RiskPolicy } from '../types/api'
+import type { Customer, CustomerInput, PageResponse, RiskPolicy, TaxIdentificationType } from '../types/api'
 
 export function CustomersPage() {
   const { locale, t } = useTranslation()
@@ -67,7 +67,8 @@ function CustomerForm({ customer, onCancel, onSaved }: { customer: Customer | nu
   const { t } = useTranslation()
   const [form, setForm] = useState({
     code: customer?.code ?? '', legalName: customer?.legalName ?? '', tradeName: customer?.tradeName ?? '',
-    taxId: customer?.taxId ?? '', phone: customer?.phone ?? '', email: customer?.email ?? '',
+    taxId: customer?.taxId ?? '', taxIdentificationType: customer?.taxIdentificationType ?? 'NIF',
+    taxCountryCode: customer?.taxCountryCode ?? 'ES', phone: customer?.phone ?? '', email: customer?.email ?? '',
     observations: customer?.observations ?? '', creditLimit: String(customer?.creditLimit ?? 0),
     riskWarningThreshold: String(customer?.riskWarningThreshold ?? 0), riskPolicy: customer?.riskPolicy ?? 'WARN' as RiskPolicy,
     active: customer?.active ?? true,
@@ -82,7 +83,10 @@ function CustomerForm({ customer, onCancel, onSaved }: { customer: Customer | nu
     setError('')
     const payload: CustomerInput = {
       code: form.code.trim(), legalName: form.legalName.trim(), tradeName: form.tradeName.trim() || null,
-      taxId: form.taxId.trim() || null, phone: form.phone.trim() || null, email: form.email.trim() || null,
+      taxId: form.taxId.trim() || null,
+      taxIdentificationType: form.taxId.trim() ? form.taxIdentificationType : null,
+      taxCountryCode: form.taxId.trim() ? (form.taxCountryCode.trim().toUpperCase() || null) : null,
+      phone: form.phone.trim() || null, email: form.email.trim() || null,
       observations: form.observations.trim() || null, creditLimit: Number(form.creditLimit || 0),
       riskWarningThreshold: Number(form.riskWarningThreshold || 0), riskPolicy: form.riskPolicy, active: form.active,
     }
@@ -101,6 +105,8 @@ function CustomerForm({ customer, onCancel, onSaved }: { customer: Customer | nu
     <Field label={t('field.legalName')} htmlFor="customer-name" required><input id="customer-name" value={form.legalName} onChange={(event) => update('legalName', event.target.value)} maxLength={180} required /></Field>
     <Field label={t('field.tradeName')} htmlFor="customer-trade"><input id="customer-trade" value={form.tradeName} onChange={(event) => update('tradeName', event.target.value)} maxLength={180} /></Field>
     <Field label={t('field.taxId')} htmlFor="customer-tax"><input id="customer-tax" value={form.taxId} onChange={(event) => update('taxId', event.target.value)} maxLength={30} /></Field>
+    <Field label={t('field.taxIdentificationType')} htmlFor="customer-tax-type"><select id="customer-tax-type" value={form.taxIdentificationType} disabled={!form.taxId.trim()} onChange={(event) => update('taxIdentificationType', event.target.value as TaxIdentificationType)}>{(['NIF', 'VAT_NUMBER', 'PASSPORT', 'FOREIGN_OFFICIAL_ID', 'RESIDENCE_CERTIFICATE', 'OTHER_DOCUMENT', 'NOT_REGISTERED'] as TaxIdentificationType[]).map((value) => <option key={value} value={value}>{t(taxIdentificationTypeKey[value])}</option>)}</select></Field>
+    <Field label={t('field.taxCountryCode')} htmlFor="customer-tax-country"><input id="customer-tax-country" value={form.taxCountryCode} disabled={!form.taxId.trim()} onChange={(event) => update('taxCountryCode', event.target.value.toUpperCase())} maxLength={2} placeholder="ES" /></Field>
     <Field label={t('field.phone')} htmlFor="customer-phone"><input id="customer-phone" value={form.phone} onChange={(event) => update('phone', event.target.value)} maxLength={40} /></Field>
     <Field label={t('field.email')} htmlFor="customer-email"><input id="customer-email" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} maxLength={180} /></Field>
     <Field label={t('customers.creditLimit')} htmlFor="customer-credit"><input id="customer-credit" type="number" min="0" step="0.01" value={form.creditLimit} onChange={(event) => update('creditLimit', event.target.value)} /></Field>

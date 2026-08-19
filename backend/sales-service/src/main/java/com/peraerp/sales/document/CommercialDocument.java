@@ -1,6 +1,9 @@
 package com.peraerp.sales.document;
 
 import com.peraerp.platform.domain.CompanyScopedEntity;
+import com.peraerp.sales.verifactu.domain.InvoiceKind;
+import com.peraerp.sales.verifactu.domain.RectificationType;
+import com.peraerp.sales.verifactu.domain.TaxIdentificationType;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,12 +21,28 @@ public class CommercialDocument extends CompanyScopedEntity {
     private DocumentType type;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 30)
     private DocumentStatus status = DocumentStatus.DRAFT;
+    @Enumerated(EnumType.STRING) @Column(name = "invoice_kind", length = 2)
+    private InvoiceKind invoiceKind;
+    @Enumerated(EnumType.STRING) @Column(name = "rectification_type", length = 12)
+    private RectificationType rectificationType;
+    @Column(name = "rectified_document_id")
+    private UUID rectifiedDocumentId;
+    @Column(name = "rectified_number_snapshot", length = 80)
+    private String rectifiedNumberSnapshot;
+    @Column(name = "rectified_issue_date_snapshot")
+    private LocalDate rectifiedIssueDateSnapshot;
     @Column(name = "customer_id", nullable = false)
     private UUID customerId;
     @Column(name = "customer_code_snapshot", nullable = false, length = 60)
     private String customerCodeSnapshot;
     @Column(name = "customer_name_snapshot", nullable = false, length = 180)
     private String customerNameSnapshot;
+    @Column(name = "customer_tax_id_snapshot", length = 30)
+    private String customerTaxIdSnapshot;
+    @Enumerated(EnumType.STRING) @Column(name = "customer_tax_identification_type_snapshot", length = 20)
+    private TaxIdentificationType customerTaxIdentificationTypeSnapshot;
+    @Column(name = "customer_tax_country_snapshot", length = 2)
+    private String customerTaxCountrySnapshot;
     @Column(name = "issue_date", nullable = false)
     private LocalDate issueDate;
     @Column(name = "due_date")
@@ -81,15 +100,25 @@ public class CommercialDocument extends CompanyScopedEntity {
         this.issueDate=issueDate; this.dueDate=dueDate; this.currency=currency == null ? "EUR" : currency;
         this.baseCurrency = this.currency; this.exchangeRateDate = issueDate;
         this.sourceDocumentId=sourceDocumentId; this.paymentMethodId=paymentMethodId; this.notes=notes;
-        this.paymentStatus = type == DocumentType.INVOICE ? PaymentStatus.PENDING : PaymentStatus.NOT_APPLICABLE;
+        this.paymentStatus = type.isInvoice() ? PaymentStatus.PENDING : PaymentStatus.NOT_APPLICABLE;
+        if (type == DocumentType.INVOICE) {
+            // Una factura ordinaria es completa salvo que se clasifique explícitamente como
+            // simplificada. Una rectificativa no tiene valor por defecto razonable: el motivo
+            // (R1..R5) lo decide quien la emite.
+            this.invoiceKind = InvoiceKind.F1;
+        }
         if (type == DocumentType.QUOTE) {
             this.quoteStatus = QuoteStatus.DRAFT;
             this.quoteValidUntil = issueDate.plusDays(30);
         }
     }
 
-    public void addLine(DocumentLine line) { line.attachTo(this, lines.size() + 1); lines.add(line); }
+    public void addLine(DocumentLine line) {
+        requireModifiable();
+        line.attachTo(this, lines.size() + 1); lines.add(line);
+    }
     public void recalculate(DocumentAmountsCalculator calculator) {
+        requireModifiable();
         lines.forEach(line -> line.recalculate(calculator));
         netAmount = lines.stream().map(DocumentLine::getNetAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         taxAmount = lines.stream().map(DocumentLine::getTaxAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -97,6 +126,7 @@ public class CommercialDocument extends CompanyScopedEntity {
         recalculateBaseAmounts();
     }
     public void applyCurrencySnapshot(String baseCurrency, BigDecimal exchangeRate, LocalDate rateDate, String source) {
+        requireModifiable();
         this.baseCurrency = baseCurrency;
         this.exchangeRate = exchangeRate;
         this.exchangeRateDate = rateDate;
@@ -108,13 +138,99 @@ public class CommercialDocument extends CompanyScopedEntity {
         baseTaxAmount = taxAmount.multiply(exchangeRate).setScale(4, java.math.RoundingMode.HALF_UP);
         baseTotalAmount = totalAmount.multiply(exchangeRate).setScale(4, java.math.RoundingMode.HALF_UP);
     }
+
+    /**
+     * Congela la identificación fiscal del destinatario tal y como está en maestros al emitir.
+     *
+     * <p>Es lo que alimenta el bloque {@code IDDestinatario} del registro de facturación. Si el
+     * cliente cambia de NIF mañana, el registro ya remitido sigue siendo reproducible.</p>
+     */
+    public void applyCustomerTaxSnapshot(String taxId, TaxIdentificationType identificationType, String countryCode) {
+        requireModifiable();
+        this.customerTaxIdSnapshot = taxId;
+        this.customerTaxIdentificationTypeSnapshot = identificationType;
+        this.customerTaxCountrySnapshot = countryCode;
+    }
+
+    /**
+     * Fija la clasificación fiscal de la factura: tipo (F1..R5) y, en las rectificativas, criterio
+     * de rectificación y factura rectificada.
+     *
+     * <p>Los datos de la factura rectificada se congelan aquí como <em>snapshot</em>. El registro
+     * que se remita a la AEAT debe reproducirse años después sin depender de que la factura
+     * original siga existiendo o conserve el mismo número.</p>
+     */
+    public void classify(InvoiceKind invoiceKind, RectificationType rectificationType,
+                         UUID rectifiedDocumentId, String rectifiedNumber, LocalDate rectifiedIssueDate) {
+        requireModifiable();
+        if (!type.isInvoice()) {
+            throw new com.peraerp.platform.domain.BusinessRuleException(
+                    "Solo las facturas admiten clasificación fiscal.");
+        }
+        this.invoiceKind = invoiceKind;
+        this.rectificationType = rectificationType;
+        this.rectifiedDocumentId = rectifiedDocumentId;
+        this.rectifiedNumberSnapshot = rectifiedNumber;
+        this.rectifiedIssueDateSnapshot = rectifiedIssueDate;
+    }
+
     public void confirm() {
         if (status != DocumentStatus.DRAFT) {
             throw new com.peraerp.platform.domain.BusinessRuleException("Solo se pueden confirmar documentos en borrador.");
         }
+        if (type.isInvoice()) {
+            validateFiscalClassification();
+        }
         status = DocumentStatus.CONFIRMED;
         if (type == DocumentType.QUOTE) quoteStatus = QuoteStatus.SENT;
     }
+
+    /**
+     * Una factura confirmada está expedida: a partir de ese momento es inmutable y solo se puede
+     * corregir emitiendo una rectificativa.
+     */
+    public boolean isIssued() {
+        return type.isInvoice() && status != DocumentStatus.DRAFT;
+    }
+
+    private void requireModifiable() {
+        if (isIssued()) {
+            throw new com.peraerp.platform.domain.BusinessRuleException(
+                    "La factura " + documentNumber + " ya está expedida y no se puede modificar. "
+                            + "Emite una factura rectificativa.");
+        }
+    }
+
+    private void validateFiscalClassification() {
+        if (invoiceKind == null) {
+            throw new com.peraerp.platform.domain.BusinessRuleException(
+                    "Una factura debe indicar su tipo fiscal (F1, F2, F3 o R1 a R5) antes de expedirse.");
+        }
+        if (type == DocumentType.RECTIFYING_INVOICE) {
+            if (!invoiceKind.isRectifying()) {
+                throw new com.peraerp.platform.domain.BusinessRuleException(
+                        "Una factura rectificativa debe usar un tipo R1 a R5; se indicó " + invoiceKind.code() + ".");
+            }
+            if (rectificationType == null) {
+                throw new com.peraerp.platform.domain.BusinessRuleException(
+                        "Una factura rectificativa debe indicar si rectifica por sustitución o por diferencias.");
+            }
+            if (rectifiedDocumentId == null || rectifiedNumberSnapshot == null || rectifiedIssueDateSnapshot == null) {
+                throw new com.peraerp.platform.domain.BusinessRuleException(
+                        "Una factura rectificativa debe referenciar la factura que rectifica.");
+            }
+        } else {
+            if (invoiceKind.isRectifying()) {
+                throw new com.peraerp.platform.domain.BusinessRuleException(
+                        "Una factura ordinaria no puede usar el tipo rectificativo " + invoiceKind.code() + ".");
+            }
+            if (rectificationType != null || rectifiedDocumentId != null) {
+                throw new com.peraerp.platform.domain.BusinessRuleException(
+                        "Solo una factura rectificativa puede referenciar una factura rectificada.");
+            }
+        }
+    }
+
     public void configureQuoteValidity(LocalDate validUntil) {
         requireQuote();
         if (validUntil == null || validUntil.isBefore(issueDate)) {
@@ -170,6 +286,14 @@ public class CommercialDocument extends CompanyScopedEntity {
     public String getDocumentNumber() { return documentNumber; }
     public DocumentType getType() { return type; }
     public DocumentStatus getStatus() { return status; }
+    public InvoiceKind getInvoiceKind() { return invoiceKind; }
+    public RectificationType getRectificationType() { return rectificationType; }
+    public UUID getRectifiedDocumentId() { return rectifiedDocumentId; }
+    public String getRectifiedNumberSnapshot() { return rectifiedNumberSnapshot; }
+    public LocalDate getRectifiedIssueDateSnapshot() { return rectifiedIssueDateSnapshot; }
+    public String getCustomerTaxIdSnapshot() { return customerTaxIdSnapshot; }
+    public TaxIdentificationType getCustomerTaxIdentificationTypeSnapshot() { return customerTaxIdentificationTypeSnapshot; }
+    public String getCustomerTaxCountrySnapshot() { return customerTaxCountrySnapshot; }
     public UUID getCustomerId() { return customerId; }
     public String getCustomerCodeSnapshot() { return customerCodeSnapshot; }
     public String getCustomerNameSnapshot() { return customerNameSnapshot; }

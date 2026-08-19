@@ -26,6 +26,7 @@ public class DocumentNumberGenerator {
             DocumentType.SALES_ORDER, "PED",
             DocumentType.DELIVERY_NOTE, "ALB",
             DocumentType.INVOICE, "FAC",
+            DocumentType.RECTIFYING_INVOICE, "REC",
             DocumentType.WORK_ORDER, "PAR");
 
     private final NumberingSchemeRepository schemes;
