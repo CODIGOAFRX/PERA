@@ -126,7 +126,7 @@ class TaxCodeServiceTest {
     private TaxCodeRequest request(String country, String code, BigDecimal percentage, LocalDate validFrom,
                                    LocalDate validUntil, boolean exempt, boolean active) {
         return new TaxCodeRequest(country, code, " Impuesto general ", percentage, validFrom, validUntil, exempt,
-                active);
+                null, null, null, active);
     }
 
     private TaxCode taxCode(String country, String code, BigDecimal percentage, boolean active,

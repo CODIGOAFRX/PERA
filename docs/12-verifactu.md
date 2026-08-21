@@ -356,12 +356,62 @@ que ya están en la factura.
 | **1b** | `verifactu_settings` en `SettingsPage` | 1a | ✅ **hecho** (14 pruebas) |
 | **2** | Huella y encadenado, con tests contra los vectores oficiales. **Sin red.** | 1 | ✅ **hecho** (`verifactu/hash/`, 13 pruebas) |
 | **3a** | Enganche emisión → cadena: la factura expedida genera su registro | 0, 1 | ✅ **hecho** (9 pruebas) |
-| **3b** | Desglose de IVA, bloque destinatario, `SistemaInformatico` y serialización XML contra los XSD | 3a | pendiente |
+| **3b** | Desglose de IVA, bloque destinatario, `SistemaInformatico` y serialización XML contra los XSD | 3a | ✅ **hecho** — el XML se guarda en `verifactu_records.payload_xml` y se consulta en `/api/v1/verifactu-records/{id}/xml` |
 | **4a** | QR de cotejo y bloque Veri*Factu en el detalle de la factura | 3a | ✅ **hecho** — cotejado contra la AEAT en preproducción |
-| **4b** | Impresión de factura individual en A4 con QR y leyenda | 4a | pendiente (PERA no imprime facturas todavía) |
+| **4b** | Factura individual en A4 con QR y leyenda, en PDF generado por el servidor | 4a | 🟡 **PDF hecho, falta el domicilio del destinatario** (ver 7.1) |
 | **5** | `AeatSoapSubmitter`: certificado por empresa, WSDL, entorno de pruebas, `TiempoEsperaEnvio`, lotes, reintentos | 3b | pendiente |
 | **6** | Anulación y subsanación; pantalla de estado Veri*Factu por factura | 5 | pendiente |
 | **7** | Declaración responsable, documentación del producto, `docs/11-ampliacion-plataforma.md` actualizado | todo | pendiente |
+
+### 7.1 La factura en PDF, y lo que le falta: el domicilio del destinatario
+
+La factura se genera como **PDF en el servidor** (`backend/sales-service/.../print/`), no
+imprimiendo una página web: es un entregable que hay que poder enviar por correo, archivar y
+reimprimir idéntico dentro de cinco años, y una impresión de navegador depende de qué navegador,
+con qué márgenes y con qué ajustes del diálogo. Se descarga de
+`GET /api/v1/documents/{id}/invoice.pdf`. Lleva el QR a 35 mm en la primera hoja con la leyenda
+`VERI*FACTU` y «Factura verificable en la sede electrónica de la AEAT», la huella en texto al pie, y
+la maqueta de recuadros y rejilla que espera quien recibe una factura.
+
+Librerías: **PDFBox 3.0.8** y **ZXing 3.5.4**, las dos Apache-2.0. iText 7 queda descartado por ser
+AGPL: obligaría a liberar PERA entero o a comprar licencia comercial.
+
+Pero **no lleva el domicilio del cliente, y el art. 6.1.e) del RD 1619/2012 lo exige**, igual que el
+nombre y el NIF.
+
+No es un descuido de la hoja: PERA no guarda esa dirección en ninguna parte. La tabla
+`party_addresses` está creada desde la migración `V1` de master-data, pero la entidad `PartyAddress`
+no tiene ni constructor ni *getters*, ningún controlador la expone y la pantalla de Clientes no tiene
+campos de dirección. Es una tabla vacía desde el primer día.
+
+Para cerrarlo hace falta, por este orden:
+
+1. Dar vida a `PartyAddress` (constructor, *getters*, alta y edición) y exponerla en la API de
+   clientes.
+2. Campos de dirección en la pantalla de Clientes.
+3. Congelarla en la factura al expedir, como ya se hace con el NIF
+   (`customerTaxIdSnapshot`): una copia de la factura tiene que reproducir el domicilio que tenía el
+   cliente aquel día, no el de hoy.
+
+Mientras tanto la factura imprime el aviso en vez de disimular el hueco, porque una que parece
+completa sin estarlo es peor que una que avisa.
+
+### 7.2 Facturae: qué es y por qué no está aquí
+
+`Facturae` **no es una alternativa al XML de Veri\*Factu**, es otra cosa:
+
+| | Facturae | Veri\*Factu |
+|---|---|---|
+| Destinatario | el cliente, o FACe si es Administración | la AEAT |
+| Qué es | la factura entera en XML, sustituye al papel | un registro de que la factura se ha expedido |
+| Norma | Ley 18/2022 «Crea y Crece» | RD 1007/2023 |
+| Firma | XAdES-EPES obligatoria | no la lleva el registro |
+
+Para Veri\*Factu no hay elección de formato: el XSD de la AEAT es el único. Facturae queda como
+fase aparte, para después de cerrar Veri\*Factu. Comparte con la impresión casi todos los datos que
+faltan, el domicilio del cliente el primero.
+
+---
 
 Las fases 2 y 3 se pueden hacer enteras sin certificado y sin conexión con la AEAT. Es donde está
 la mayor parte del riesgo técnico y es lo que conviene atacar primero.
@@ -460,6 +510,36 @@ entraría como vertical explícito, no en el núcleo. Tema para otro día.
 
 ---
 
+## 8.2 Integridad de la cadena: qué la protege
+
+Tres barreras independientes, de menor a mayor coste de fallo:
+
+1. **Bloqueo pesimista** de `verifactu_chain_head` (`SELECT ... FOR UPDATE`). Serializa las
+   emisiones de una empresa. Aporta sobre todo *liveness*: sin él habría fallos aleatorios bajo
+   carga en vez de una cola ordenada.
+2. **`uk_verifactu_record_sequence UNIQUE (company_id, sequence_number)`**. Aunque el bloqueo
+   desapareciera, dos emisiones simultáneas pedirían el mismo número de secuencia y la segunda
+   sería rechazada por la base de datos. Una bifurcación no se puede persistir.
+3. **`uk_verifactu_record_chain_link`** (`V10`), índice único parcial sobre
+   `(company_id, previous_fingerprint)`. Expresa la invariante directamente: dos registros no
+   pueden encadenarse desde el mismo predecesor.
+
+Y dos pruebas que las vigilan:
+
+- `VerifactuChainLockingGuardTest` comprueba por reflexión que siguen puestas
+  `@Lock(PESSIMISTIC_WRITE)` y `@Transactional(MANDATORY)`. Nadie introduce concurrencia por
+  accidente; lo que pasa es que alguien borra una anotación refactorizando y todo sigue verde.
+- `VerifactuChainConcurrencyTest` lanza doce emisiones simultáneas contra el PostgreSQL local y
+  reconstruye la cadena entera recalculando cada huella. Usa el clúster que levanta
+  `scripts/start-local.ps1` y se salta sola si no lo encuentra: **no exige Docker**, porque en el
+  equipo de desarrollo la virtualización está deshabilitada y Testcontainers no arrancaría.
+
+> **Fallo encontrado por esta prueba en su primera ejecución.** La marca de tiempo del registro la
+> ponía el llamante *antes* de entrar en el bloqueo. Con dos emisiones simultáneas, quien sellaba
+> primero podía encadenarse segundo, y la validación de monotonía rechazaba una factura legítima.
+> Ahora la sella la propia cadena una vez tiene el bloqueo, así que la monotonía se cumple por
+> construcción y la validación solo salta ante un reloj que retrocede de verdad.
+
 ## 9. Decisiones abiertas
 
 1. **¿Facturas simplificadas (tickets)?** Si PERA va a vender a comercio con TPV hay que
@@ -471,6 +551,31 @@ entraría como vertical explícito, no en el núcleo. Tema para otro día.
    el registro queda `PENDING`. Hay que definir el aviso al usuario y el límite de reintentos.
 5. **Clientes en País Vasco o Navarra.** TicketBAI sustituye a Veri*Factu allí. Si algún cliente
    potencial está en esas provincias, es un módulo aparte.
+6. **`Macrodato`.** El esquema tiene un campo opcional `Macrodato` en `RegistroAlta` que PERA no
+   escribe. Se marca cuando el importe supera cierto umbral. No he podido confirmar el umbral
+   exacto en la documentación pública consultada, así que hay que leerlo en el XSD oficial y en el
+   documento de validaciones antes de implementarlo. Bloquea la validación de facturas muy grandes,
+   nada más.
+
+### 9.1 Lo que declara el bloque `SistemaInformatico` — corregido
+
+Las tres marcas de uso no son lo mismo y al principio las escribí las tres a `S`:
+
+| Campo | Qué es | Valor en PERA |
+|---|---|---|
+| `TipoUsoPosibleSoloVerifactu` | capacidad del programa | `S` constante — PERA solo implementa esta modalidad |
+| `TipoUsoPosibleMultiOT` | capacidad del programa | `S` constante — PERA es multiempresa |
+| `IndicadorMultiplesOT` | **hecho de la instalación al generar el registro** | calculado: `S` si hay más de una empresa con Veri*Factu activo |
+
+El tercero es un hecho, no una capacidad: una instalación de una sola empresa que declare `S` está
+afirmando algo falso ante la AEAT, y es un dato que nadie mira después.
+
+`NumeroInstalacion` identifica la **instalación** del programa, no a la empresa que lo usa. Caía al
+identificador de la empresa cuando no estaba configurado, lo que se contradecía con el propio
+`IndicadorMultiplesOT`: cada empresa declaraba una instalación distinta mientras afirmaba
+compartirla. Ahora es obligatorio (`PERA_VERIFACTU_INSTALLATION_NUMBER`), igual que la razón social
+del productor (`PERA_VERIFACTU_DEVELOPER_NAME`), que caía al nombre del programa y producía un
+registro que parecía completo sin estarlo.
 
 ---
 

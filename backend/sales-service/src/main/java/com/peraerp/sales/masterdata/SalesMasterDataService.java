@@ -47,7 +47,10 @@ public class SalesMasterDataService {
                     line.quantity(), line.unitPrice(), defaultZero(line.discountPercentage()), taxPercentage,
                     null, null, null, null, taxCode == null ? null : taxCode.id(),
                     taxCode == null ? null : taxCode.code(), taxCode == null ? null : taxCode.countryCode(),
-                    taxCode == null ? null : taxCode.name(), taxCode == null ? null : taxCode.exempt());
+                    taxCode == null ? null : taxCode.name(), taxCode == null ? null : taxCode.exempt(),
+                    taxCode == null ? null : taxCode.operationQualification(),
+                    taxCode == null ? null : taxCode.exemptionCause(),
+                    taxCode == null ? null : taxCode.regimeKey());
         }
         PricingSnapshot price = client.resolvePrice(customerId, product.id(), line.quantity(), issueDate,
                 product.basePrice(), currency.trim().toUpperCase(Locale.ROOT));
@@ -60,7 +63,10 @@ public class SalesMasterDataService {
                 taxPercentage, price.tariffId(), price.tariffCode(),
                 price.finalPrice(), serializeTrace(price), taxCode == null ? null : taxCode.id(),
                 taxCode == null ? null : taxCode.code(), taxCode == null ? null : taxCode.countryCode(),
-                taxCode == null ? null : taxCode.name(), taxCode == null ? null : taxCode.exempt());
+                taxCode == null ? null : taxCode.name(), taxCode == null ? null : taxCode.exempt(),
+                taxCode == null ? null : taxCode.operationQualification(),
+                taxCode == null ? null : taxCode.exemptionCause(),
+                taxCode == null ? null : taxCode.regimeKey());
     }
 
     private TaxCodeSnapshot resolveTaxCode(ProductSnapshot product, LocalDate issueDate) {

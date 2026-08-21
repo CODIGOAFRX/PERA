@@ -101,7 +101,7 @@ class SupplierServiceTest {
     }
 
     private SupplierRequest request(String code, String name, Boolean active) {
-        return new SupplierRequest(code, name, "Comercial", "B456", "611000000", "proveedor@demo.es",
+        return new SupplierRequest(code, name, "Comercial", "A58818501", "611000000", "proveedor@demo.es",
                 "Observaciones", "Transporte Norte", "Ruta A", null, active);
     }
 }

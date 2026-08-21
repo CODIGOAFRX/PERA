@@ -175,9 +175,13 @@ public class DocumentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Documento", id));
     }
     private DocumentLine toLine(ResolvedDocumentLine line) {
-        return new DocumentLine(line.productId(), line.productCode(), line.description(), line.requestedQuantity(),
-                line.billedQuantity(), line.displayUnitPrice(), line.discountPercentage(), line.taxPercentage(),
-                line.tariffId(), line.tariffCode(), line.pricingResolvedAmount(), line.pricingTraceJson(),
-                line.taxCodeId(), line.taxCode(), line.taxCountryCode(), line.taxName(), line.taxExempt());
+        DocumentLine documentLine = new DocumentLine(line.productId(), line.productCode(), line.description(),
+                line.requestedQuantity(), line.billedQuantity(), line.displayUnitPrice(), line.discountPercentage(),
+                line.taxPercentage(), line.tariffId(), line.tariffCode(), line.pricingResolvedAmount(),
+                line.pricingTraceJson(), line.taxCodeId(), line.taxCode(), line.taxCountryCode(), line.taxName(),
+                line.taxExempt());
+        documentLine.applyFiscalQualification(line.taxQualification(), line.taxExemptionCause(),
+                line.taxRegimeKey());
+        return documentLine;
     }
 }

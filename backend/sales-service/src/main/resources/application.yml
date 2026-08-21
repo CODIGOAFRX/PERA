@@ -22,6 +22,8 @@ pera.verifactu.software:
   id: ${PERA_VERIFACTU_SOFTWARE_ID:01}
   version: ${PERA_VERIFACTU_SOFTWARE_VERSION:0.1.0}
   developer-tax-id: ${PERA_VERIFACTU_DEVELOPER_TAX_ID:}
+  developer-name: ${PERA_VERIFACTU_DEVELOPER_NAME:}
+  installation-number: ${PERA_VERIFACTU_INSTALLATION_NUMBER:}
 management:
   endpoints.web.exposure.include: health,info,prometheus
   endpoint.health.probes.enabled: true

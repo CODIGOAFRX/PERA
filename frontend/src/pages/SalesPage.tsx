@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, FileText, Plus, ReceiptText, Trash2 } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Download, FileText, Plus, ReceiptText, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
 import { Field, FormActions } from '../components/Form'
@@ -9,7 +9,7 @@ import { StatusBadge, type BadgeTone } from '../components/StatusBadge'
 import { TableToolbar } from '../components/TableToolbar'
 import { VerifactuBlock } from '../components/VerifactuBlock'
 import { useToast } from '../components/Toast'
-import { apiFetch, errorMessage } from '../lib/api'
+import { apiDownload, apiFetch, errorMessage } from '../lib/api'
 import { calculateDocumentPreview } from '../lib/document'
 import { formatCurrency, formatDate, formatNumber } from '../lib/format'
 import { documentStatusKey, documentTypeKey, paymentStatusKey } from '../i18n/businessLabels'
@@ -53,6 +53,21 @@ export function SalesPage() {
     } catch (cause) { notify(errorMessage(cause), 'error') }
   }
 
+  // El PDF lo compone el servidor y aquí solo se descarga. Es un entregable —se envía al cliente y
+  // se archiva—, así que tiene que ser un fichero idéntico cada vez, no lo que decida imprimir el
+  // navegador de turno.
+  const downloadInvoice = async (invoice: CommercialDocument) => {
+    try {
+      const { blob, filename } = await apiDownload(`/api/v1/documents/${invoice.id}/invoice.pdf`)
+      const url = URL.createObjectURL(blob)
+      const link = window.document.createElement('a')
+      link.href = url
+      link.download = filename
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (cause) { notify(errorMessage(cause), 'error') }
+  }
+
   return <div className="page-stack">
     <PageHeader eyebrow={t('sales.eyebrow')} title={t('sales.title')} description={t('sales.description')} icon={FileText} actions={<button className="button button-primary" type="button" onClick={() => setCreating(true)}><Plus size={17} />{t('sales.newDocument')}</button>} />
     <section className="panel table-panel">
@@ -65,7 +80,7 @@ export function SalesPage() {
     </section>
 
     <Modal open={creating} title={t('sales.newDocument')} description={t('sales.newDescription')} onClose={() => setCreating(false)} size="large"><CreateDocumentForm onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); setRefresh((value) => value + 1); notify(t('sales.created')) }} /></Modal>
-    <Modal open={selected !== null} title={selected?.number || t('sales.document')} description={selected ? `${t(documentTypeKey[selected.type])} · ${selected.customerName}` : ''} onClose={() => setSelected(null)} size="large">{selected && <DocumentDetail document={selected} onAction={runAction} />}</Modal>
+    <Modal open={selected !== null} title={selected?.number || t('sales.document')} description={selected ? `${t(documentTypeKey[selected.type])} · ${selected.customerName}` : ''} onClose={() => setSelected(null)} size="large">{selected && <DocumentDetail document={selected} onAction={runAction} onDownload={downloadInvoice} />}</Modal>
   </div>
 }
 
@@ -152,16 +167,20 @@ function CreateDocumentForm({ onCancel, onSaved }: { onCancel: () => void; onSav
   </form>
 }
 
-function DocumentDetail({ document, onAction }: { document: CommercialDocument; onAction: (action: 'convert' | 'paid', document: CommercialDocument) => void }) {
-  const { locale, t } = useTranslation()
+function DocumentDetail({ document, onAction, onDownload }: { document: CommercialDocument; onAction: (action: 'convert' | 'paid', document: CommercialDocument) => void; onDownload: (document: CommercialDocument) => void }) {
+  const { language, locale, t } = useTranslation()
+  const c = (es: string, en: string) => (language === 'es' ? es : en)
   const convertible = document.status === 'CONFIRMED' && (document.type === 'QUOTE' || document.type === 'DELIVERY_NOTE')
   const payable = document.type === 'INVOICE' && document.paymentStatus !== 'PAID'
+  // Solo se imprime lo que es una factura. Un presupuesto o un albarán tienen su propio formato y
+  // no llevan ni QR ni leyenda; imprimirlos con esta hoja sería llamarlos factura.
+  const printable = document.type === 'INVOICE' || document.type === 'RECTIFYING_INVOICE'
   return <div className="document-detail">
     <div className="detail-summary"><div><small>{t('sales.customer')}</small><strong>{document.customerName}</strong><span>{document.customerCode}</span></div><div><small>{t('sales.issue')}</small><strong>{formatDate(document.issueDate, locale)}</strong><span>{t('sales.due', { date: formatDate(document.dueDate, locale) })}</span></div><div><small>{t('sales.status')}</small><StatusBadge tone={statusTone(document.status)}>{t(documentStatusKey[document.status])}</StatusBadge><span>{t(paymentStatusKey[document.paymentStatus])}</span></div><div><small>{t('sales.total')}</small><strong className="detail-total">{formatCurrency(document.totalAmount, document.currency, locale)}</strong><span>{document.currency}</span></div></div>
     <div className="table-scroll detail-lines"><table><thead><tr><th>#</th><th>{t('sales.lineDescription')}</th><th className="align-right">{t('sales.quantity')}</th><th className="align-right">{t('sales.price')}</th><th className="align-right">{t('sales.discount')}</th><th className="align-right">{t('sales.total')}</th></tr></thead><tbody>{document.lines.map((line) => <tr key={line.id || line.order}><td>{line.order}</td><td><strong>{line.description}</strong>{line.productCode && <small>{line.productCode}</small>}</td><td className="align-right">{formatNumber(line.quantity, locale, 6)}</td><td className="align-right">{formatCurrency(line.unitPrice, document.currency, locale)}</td><td className="align-right">{formatNumber(line.discountPercentage, locale, 4)} %</td><td className="align-right"><strong>{formatCurrency(line.totalAmount, document.currency, locale)}</strong></td></tr>)}</tbody></table></div>
     <div className="detail-totals"><span>{t('sales.net')} <strong>{formatCurrency(document.netAmount, document.currency, locale)}</strong></span><span>{t('catalog.tax')} <strong>{formatCurrency(document.taxAmount, document.currency, locale)}</strong></span><span>{t('sales.total')} <strong>{formatCurrency(document.totalAmount, document.currency, locale)}</strong></span></div>
     {document.type === 'INVOICE' || document.type === 'RECTIFYING_INVOICE' ? <VerifactuBlock documentId={document.id} /> : null}
-    {(convertible || payable) && <div className="modal-action-strip">{convertible && <button type="button" className="button button-primary" onClick={() => onAction('convert', document)}>{t('sales.convertNext')} <ArrowRight size={17} /></button>}{payable && <button type="button" className="button button-secondary" onClick={() => onAction('paid', document)}><CheckCircle2 size={17} />{t('sales.markPaid')}</button>}</div>}
+    {(convertible || payable || printable) && <div className="modal-action-strip">{convertible && <button type="button" className="button button-primary" onClick={() => onAction('convert', document)}>{t('sales.convertNext')} <ArrowRight size={17} /></button>}{payable && <button type="button" className="button button-secondary" onClick={() => onAction('paid', document)}><CheckCircle2 size={17} />{t('sales.markPaid')}</button>}{printable && <button type="button" className="button button-ghost" onClick={() => onDownload(document)}><Download size={17} />{c('Descargar la factura', 'Download the invoice')}</button>}</div>}
   </div>
 }
 

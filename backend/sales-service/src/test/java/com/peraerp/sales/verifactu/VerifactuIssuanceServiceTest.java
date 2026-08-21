@@ -17,10 +17,9 @@ import com.peraerp.sales.verifactu.domain.VerifactuSettingsRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 import java.math.BigDecimal;
-import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Optional;
@@ -46,7 +45,6 @@ class VerifactuIssuanceServiceTest {
 
     private static final UUID COMPANY = UUID.randomUUID();
     private static final LocalDate ISSUE_DATE = LocalDate.of(2026, 8, 19);
-    private static final Clock FIXED = Clock.fixed(Instant.parse("2026-08-19T09:30:00Z"), ZoneId.of("UTC"));
 
     private VerifactuSettingsRepository settings;
     private VerifactuChainService chain;
@@ -59,7 +57,9 @@ class VerifactuIssuanceServiceTest {
         // El encadenado devuelve siempre un registro; el mock, sin esto, devolvería null y
         // enmascararía el contrato real del servicio.
         when(chain.append(any(), any())).thenReturn(mock(VerifactuRecord.class));
-        service = new VerifactuIssuanceService(settings, chain, FIXED);
+        VerifactuInvoicePayloadFactory payloads = mock(VerifactuInvoicePayloadFactory.class);
+        Mockito.lenient().when(payloads.forInvoice(any(), any())).thenReturn(context -> "<sf:RegistroAlta/>");
+        service = new VerifactuIssuanceService(settings, chain, payloads);
     }
 
     private VerifactuSettings enabledSettings() {
@@ -146,28 +146,28 @@ class VerifactuIssuanceServiceTest {
     }
 
     @Test
-    void generationTimestampUsesTheCompanyTimeZoneNotTheServerOne() {
+    void theCompanyTimeZoneIsHandedToTheChainNotTheServerOne() {
         when(settings.findByCompanyId(COMPANY)).thenReturn(Optional.of(enabledSettings()));
 
         service.recordIssuance(issuedInvoice());
 
         ArgumentCaptor<ChainedRecordRequest> captor = ArgumentCaptor.forClass(ChainedRecordRequest.class);
         verify(chain).append(any(), captor.capture());
-        // 09:30 UTC son las 11:30 en Madrid con horario de verano.
-        assertThat(captor.getValue().generatedAt().getZone()).isEqualTo(ZoneId.of("Europe/Madrid"));
-        assertThat(captor.getValue().generatedAt().getHour()).isEqualTo(11);
-        assertThat(captor.getValue().generatedAt().getOffset().getTotalSeconds()).isEqualTo(7200);
+        // La marca de tiempo la pone la cadena, ya con el bloqueo. Aquí solo viaja el huso, que es
+        // el de la empresa y nunca el del servidor.
+        assertThat(captor.getValue().zone()).isEqualTo(ZoneId.of("Europe/Madrid"));
     }
 
     @Test
-    void payloadIsLeftEmptyUntilTheXmlSerializerExists() {
+    void theInvoiceCarriesTheFactoryThatWillSerialiseItsRecord() {
         when(settings.findByCompanyId(COMPANY)).thenReturn(Optional.of(enabledSettings()));
 
         service.recordIssuance(issuedInvoice());
 
         ArgumentCaptor<ChainedRecordRequest> captor = ArgumentCaptor.forClass(ChainedRecordRequest.class);
         verify(chain).append(any(), captor.capture());
-        assertThat(captor.getValue().payloadXml()).isNull();
+        // El XML no se puede construir aquí: contiene la huella, que la cadena calcula después.
+        assertThat(captor.getValue().payloadFactory()).isNotNull();
     }
 
     // --- divisa ---

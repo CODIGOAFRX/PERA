@@ -749,8 +749,30 @@ td > strong { color: var(--ink); font-size: 12.2px; }
   color: var(--muted);
 }
 
+.verifactu-xml { flex: 1 1 100%; margin-top: 0.35rem; border-top: 1px solid var(--line); padding-top: 0.75rem; }
+.verifactu-xml > summary { cursor: pointer; font-size: 0.8rem; color: var(--pear-700); font-weight: 650; list-style: none; }
+.verifactu-xml > summary::-webkit-details-marker { display: none; }
+.verifactu-xml > summary::before { content: '▸'; display: inline-block; width: 1rem; transition: transform 120ms ease; }
+.verifactu-xml[open] > summary::before { transform: rotate(90deg); }
+.verifactu-xml pre {
+  margin: 0.75rem 0 0.5rem;
+  padding: 0.85rem;
+  max-height: 22rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fbfdfb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 2;
+}
+.verifactu-xml-status { margin: 0 0 0.6rem; font-size: 0.74rem; color: var(--muted); }
+
 @media (max-width: 640px) {
   .verifactu-block { flex-direction: column; align-items: stretch; }
   .verifactu-block dl > div { grid-template-columns: 1fr; gap: 0.15rem; }
   .verifactu-qr { align-self: center; }
 }
+

@@ -1,5 +1,6 @@
 package com.peraerp.masterdata.party;
 
+import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.CompanyScopedEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -93,6 +94,14 @@ public class Party extends CompanyScopedEntity {
         }
         this.taxId = normalizedTaxId;
         this.taxIdentificationType = type == null ? TaxIdentificationType.NIF : type;
+        // Solo se comprueba el identificador español: para un documento extranjero no hay un
+        // algoritmo común, y la ficha ya registra de qué país y de qué tipo es.
+        if (this.taxIdentificationType == TaxIdentificationType.NIF
+                && !SpanishTaxIdValidator.isValid(normalizedTaxId)) {
+            throw new BusinessRuleException(
+                    "El NIF «" + normalizedTaxId + "» no supera la comprobación del dígito de control. "
+                            + "Si es un identificador extranjero, indica su tipo y su país.");
+        }
         String normalizedCountry = countryCode == null || countryCode.isBlank()
                 ? null : countryCode.trim().toUpperCase(Locale.ROOT);
         this.taxCountryCode = normalizedCountry == null && this.taxIdentificationType == TaxIdentificationType.NIF
