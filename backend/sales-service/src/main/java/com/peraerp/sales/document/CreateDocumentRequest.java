@@ -1,5 +1,7 @@
 package com.peraerp.sales.document;
 
+import com.peraerp.sales.verifactu.domain.InvoiceKind;
+import com.peraerp.sales.verifactu.domain.RectificationType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -21,12 +23,23 @@ public record CreateDocumentRequest(
         String notes,
         boolean confirm,
         @NotEmpty List<@Valid DocumentLineRequest> lines,
-        UUID numberingSchemeId
+        UUID numberingSchemeId,
+        InvoiceKind invoiceKind,
+        RectificationType rectificationType,
+        UUID rectifiedDocumentId
 ) {
     public CreateDocumentRequest(DocumentType type, UUID customerId, String customerCode, String customerName,
                                  LocalDate issueDate, LocalDate dueDate, String currency, UUID paymentMethodId,
                                  String notes, boolean confirm, List<DocumentLineRequest> lines) {
         this(type, customerId, customerCode, customerName, issueDate, dueDate, currency, paymentMethodId,
                 notes, confirm, lines, null);
+    }
+
+    public CreateDocumentRequest(DocumentType type, UUID customerId, String customerCode, String customerName,
+                                 LocalDate issueDate, LocalDate dueDate, String currency, UUID paymentMethodId,
+                                 String notes, boolean confirm, List<DocumentLineRequest> lines,
+                                 UUID numberingSchemeId) {
+        this(type, customerId, customerCode, customerName, issueDate, dueDate, currency, paymentMethodId,
+                notes, confirm, lines, numberingSchemeId, null, null, null);
     }
 }

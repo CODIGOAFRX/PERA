@@ -1,4 +1,4 @@
-import { Building2, Coins, FileKey2, Hash, Pencil, Plus, Settings, Trash2, Upload } from 'lucide-react'
+import { Building2, Coins, FileKey2, Hash, Pencil, Plus, Settings, ShieldCheck, Trash2, Upload } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
 import { Field, FormActions } from '../components/Form'
@@ -12,7 +12,7 @@ import { apiDownload, apiFetch, errorMessage } from '../lib/api'
 import { formatDate, formatDateTime } from '../lib/format'
 import type { DocumentType, PageResponse } from '../types/api'
 
-type SettingsTab = 'company' | 'numbering' | 'currencies' | 'licenses'
+type SettingsTab = 'company' | 'numbering' | 'verifactu' | 'currencies' | 'licenses'
 type ResetPeriod = 'YEARLY' | 'MONTHLY' | 'DAILY' | 'NEVER'
 
 interface CompanySettingsValue {
@@ -112,17 +112,19 @@ export function SettingsPage() {
   const tabs: Array<[SettingsTab, typeof Building2, string]> = [
     ['company', Building2, c('Empresa', 'Company')],
     ['numbering', Hash, c('Numeraciones', 'Numbering')],
+    ['verifactu', ShieldCheck, 'Veri*Factu'],
     ['currencies', Coins, c('Monedas', 'Currencies')],
     ['licenses', FileKey2, c('Licencias', 'Licences')],
   ]
   return <div className="page-stack">
     <PageHeader eyebrow={c('Administración', 'Administration')} title={c('Configuración', 'Settings')}
-      description={c('Parámetros generales, numeraciones, divisas y licencias de la instalación.', 'General parameters, numbering, currencies and installation licences.')} icon={Settings} />
+      description={c('Parámetros generales, numeraciones, Veri*Factu, divisas y licencias de la instalación.', 'General parameters, numbering, Veri*Factu, currencies and installation licences.')} icon={Settings} />
     <div className="workspace-tabs" role="tablist" aria-label={c('Secciones de configuración', 'Settings sections')}>
       {tabs.map(([id, Icon, label]) => <button key={id} type="button" className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Icon size={16} />{label}</button>)}
     </div>
     {tab === 'company' && <CompanyPanel />}
     {tab === 'numbering' && <NumberingPanel />}
+    {tab === 'verifactu' && <VerifactuPanel />}
     {tab === 'currencies' && <CurrenciesPanel />}
     {tab === 'licenses' && <LicensesPanel />}
   </div>
@@ -185,7 +187,7 @@ function NumberingForm({ value, onCancel, onSaved }: { value: NumberingScheme | 
   const { language, t } = useTranslation(); const c = (es: string, en: string) => language === 'es' ? es : en
   const [form, setForm] = useState<Omit<NumberingScheme, 'id'>>(value ?? { code: '', name: '', documentType: 'INVOICE', series: 'A', pattern: '{yyyy}-{series}-{seq:6}', resetPeriod: 'YEARLY', initialValue: 1, active: true, defaultScheme: false }); const [saving, setSaving] = useState(false); const [error, setError] = useState('')
   const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); try { await apiFetch(value ? `/api/v1/numbering-schemes/${value.id}` : '/api/v1/numbering-schemes', { method: value ? 'PUT' : 'POST', body: JSON.stringify(form) }); onSaved() } catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) } }
-  return <form onSubmit={submit}><div className="form-grid"><Field label={c('Código', 'Code')} htmlFor="number-code" required><input id="number-code" value={form.code} disabled={Boolean(value)} onChange={(event) => setForm({ ...form, code: event.target.value.toUpperCase() })} required /></Field><Field label={c('Nombre', 'Name')} htmlFor="number-name" required><input id="number-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></Field><Field label={c('Tipo documental', 'Document type')} htmlFor="number-type" required><select id="number-type" value={form.documentType} onChange={(event) => setForm({ ...form, documentType: event.target.value as DocumentType })}>{(['QUOTE', 'SALES_ORDER', 'DELIVERY_NOTE', 'INVOICE', 'WORK_ORDER'] as DocumentType[]).map((type) => <option key={type} value={type}>{t(documentTypeKey[type])}</option>)}</select></Field><Field label={c('Serie', 'Series')} htmlFor="number-series" required><input id="number-series" value={form.series} onChange={(event) => setForm({ ...form, series: event.target.value.toUpperCase() })} required /></Field><Field label={c('Patrón', 'Pattern')} htmlFor="number-pattern" required wide hint="{yyyy} {yy} {MM} {dd} {series} {seq:6}"><input id="number-pattern" value={form.pattern} onChange={(event) => setForm({ ...form, pattern: event.target.value })} required /></Field><Field label={c('Reinicio', 'Reset period')} htmlFor="number-reset"><select id="number-reset" value={form.resetPeriod} onChange={(event) => setForm({ ...form, resetPeriod: event.target.value as ResetPeriod })}>{(['YEARLY', 'MONTHLY', 'DAILY', 'NEVER'] as ResetPeriod[]).map((period) => <option key={period} value={period}>{resetPeriodLabel(period, language)}</option>)}</select></Field><Field label={c('Valor inicial', 'Initial value')} htmlFor="number-initial"><input id="number-initial" type="number" min="1" value={form.initialValue} onChange={(event) => setForm({ ...form, initialValue: Number(event.target.value) })} /></Field><Field label={c('Opciones', 'Options')} htmlFor="number-active"><label className="switch-row"><input id="number-active" type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /><span>{c('Activa', 'Active')}</span></label><label className="switch-row"><input type="checkbox" checked={form.defaultScheme} onChange={(event) => setForm({ ...form, defaultScheme: event.target.checked })} /><span>{c('Predeterminada', 'Default')}</span></label></Field></div>{error && <div className="form-error">{error}</div>}<FormActions onCancel={onCancel} saving={saving} /></form>
+  return <form onSubmit={submit}><div className="form-grid"><Field label={c('Código', 'Code')} htmlFor="number-code" required><input id="number-code" value={form.code} disabled={Boolean(value)} onChange={(event) => setForm({ ...form, code: event.target.value.toUpperCase() })} required /></Field><Field label={c('Nombre', 'Name')} htmlFor="number-name" required><input id="number-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></Field><Field label={c('Tipo documental', 'Document type')} htmlFor="number-type" required><select id="number-type" value={form.documentType} onChange={(event) => setForm({ ...form, documentType: event.target.value as DocumentType })}>{(['QUOTE', 'SALES_ORDER', 'DELIVERY_NOTE', 'INVOICE', 'RECTIFYING_INVOICE', 'WORK_ORDER'] as DocumentType[]).map((type) => <option key={type} value={type}>{t(documentTypeKey[type])}</option>)}</select></Field><Field label={c('Serie', 'Series')} htmlFor="number-series" required><input id="number-series" value={form.series} onChange={(event) => setForm({ ...form, series: event.target.value.toUpperCase() })} required /></Field><Field label={c('Patrón', 'Pattern')} htmlFor="number-pattern" required wide hint="{yyyy} {yy} {MM} {dd} {series} {seq:6}"><input id="number-pattern" value={form.pattern} onChange={(event) => setForm({ ...form, pattern: event.target.value })} required /></Field><Field label={c('Reinicio', 'Reset period')} htmlFor="number-reset"><select id="number-reset" value={form.resetPeriod} onChange={(event) => setForm({ ...form, resetPeriod: event.target.value as ResetPeriod })}>{(['YEARLY', 'MONTHLY', 'DAILY', 'NEVER'] as ResetPeriod[]).map((period) => <option key={period} value={period}>{resetPeriodLabel(period, language)}</option>)}</select></Field><Field label={c('Valor inicial', 'Initial value')} htmlFor="number-initial"><input id="number-initial" type="number" min="1" value={form.initialValue} onChange={(event) => setForm({ ...form, initialValue: Number(event.target.value) })} /></Field><Field label={c('Opciones', 'Options')} htmlFor="number-active"><label className="switch-row"><input id="number-active" type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /><span>{c('Activa', 'Active')}</span></label><label className="switch-row"><input type="checkbox" checked={form.defaultScheme} onChange={(event) => setForm({ ...form, defaultScheme: event.target.checked })} /><span>{c('Predeterminada', 'Default')}</span></label></Field></div>{error && <div className="form-error">{error}</div>}<FormActions onCancel={onCancel} saving={saving} /></form>
 }
 
 function CurrenciesPanel() {
@@ -236,7 +238,7 @@ function CurrencyConverter({ currencies }: { currencies: CurrencyValue[] }) {
   const currencyOptions = activeCurrencies.length
     ? activeCurrencies.map((currency) => <option key={currency.id} value={currency.code}>{currency.code} · {currency.name}</option>)
     : <option value="">{c('No hay monedas activas', 'No active currencies')}</option>
-  return <section className="panel settings-wide"><div className="panel-heading settings-heading"><div><strong>{c('Conversor de moneda', 'Currency converter')}</strong><small>{c('Comprueba el cambio histórico que aplicará el ERP.', 'Check the historical exchange rate the ERP will apply.')}</small></div></div><form className="settings-converter" onSubmit={convert}><Field label={c('Importe', 'Amount')} htmlFor="conversion-amount" required><input id="conversion-amount" type="number" min="0" step="any" value={amount} onChange={(event) => setAmount(Number(event.target.value))} required /></Field><Field label={c('Desde', 'From')} htmlFor="conversion-from" required><select id="conversion-from" value={fromCurrency} disabled={!activeCurrencies.length} onChange={(event) => { setFromCurrency(event.target.value); setResult(null); setError('') }}>{currencyOptions}</select></Field><Field label={c('A', 'To')} htmlFor="conversion-to" required><select id="conversion-to" value={toCurrency} disabled={!activeCurrencies.length} onChange={(event) => { setToCurrency(event.target.value); setResult(null); setError('') }}>{currencyOptions}</select></Field><Field label={c('Fecha', 'Date')} htmlFor="conversion-date" required><input id="conversion-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></Field><button className="button button-primary" type="submit" disabled={converting || !hasConversionPair || fromCurrency === toCurrency}>{converting ? c('Convirtiendo…', 'Converting…') : c('Convertir', 'Convert')}</button></form>{!hasConversionPair && <div className="converter-notice" role="status">{c('Añade al menos dos monedas activas en el catálogo para utilizar el conversor.', 'Add at least two active currencies to the catalogue to use the converter.')}</div>}{error && <div className="inline-error settings-inline-message">{error}</div>}{result && <div className="conversion-result"><strong>{new Intl.NumberFormat(locale, { style: 'currency', currency: result.sourceCurrency }).format(result.sourceAmount)} = {new Intl.NumberFormat(locale, { style: 'currency', currency: result.targetCurrency }).format(result.targetAmount)}</strong><small>{c('Tipo', 'Rate')} {new Intl.NumberFormat(locale, { maximumFractionDigits: 8 }).format(result.exchangeRate)} · {formatDate(result.rateDate, locale)} · {result.rateSource}{result.inverseRate ? ` · ${c('inverso', 'inverse')}` : ''}</small></div>}</section>
+  return <section className="panel settings-wide"><div className="panel-heading settings-heading"><div><strong>{c('Conversor de moneda', 'Currency converter')}</strong><small>{c('Comprueba el cambio histórico que aplicará el ERP.', 'Check the historical exchange rate the ERP will apply.')}</small></div></div><form className="settings-converter" onSubmit={convert}><Field label={c('Importe', 'Amount')} htmlFor="conversion-amount" required><input id="conversion-amount" type="number" min="0" step="any" value={amount} onChange={(event) => setAmount(Number(event.target.value))} required /></Field><Field label={c('Desde', 'From')} htmlFor="conversion-from" required><select id="conversion-from" value={fromCurrency} disabled={!activeCurrencies.length} onChange={(event) => { setFromCurrency(event.target.value); setResult(null); setError('') }}>{currencyOptions}</select></Field><Field label={c('A', 'To')} htmlFor="conversion-to" required><select id="conversion-to" value={toCurrency} disabled={!activeCurrencies.length} onChange={(event) => { setToCurrency(event.target.value); setResult(null); setError('') }}>{currencyOptions}</select></Field><Field label={c('Fecha', 'Date')} htmlFor="conversion-date" required><input id="conversion-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></Field><button className="button button-primary" type="submit" disabled={converting || !hasConversionPair || fromCurrency === toCurrency}>{converting ? c('Convirtiendo…', 'Converting…') : c('Convertir', 'Convert')}</button></form>{!hasConversionPair && <div className="converter-notice" role="status">{c('Añade al menos dos monedas activas en el catálogo para utilizar el conversor.', 'Add at least two active currencies to the catalogue to use the converter.')}</div>}{error && <div className="inline-error settings-inline-message">{error}</div>}{result && <div className="conversion-result"><strong>{new Intl.NumberFormat(locale, { style: 'currency', currency: result.sourceCurrency }).format(result.sourceAmount)} = {new Intl.NumberFormat(locale, { style: 'currency', currency: result.targetCurrency }).format(result.targetAmount)}</strong><small>{c('Tipo', 'Rate')} {new Intl.NumberFormat(locale, { maximumFractionDigits: 8 }).format(result.exchangeRate)} · {formatDate(result.rateDate, locale)} · {result.rateSource}{result.inverseRate ? ` · ${c('Inverso', 'Inverse')}` : ''}</small></div>}</section>
 }
 
 function CurrencyForm({ value, onCancel, onSaved }: { value: CurrencyValue | null; onCancel: () => void; onSaved: () => void }) {
@@ -259,7 +261,7 @@ function LicensesPanel() {
   const load = useCallback(async () => { setLoading(true); try { const response = await apiFetch<LicensePage>('/api/v1/licenses?size=100'); setItems(response.content); setError('') } catch (cause) { setError(errorMessage(cause)) } finally { setLoading(false) } }, [])
   useEffect(() => { void load() }, [load])
   const action = async (item: LicenseSummary, operation: 'suspend' | 'resume' | 'revoke') => { try { await apiFetch(`/api/v1/licenses/${item.id}/${operation}`, { method: 'POST' }); notify(c('Licencia actualizada.', 'Licence updated.')); await load() } catch (cause) { notify(errorMessage(cause), 'error') } }
-  return <section className="panel table-panel"><div className="panel-heading settings-heading"><div><strong>{c('Licencias emitidas', 'Issued licences')}</strong><small>{c('Activación, vigencia y comprobación periódica.', 'Activation, validity and periodic validation.')}</small></div><button className="button button-primary button-small" type="button" onClick={() => setCreating(true)}><Plus size={15} />{c('Nueva licencia', 'New licence')}</button></div>{error && <div className="inline-error">{error}</div>}{loading ? <LoadingState /> : items.length ? <div className="table-scroll"><table><thead><tr><th>{c('Licencia', 'Licence')}</th><th>{c('Vigencia', 'Validity')}</th><th>{c('Instalaciones', 'Installations')}</th><th>{c('Estado', 'Status')}</th><th>{c('Acciones', 'Actions')}</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><strong>{item.displayName}</strong><small>{item.features.join(', ') || c('Sin funciones limitadas', 'No restricted features')}</small></td><td>{formatDateTime(item.validFrom, locale)}<small>{c('hasta', 'until')} {formatDateTime(item.validUntil, locale)}</small></td><td>{item.activeInstallations} / {item.maxInstallations}</td><td><StatusBadge tone={item.status === 'ACTIVE' ? 'success' : item.status === 'SUSPENDED' ? 'warning' : 'danger'}>{licenseStatusLabel(item.status, language)}</StatusBadge></td><td><div className="row-actions">{item.status === 'ACTIVE' && <button className="button button-secondary button-small" type="button" onClick={() => void action(item, 'suspend')}>{c('Suspender', 'Suspend')}</button>}{item.status === 'SUSPENDED' && <button className="button button-secondary button-small" type="button" onClick={() => void action(item, 'resume')}>{c('Reanudar', 'Resume')}</button>}{item.status !== 'REVOKED' && <button className="button button-danger button-small" type="button" onClick={() => void action(item, 'revoke')}>{c('Revocar', 'Revoke')}</button>}</div></td></tr>)}</tbody></table></div> : <EmptyState title={c('No hay licencias', 'No licences')} description={c('Emite la primera licencia para una instalación cliente.', 'Issue the first licence for a customer installation.')} />}
+  return <section className="panel table-panel"><div className="panel-heading settings-heading"><div><strong>{c('Licencias emitidas', 'Issued licences')}</strong><small>{c('Activación, vigencia y comprobación periódica.', 'Activation, validity and periodic validation.')}</small></div><button className="button button-primary button-small" type="button" onClick={() => setCreating(true)}><Plus size={15} />{c('Nueva licencia', 'New licence')}</button></div>{error && <div className="inline-error">{error}</div>}{loading ? <LoadingState /> : items.length ? <div className="table-scroll"><table><thead><tr><th>{c('Licencia', 'Licence')}</th><th>{c('Vigencia', 'Validity')}</th><th>{c('Instalaciones', 'Installations')}</th><th>{c('Estado', 'Status')}</th><th>{c('Acciones', 'Actions')}</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><strong>{item.displayName}</strong><small>{item.features.join(', ') || c('Sin funciones limitadas', 'No restricted features')}</small></td><td>{formatDateTime(item.validFrom, locale)}<small>{c('Hasta', 'Until')} {formatDateTime(item.validUntil, locale)}</small></td><td>{item.activeInstallations} / {item.maxInstallations}</td><td><StatusBadge tone={item.status === 'ACTIVE' ? 'success' : item.status === 'SUSPENDED' ? 'warning' : 'danger'}>{licenseStatusLabel(item.status, language)}</StatusBadge></td><td><div className="row-actions">{item.status === 'ACTIVE' && <button className="button button-secondary button-small" type="button" onClick={() => void action(item, 'suspend')}>{c('Suspender', 'Suspend')}</button>}{item.status === 'SUSPENDED' && <button className="button button-secondary button-small" type="button" onClick={() => void action(item, 'resume')}>{c('Reanudar', 'Resume')}</button>}{item.status !== 'REVOKED' && <button className="button button-danger button-small" type="button" onClick={() => void action(item, 'revoke')}>{c('Revocar', 'Revoke')}</button>}</div></td></tr>)}</tbody></table></div> : <EmptyState title={c('No hay licencias', 'No licences')} description={c('Emite la primera licencia para una instalación cliente.', 'Issue the first licence for a customer installation.')} />}
     <Modal open={creating} title={c('Nueva licencia', 'New licence')} description={c('El código de activación solo se mostrará una vez.', 'The activation code will only be shown once.')} onClose={() => setCreating(false)}><LicenseForm onCancel={() => setCreating(false)} onCreated={(code) => { setCreating(false); setActivationCode(code); void load() }} /></Modal><Modal open={Boolean(activationCode)} title={c('Código de activación', 'Activation code')} description={c('Guárdalo ahora y envíalo por un canal seguro.', 'Save it now and send it through a secure channel.')} onClose={() => setActivationCode('')}><div className="secret-panel"><code>{activationCode}</code><button className="button button-primary" type="button" onClick={() => { void navigator.clipboard.writeText(activationCode); notify(c('Código copiado.', 'Code copied.')) }}>{c('Copiar código', 'Copy code')}</button></div></Modal></section>
 }
 
@@ -285,4 +287,139 @@ function licenseStatusLabel(status: LicenseSummary['status'], language: 'es' | '
     en: { DRAFT: 'Draft', ACTIVE: 'Active', SUSPENDED: 'Suspended', EXPIRED: 'Expired', REVOKED: 'Revoked' },
   }
   return labels[language][status]
+}
+
+interface VerifactuSettingsValue {
+  configured: boolean
+  enabled: boolean
+  mode: 'VERIFACTU' | 'NO_VERIFACTU'
+  environment: 'TEST' | 'PRODUCTION'
+  issuerTaxId: string
+  issuerLegalName: string
+  defaultRegimeKey: string
+  defaultOperationQualification: string
+  timeZone: string
+  qrValidationUrl: string
+  softwareName: string
+  softwareId: string
+  softwareVersion: string
+  developerTaxId: string
+}
+
+function VerifactuPanel() {
+  const { language } = useTranslation(); const c = (es: string, en: string) => language === 'es' ? es : en
+  const [form, setForm] = useState<VerifactuSettingsValue | null>(null)
+  const [configured, setConfigured] = useState(false)
+  const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState('')
+  const { notify } = useToast()
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const response = await apiFetch<VerifactuSettingsValue>('/api/v1/verifactu-settings/current')
+      setForm(response); setConfigured(response.configured); setError('')
+    } catch (cause) { setError(errorMessage(cause)) } finally { setLoading(false) }
+  }, [])
+  useEffect(() => { void load() }, [load])
+
+  const change = <K extends keyof VerifactuSettingsValue>(key: K, next: VerifactuSettingsValue[K]) =>
+    setForm((current) => current ? { ...current, [key]: next } : current)
+
+  const save = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!form) return
+    setSaving(true); setError('')
+    try {
+      const updated = await apiFetch<VerifactuSettingsValue>('/api/v1/verifactu-settings/current', {
+        method: 'PUT',
+        body: JSON.stringify({
+          enabled: form.enabled, mode: form.mode, environment: form.environment,
+          issuerTaxId: form.issuerTaxId, issuerLegalName: form.issuerLegalName,
+          defaultRegimeKey: form.defaultRegimeKey,
+          defaultOperationQualification: form.defaultOperationQualification,
+          timeZone: form.timeZone,
+        }),
+      })
+      setForm(updated); setConfigured(true)
+      notify(c('Configuración de Veri*Factu guardada.', 'Veri*Factu settings saved.'))
+    } catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+  }
+
+  if (loading) return <section className="panel"><LoadingState /></section>
+  if (!form) return <section className="panel"><EmptyState title={c('Sin configuración', 'No settings')} description={error || c('No se pudo cargar la configuración.', 'Settings could not be loaded.')} /></section>
+
+  const production = form.environment === 'PRODUCTION'
+  return <section className="panel settings-panel">
+    <form onSubmit={save}>
+      <div className="settings-logo-row">
+        <div className="settings-logo-preview"><ShieldCheck size={28} /></div>
+        <div>
+          <strong>{c('Sistema informático de facturación', 'Invoicing software system')}</strong>
+          <p>{c('Registros de facturación encadenados y remitidos a la AEAT. Obligatorio desde el 1 de enero de 2027 para sociedades y el 1 de julio de 2027 para autónomos.', 'Chained invoicing records reported to the Spanish tax agency. Mandatory from 1 January 2027 for companies and 1 July 2027 for the self-employed.')}</p>
+          <div className="row-actions">
+            <StatusBadge tone={form.enabled ? 'success' : 'neutral'}>{form.enabled ? c('Activado', 'Enabled') : c('Desactivado', 'Disabled')}</StatusBadge>
+            <StatusBadge tone={production ? 'success' : 'warning'}>{production ? c('Producción', 'Production') : c('Pruebas', 'Test')}</StatusBadge>
+            {!configured && <StatusBadge tone="warning">{c('Sin guardar', 'Not saved yet')}</StatusBadge>}
+          </div>
+        </div>
+      </div>
+
+      <div className="form-grid settings-form-grid">
+        <Field label={c('NIF del obligado', 'Issuer tax ID')} htmlFor="vf-nif" required>
+          <input id="vf-nif" value={form.issuerTaxId} maxLength={20} required
+            onChange={(event) => change('issuerTaxId', event.target.value.toUpperCase())} />
+        </Field>
+        <Field label={c('Razón social', 'Legal name')} htmlFor="vf-name" required>
+          <input id="vf-name" value={form.issuerLegalName} maxLength={180} required
+            onChange={(event) => change('issuerLegalName', event.target.value)} />
+        </Field>
+        <Field label={c('Entorno', 'Environment')} htmlFor="vf-env">
+          <select id="vf-env" value={form.environment}
+            onChange={(event) => change('environment', event.target.value as VerifactuSettingsValue['environment'])}>
+            <option value="TEST">{c('Pruebas (preproducción)', 'Test (pre-production)')}</option>
+            <option value="PRODUCTION">{c('Producción', 'Production')}</option>
+          </select>
+        </Field>
+        <Field label={c('Zona horaria', 'Time zone')} htmlFor="vf-zone" required
+          hint={c('Fija el huso de la fecha del registro.', 'Sets the offset of the record timestamp.')}>
+          <input id="vf-zone" value={form.timeZone} maxLength={64} required
+            onChange={(event) => change('timeZone', event.target.value)} />
+        </Field>
+        <Field label={c('Clave de régimen por defecto', 'Default regime key')} htmlFor="vf-regime"
+          hint={c('01 = régimen general.', '01 = general regime.')}>
+          <input id="vf-regime" value={form.defaultRegimeKey} maxLength={2} pattern="\d{2}"
+            onChange={(event) => change('defaultRegimeKey', event.target.value)} />
+        </Field>
+        <Field label={c('Calificación por defecto', 'Default operation qualification')} htmlFor="vf-qualification"
+          hint={c('S1 = sujeta y no exenta.', 'S1 = subject and not exempt.')}>
+          <input id="vf-qualification" value={form.defaultOperationQualification} maxLength={2}
+            onChange={(event) => change('defaultOperationQualification', event.target.value.toUpperCase())} />
+        </Field>
+        <Field label={c('Estado', 'Status')} htmlFor="vf-enabled" wide>
+          <label className="switch-row">
+            <input id="vf-enabled" type="checkbox" checked={form.enabled}
+              onChange={(event) => change('enabled', event.target.checked)} />
+            <span>{c('Generar y remitir registros de facturación', 'Generate and report invoicing records')}</span>
+          </label>
+        </Field>
+      </div>
+
+      <div className="form-grid settings-form-grid">
+        <Field label={c('Productor del software', 'Software producer')} htmlFor="vf-software" wide
+          hint={c('Identifica a PERA ante la AEAT. Se configura en el despliegue, no aquí.', 'Identifies PERA to the tax agency. Configured at deployment, not here.')}>
+          <input id="vf-software" readOnly value={`${form.softwareName} ${form.softwareVersion} · ${form.softwareId} · ${form.developerTaxId || c('Sin NIF de productor', 'No producer tax ID')}`} />
+        </Field>
+        <Field label={c('Servicio de cotejo del QR', 'QR verification service')} htmlFor="vf-qr" wide>
+          <input id="vf-qr" readOnly value={form.qrValidationUrl} />
+        </Field>
+      </div>
+
+      {error && <div className="form-error">{error}</div>}
+      <div className="form-actions">
+        <button className="button button-primary" disabled={saving}>
+          {saving ? c('Guardando…', 'Saving…') : c('Guardar configuración', 'Save settings')}
+        </button>
+      </div>
+    </form>
+  </section>
 }

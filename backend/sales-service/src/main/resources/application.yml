@@ -15,6 +15,13 @@ pera.services:
   identity-url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
   finance-url: ${FINANCE_SERVICE_URL:http://localhost:8084}
   master-data-url: ${MASTER_DATA_SERVICE_URL:http://localhost:8082}
+# Identidad del productor del software ante la AEAT. Identifica a PERA como sistema informático
+# de facturación, no a la empresa que lo usa. Sin developer-tax-id no se puede activar Veri*Factu.
+pera.verifactu.software:
+  name: ${PERA_VERIFACTU_SOFTWARE_NAME:PERA ERP}
+  id: ${PERA_VERIFACTU_SOFTWARE_ID:01}
+  version: ${PERA_VERIFACTU_SOFTWARE_VERSION:0.1.0}
+  developer-tax-id: ${PERA_VERIFACTU_DEVELOPER_TAX_ID:}
 management:
   endpoints.web.exposure.include: health,info,prometheus
   endpoint.health.probes.enabled: true

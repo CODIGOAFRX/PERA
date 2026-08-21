@@ -707,3 +707,50 @@ td > strong { color: var(--ink); font-size: 12.2px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* --- Bloque Veri*Factu de una factura --- */
+.verifactu-block {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--canvas);
+}
+
+.verifactu-data { flex: 1 1 22rem; min-width: 0; }
+
+.verifactu-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+  color: var(--pear-700);
+}
+
+.verifactu-heading strong { letter-spacing: 0.06em; font-size: 0.95rem; }
+
+.verifactu-block dl { display: grid; gap: 0.5rem; margin: 0; }
+.verifactu-block dl > div { display: grid; grid-template-columns: 9.5rem 1fr; gap: 0.75rem; align-items: baseline; }
+.verifactu-block dt { margin: 0; font-size: 0.8rem; color: var(--muted); }
+.verifactu-block dd { margin: 0; font-size: 0.86rem; overflow-wrap: anywhere; }
+.verifactu-block code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; }
+
+.verifactu-qr { flex: 0 0 auto; margin: 0; text-align: center; }
+.verifactu-qr img { width: 148px; height: 148px; display: block; background: #fff; border-radius: 6px; }
+.verifactu-qr figcaption {
+  margin-top: 0.45rem;
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .verifactu-block { flex-direction: column; align-items: stretch; }
+  .verifactu-block dl > div { grid-template-columns: 1fr; gap: 0.15rem; }
+  .verifactu-qr { align-self: center; }
+}

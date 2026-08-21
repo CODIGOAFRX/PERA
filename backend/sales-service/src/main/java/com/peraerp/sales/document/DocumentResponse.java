@@ -1,5 +1,8 @@
 package com.peraerp.sales.document;
 
+import com.peraerp.sales.verifactu.domain.InvoiceKind;
+import com.peraerp.sales.verifactu.domain.RectificationType;
+import com.peraerp.sales.verifactu.domain.TaxIdentificationType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Instant;
@@ -15,7 +18,12 @@ public record DocumentResponse(UUID id, String number, DocumentType type, Docume
                                BigDecimal baseTotalAmount, String notes,
                                List<DocumentLineResponse> lines,
                                QuoteStatus quoteStatus, LocalDate quoteValidUntil, Instant quoteDecidedAt,
-                               String quoteRejectionReason) {
+                               String quoteRejectionReason,
+                               InvoiceKind invoiceKind, RectificationType rectificationType,
+                               UUID rectifiedDocumentId, String rectifiedNumber, LocalDate rectifiedIssueDate,
+                               boolean issued,
+                               String customerTaxId, TaxIdentificationType customerTaxIdentificationType,
+                               String customerTaxCountry) {
     public static DocumentResponse from(CommercialDocument document) {
         return new DocumentResponse(document.getId(), document.getDocumentNumber(), document.getType(),
                 document.getStatus(), document.getCustomerId(), document.getCustomerCodeSnapshot(),
@@ -27,6 +35,11 @@ public record DocumentResponse(UUID id, String number, DocumentType type, Docume
                 document.getBaseTotalAmount(), document.getNotes(),
                 document.getLines().stream().map(DocumentLineResponse::from).toList(),
                 document.getQuoteStatus(), document.getQuoteValidUntil(), document.getQuoteDecidedAt(),
-                document.getQuoteRejectionReason());
+                document.getQuoteRejectionReason(),
+                document.getInvoiceKind(), document.getRectificationType(), document.getRectifiedDocumentId(),
+                document.getRectifiedNumberSnapshot(), document.getRectifiedIssueDateSnapshot(),
+                document.isIssued(),
+                document.getCustomerTaxIdSnapshot(), document.getCustomerTaxIdentificationTypeSnapshot(),
+                document.getCustomerTaxCountrySnapshot());
     }
 }

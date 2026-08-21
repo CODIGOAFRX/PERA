@@ -17,7 +17,7 @@ spring:
               predicates: ['Path=/api/v1/customers/**,/api/v1/suppliers/**,/api/v1/products/**,/api/v1/product-natures/**,/api/v1/product-supertypes/**,/api/v1/product-types/**,/api/v1/product-groups/**,/api/v1/tax-codes/**,/api/v1/tariffs/**,/api/v1/pricing/**,/api/v1/packaging-types/**,/api/v1/product-packaging/**']
             - id: sales
               uri: ${SALES_SERVICE_URL:http://localhost:8083}
-              predicates: ['Path=/api/v1/documents/**,/api/v1/quotes/**,/api/v1/numbering-schemes/**,/api/v1/sales-dashboard/**']
+              predicates: ['Path=/api/v1/documents/**,/api/v1/quotes/**,/api/v1/numbering-schemes/**,/api/v1/sales-dashboard/**,/api/v1/verifactu-settings/**,/api/v1/verifactu-records/**']
             - id: finance
               uri: ${FINANCE_SERVICE_URL:http://localhost:8084}
               predicates: ['Path=/api/v1/payment-methods/**,/api/v1/due-dates/**,/api/v1/currencies/**,/api/v1/exchange-rates/**,/api/v1/currency-conversions/**']

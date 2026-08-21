@@ -7,6 +7,7 @@ import { PageHeader } from '../components/PageHeader'
 import { Pagination } from '../components/Pagination'
 import { StatusBadge, type BadgeTone } from '../components/StatusBadge'
 import { TableToolbar } from '../components/TableToolbar'
+import { VerifactuBlock } from '../components/VerifactuBlock'
 import { useToast } from '../components/Toast'
 import { apiFetch, errorMessage } from '../lib/api'
 import { calculateDocumentPreview } from '../lib/document'
@@ -159,6 +160,7 @@ function DocumentDetail({ document, onAction }: { document: CommercialDocument; 
     <div className="detail-summary"><div><small>{t('sales.customer')}</small><strong>{document.customerName}</strong><span>{document.customerCode}</span></div><div><small>{t('sales.issue')}</small><strong>{formatDate(document.issueDate, locale)}</strong><span>{t('sales.due', { date: formatDate(document.dueDate, locale) })}</span></div><div><small>{t('sales.status')}</small><StatusBadge tone={statusTone(document.status)}>{t(documentStatusKey[document.status])}</StatusBadge><span>{t(paymentStatusKey[document.paymentStatus])}</span></div><div><small>{t('sales.total')}</small><strong className="detail-total">{formatCurrency(document.totalAmount, document.currency, locale)}</strong><span>{document.currency}</span></div></div>
     <div className="table-scroll detail-lines"><table><thead><tr><th>#</th><th>{t('sales.lineDescription')}</th><th className="align-right">{t('sales.quantity')}</th><th className="align-right">{t('sales.price')}</th><th className="align-right">{t('sales.discount')}</th><th className="align-right">{t('sales.total')}</th></tr></thead><tbody>{document.lines.map((line) => <tr key={line.id || line.order}><td>{line.order}</td><td><strong>{line.description}</strong>{line.productCode && <small>{line.productCode}</small>}</td><td className="align-right">{formatNumber(line.quantity, locale, 6)}</td><td className="align-right">{formatCurrency(line.unitPrice, document.currency, locale)}</td><td className="align-right">{formatNumber(line.discountPercentage, locale, 4)} %</td><td className="align-right"><strong>{formatCurrency(line.totalAmount, document.currency, locale)}</strong></td></tr>)}</tbody></table></div>
     <div className="detail-totals"><span>{t('sales.net')} <strong>{formatCurrency(document.netAmount, document.currency, locale)}</strong></span><span>{t('catalog.tax')} <strong>{formatCurrency(document.taxAmount, document.currency, locale)}</strong></span><span>{t('sales.total')} <strong>{formatCurrency(document.totalAmount, document.currency, locale)}</strong></span></div>
+    {document.type === 'INVOICE' || document.type === 'RECTIFYING_INVOICE' ? <VerifactuBlock documentId={document.id} /> : null}
     {(convertible || payable) && <div className="modal-action-strip">{convertible && <button type="button" className="button button-primary" onClick={() => onAction('convert', document)}>{t('sales.convertNext')} <ArrowRight size={17} /></button>}{payable && <button type="button" className="button button-secondary" onClick={() => onAction('paid', document)}><CheckCircle2 size={17} />{t('sales.markPaid')}</button>}</div>}
   </div>
 }

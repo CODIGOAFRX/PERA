@@ -28,6 +28,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/sales-dashboard/**").hasAuthority("documents:read")
                         .requestMatchers(HttpMethod.GET, "/api/v1/numbering-schemes/**").hasAuthority("numbering:read")
                         .requestMatchers("/api/v1/numbering-schemes/**").hasAuthority("numbering:write")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/verifactu-settings/**").hasAuthority("verifactu:read")
+                        .requestMatchers("/api/v1/verifactu-settings/**").hasAuthority("verifactu:write")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/verifactu-records/**").hasAuthority("verifactu:read")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(server -> server.jwt(jwt ->
                         jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))).build();

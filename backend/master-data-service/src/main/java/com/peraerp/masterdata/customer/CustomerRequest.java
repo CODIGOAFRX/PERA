@@ -1,5 +1,6 @@
 package com.peraerp.masterdata.customer;
 
+import com.peraerp.masterdata.party.TaxIdentificationType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -13,6 +14,10 @@ public record CustomerRequest(
         @NotBlank @Size(max = 180) String legalName,
         @Size(max = 180) String tradeName,
         @Size(max = 30) String taxId,
+        @Schema(description = "NIF para residentes en España. Para el resto, el tipo de documento del bloque IDOtro de Veri*Factu. Si se omite y hay identificador, se asume NIF.")
+        TaxIdentificationType taxIdentificationType,
+        @Schema(description = "País de expedición del identificador fiscal, ISO 3166-1 alfa-2.")
+        @Size(min = 2, max = 2) String taxCountryCode,
         @Size(max = 40) String phone,
         @Size(max = 180) String email,
         String observations,

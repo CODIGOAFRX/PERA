@@ -75,6 +75,11 @@ export interface ProblemDetail {
 
 export type RiskPolicy = 'WARN' | 'REQUIRE_CONFIRMATION' | 'BLOCK'
 
+/** Tipo de identificación fiscal. NIF para residentes; el resto viaja como IDOtro en Veri*Factu. */
+export type TaxIdentificationType =
+  | 'NIF' | 'VAT_NUMBER' | 'PASSPORT' | 'FOREIGN_OFFICIAL_ID'
+  | 'RESIDENCE_CERTIFICATE' | 'OTHER_DOCUMENT' | 'NOT_REGISTERED'
+
 export interface Customer {
   id: string
   partyId: string
@@ -82,6 +87,8 @@ export interface Customer {
   legalName: string
   tradeName: string | null
   taxId: string | null
+  taxIdentificationType: TaxIdentificationType | null
+  taxCountryCode: string | null
   phone: string | null
   email: string | null
   observations: string | null
@@ -101,6 +108,8 @@ export interface CustomerInput {
   legalName: string
   tradeName?: string | null
   taxId?: string | null
+  taxIdentificationType?: TaxIdentificationType | null
+  taxCountryCode?: string | null
   phone?: string | null
   email?: string | null
   observations?: string | null
@@ -178,7 +187,34 @@ export interface ProductInput {
   active: boolean
 }
 
-export type DocumentType = 'QUOTE' | 'SALES_ORDER' | 'DELIVERY_NOTE' | 'INVOICE' | 'WORK_ORDER'
+export type DocumentType = 'QUOTE' | 'SALES_ORDER' | 'DELIVERY_NOTE' | 'INVOICE' | 'RECTIFYING_INVOICE' | 'WORK_ORDER'
+export type VerifactuState = 'PENDING' | 'SENT' | 'ACCEPTED' | 'ACCEPTED_WITH_ERRORS' | 'REJECTED'
+export type VerifactuRecordType = 'ALTA' | 'ANULACION'
+
+export interface VerifactuRecord {
+  id: string
+  documentId: string
+  recordType: VerifactuRecordType
+  sequenceNumber: number
+  issuerTaxId: string
+  invoiceNumber: string
+  invoiceDate: string
+  invoiceKind: InvoiceKind | null
+  totalTaxAmount: number
+  totalAmount: number
+  previousFingerprint: string | null
+  fingerprint: string
+  generatedAt: string
+  state: VerifactuState
+  aeatCsv: string | null
+  /** Contenido exacto del QR de cotejo, construido por el servidor. */
+  qrPayload: string | null
+}
+
+/** TipoFactura de Veri*Factu. F1 completa, F2 simplificada, F3 sustitutiva, R1-R5 rectificativas. */
+export type InvoiceKind = 'F1' | 'F2' | 'F3' | 'R1' | 'R2' | 'R3' | 'R4' | 'R5'
+/** TipoRectificativa: por sustitución (S) o por diferencias (I). */
+export type RectificationType = 'SUBSTITUTION' | 'DIFFERENCES'
 export type DocumentStatus = 'DRAFT' | 'CONFIRMED' | 'CONVERTED' | 'CANCELLED'
 export type PaymentStatus = 'NOT_APPLICABLE' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID'
 export type QuoteStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'CONVERTED'
@@ -231,6 +267,16 @@ export interface CommercialDocument {
   quoteValidUntil: string | null
   quoteDecidedAt: string | null
   quoteRejectionReason: string | null
+  customerTaxId: string | null
+  customerTaxIdentificationType: TaxIdentificationType | null
+  customerTaxCountry: string | null
+  invoiceKind: InvoiceKind | null
+  rectificationType: RectificationType | null
+  rectifiedDocumentId: string | null
+  rectifiedNumber: string | null
+  rectifiedIssueDate: string | null
+  /** Una factura expedida es inmutable: solo se corrige con una rectificativa. */
+  issued: boolean
 }
 
 export interface CreateDocumentInput {

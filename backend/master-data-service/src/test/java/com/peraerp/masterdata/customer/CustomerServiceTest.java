@@ -2,6 +2,7 @@ package com.peraerp.masterdata.customer;
 
 import com.peraerp.masterdata.config.CurrentCompanyProvider;
 import com.peraerp.masterdata.party.Party;
+import com.peraerp.masterdata.party.TaxIdentificationType;
 import com.peraerp.masterdata.party.PartyRepository;
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
@@ -119,8 +120,8 @@ class CustomerServiceTest {
     }
 
     private CustomerRequest request(String code, String name, Boolean active) {
-        return new CustomerRequest(code, name, "Comercial", "B123", "600000000", "cliente@demo.es",
-                "Observaciones", null, null, "SUP-01", null, new BigDecimal("1000"),
-                new BigDecimal("800"), RiskPolicy.WARN, active);
+        return new CustomerRequest(code, name, "Comercial", "B123", TaxIdentificationType.NIF, "ES",
+                "600000000", "cliente@demo.es", "Observaciones", null, null, "SUP-01", null,
+                new BigDecimal("1000"), new BigDecimal("800"), RiskPolicy.WARN, active);
     }
 }

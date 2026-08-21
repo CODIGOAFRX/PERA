@@ -33,6 +33,7 @@ public class BootstrapDataInitializer implements ApplicationRunner {
             "documents:read", "documents:write", "quotes:read", "quotes:write",
             "finance:read", "finance:write",
             "company-settings:read", "company-settings:write", "numbering:read", "numbering:write",
+            "verifactu:read", "verifactu:write",
             "currencies:read", "currencies:write", "taxes:read", "taxes:write",
             "pricing:read", "pricing:write", "packaging:read", "packaging:write",
             "workflows:read", "workflows:manage", "workflows:execute",
@@ -48,7 +49,8 @@ public class BootstrapDataInitializer implements ApplicationRunner {
             new RoleDefinition("ECONOMY", "Economía", List.of(
                     "customers:read", "products:read", "documents:read", "documents:write",
                     "quotes:read", "quotes:write", "finance:read", "finance:write",
-                    "company-settings:read", "numbering:read", "currencies:read", "pricing:read", "taxes:read")),
+                    "company-settings:read", "numbering:read", "verifactu:read", "currencies:read",
+                    "pricing:read", "taxes:read")),
             new RoleDefinition("LOGISTICS", "Logística y procesos", List.of(
                     "suppliers:read", "suppliers:write", "products:read",
                     "company-settings:read", "currencies:read", "workflows:read", "workflows:manage",
