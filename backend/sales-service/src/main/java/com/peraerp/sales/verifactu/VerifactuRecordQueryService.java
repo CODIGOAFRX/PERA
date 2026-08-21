@@ -1,5 +1,6 @@
 package com.peraerp.sales.verifactu;
 
+import com.peraerp.platform.domain.ResourceNotFoundException;
 import com.peraerp.sales.config.CurrentCompanyProvider;
 import com.peraerp.sales.verifactu.api.VerifactuRecordResponse;
 import com.peraerp.sales.verifactu.domain.VerifactuEnvironment;
@@ -42,6 +43,26 @@ public class VerifactuRecordQueryService {
         return records.findByCompanyIdAndDocumentIdOrderBySequenceNumberAsc(companyId, documentId).stream()
                 .map(record -> VerifactuRecordResponse.from(record, qrPayload(record, environment)))
                 .toList();
+    }
+
+    /**
+     * Devuelve el XML del registro tal y como se remitirá a la AEAT.
+     *
+     * <p>Va en su propio recurso y no dentro del listado: son varios kilobytes por registro y el
+     * listado se pide cada vez que se abre una factura. Quien quiera verlo, que lo pida.</p>
+     *
+     * <p>Se sirve el XML almacenado, no uno reconstruido al vuelo. Un registro es un hecho
+     * fechado: reconstruirlo con el código de hoy mostraría algo que nunca se remitió.</p>
+     */
+    @Transactional(readOnly = true)
+    public String payloadXml(UUID recordId) {
+        VerifactuRecord record = records.findByIdAndCompanyId(recordId, companyProvider.requireCompanyId())
+                .orElseThrow(() -> new ResourceNotFoundException("Registro de facturación", recordId));
+        if (record.getPayloadXml() == null || record.getPayloadXml().isBlank()) {
+            // Los registros anteriores a la serialización, y las anulaciones, no lo tienen.
+            throw new ResourceNotFoundException("XML del registro de facturación", recordId);
+        }
+        return record.getPayloadXml();
     }
 
     /**

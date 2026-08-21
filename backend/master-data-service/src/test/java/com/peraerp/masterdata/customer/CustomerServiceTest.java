@@ -120,7 +120,7 @@ class CustomerServiceTest {
     }
 
     private CustomerRequest request(String code, String name, Boolean active) {
-        return new CustomerRequest(code, name, "Comercial", "B123", TaxIdentificationType.NIF, "ES",
+        return new CustomerRequest(code, name, "Comercial", "B75777847", TaxIdentificationType.NIF, "ES",
                 "600000000", "cliente@demo.es", "Observaciones", null, null, "SUP-01", null,
                 new BigDecimal("1000"), new BigDecimal("800"), RiskPolicy.WARN, active);
     }

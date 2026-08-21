@@ -45,6 +45,25 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return response.json() as Promise<T>
 }
 
+/**
+ * Igual que apiFetch pero devuelve el cuerpo sin interpretar.
+ *
+ * Existe para recursos que no son JSON —el XML de un registro Veri*Factu, por ejemplo— y que hay
+ * que poder mostrar y guardar exactamente como los sirve el servidor.
+ */
+export async function apiFetchText(path: string): Promise<string> {
+  const token = getStoredToken()
+  const headers = new Headers({ 'Accept-Language': getStoredLocale() })
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const response = await fetch(path, { headers })
+  if (!response.ok) {
+    const problem = await readProblem(response)
+    if (response.status === 401 && token) window.dispatchEvent(new Event('pera:unauthorized'))
+    throw new ApiError(response.status, problem?.detail || problem?.title || `Error HTTP ${response.status}`, problem)
+  }
+  return response.text()
+}
+
 export async function apiDownload(path: string): Promise<{ blob: Blob; filename: string }> {
   const token = getStoredToken()
   const headers = new Headers({ 'Accept-Language': getStoredLocale() })

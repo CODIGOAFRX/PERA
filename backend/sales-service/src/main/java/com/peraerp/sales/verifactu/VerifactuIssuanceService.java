@@ -8,13 +8,10 @@ import com.peraerp.sales.verifactu.domain.VerifactuRecord;
 import com.peraerp.sales.verifactu.domain.VerifactuRecordType;
 import com.peraerp.sales.verifactu.domain.VerifactuSettings;
 import com.peraerp.sales.verifactu.domain.VerifactuSettingsRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Clock;
-import java.time.ZonedDateTime;
 import java.util.Optional;
 
 /**
@@ -33,18 +30,13 @@ public class VerifactuIssuanceService {
 
     private final VerifactuSettingsRepository settings;
     private final VerifactuChainService chain;
-    private final Clock clock;
+    private final VerifactuInvoicePayloadFactory payloads;
 
-    @Autowired
-    public VerifactuIssuanceService(VerifactuSettingsRepository settings, VerifactuChainService chain) {
-        this(settings, chain, Clock.systemUTC());
-    }
-
-    /** Constructor para pruebas: permite fijar el reloj. */
-    VerifactuIssuanceService(VerifactuSettingsRepository settings, VerifactuChainService chain, Clock clock) {
+    public VerifactuIssuanceService(VerifactuSettingsRepository settings, VerifactuChainService chain,
+                                    VerifactuInvoicePayloadFactory payloads) {
         this.settings = settings;
         this.chain = chain;
-        this.clock = clock;
+        this.payloads = payloads;
     }
 
     /**
@@ -64,7 +56,6 @@ public class VerifactuIssuanceService {
         VerifactuSettings active = configuration.get();
         requireEuroAmounts(document);
 
-        ZonedDateTime generatedAt = ZonedDateTime.now(clock.withZone(active.zone()));
         return Optional.of(chain.append(document.getCompanyId(), new ChainedRecordRequest(
                 document.getId(),
                 VerifactuRecordType.ALTA,
@@ -75,8 +66,8 @@ public class VerifactuIssuanceService {
                 document.getRectificationType(),
                 document.getBaseTaxAmount(),
                 document.getBaseTotalAmount(),
-                generatedAt,
-                null)));
+                active.zone(),
+                payloads.forInvoice(document, active))));
     }
 
     /**

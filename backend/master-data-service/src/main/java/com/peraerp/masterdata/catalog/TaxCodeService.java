@@ -37,7 +37,7 @@ public class TaxCodeService {
         }
         return TaxCodeResponse.from(repository.save(new TaxCode(companyId, countryCode, code,
                 request.name().trim(), request.percentage(), request.validFrom(), request.validUntil(),
-                request.exempt(), request.active())));
+                qualification(request), exemptionCause(request), request.regimeKey(), request.active())));
     }
 
     @Transactional(readOnly = true)
@@ -70,7 +70,8 @@ public class TaxCodeService {
                     countryCode + ".");
         }
         taxCode.update(countryCode, request.name().trim(), request.percentage(), request.validFrom(),
-                request.validUntil(), request.exempt(), request.active());
+                request.validUntil(), qualification(request), exemptionCause(request), request.regimeKey(),
+                request.active());
         return TaxCodeResponse.from(taxCode);
     }
 
@@ -112,4 +113,33 @@ public class TaxCodeService {
     }
     private String normalizeCode(String code) { return code.trim().toUpperCase(Locale.ROOT); }
     private String normalizeQuery(String query) { return query == null || query.isBlank() ? "" : query.trim(); }
+
+    /**
+     * Resuelve la calificación fiscal admitiendo peticiones antiguas.
+     *
+     * <p>Una pantalla que todavía envíe solo el booleano {@code exempt} sigue funcionando; en
+     * cuanto envía {@code operationQualification}, manda esa. Así el cambio no rompe integraciones
+     * existentes pero tampoco obliga a arrastrar el booleano para siempre.</p>
+     */
+    private static OperationQualification qualification(TaxCodeRequest request) {
+        if (request.operationQualification() != null) {
+            return request.operationQualification();
+        }
+        return request.exempt() ? OperationQualification.EXEMPT : OperationQualification.SUBJECT_NOT_EXEMPT;
+    }
+
+    /**
+     * Causa de exención, con E6 («otras causas») como valor por defecto.
+     *
+     * <p>E6 es la única causa que no afirma nada que no sepamos: quien marque un código como exento
+     * sin precisar el motivo queda declarado de la forma más conservadora posible, y puede
+     * corregirlo. La alternativa —rechazar la petición— rompería las pantallas que aún no envían
+     * el campo.</p>
+     */
+    private static ExemptionCause exemptionCause(TaxCodeRequest request) {
+        if (!qualification(request).isExempt()) {
+            return null;
+        }
+        return request.exemptionCause() == null ? ExemptionCause.OTHER : request.exemptionCause();
+    }
 }

@@ -13,10 +13,11 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -45,7 +46,8 @@ class VerifactuChainServiceTest {
     private static final UUID COMPANY = UUID.randomUUID();
     private static final ZoneId MADRID = ZoneId.of("Europe/Madrid");
     private static final LocalDate ISSUE_DATE = LocalDate.of(2026, 8, 19);
-    private static final ZonedDateTime GENERATED_AT = ZonedDateTime.of(2026, 8, 19, 10, 0, 0, 0, MADRID);
+    /** 09:30 UTC son las 11:30 en Madrid con horario de verano. */
+    private static final Clock FIXED = Clock.fixed(Instant.parse("2026-08-19T09:30:00Z"), ZoneOffset.UTC);
 
     private final Map<UUID, InvoiceChainHead> heads = new HashMap<>();
     private InvoiceChainHeadRepository chainHeads;
@@ -57,7 +59,7 @@ class VerifactuChainServiceTest {
         heads.clear();
         chainHeads = mock(InvoiceChainHeadRepository.class);
         records = mock(VerifactuRecordRepository.class);
-        service = new VerifactuChainService(chainHeads, records);
+        service = new VerifactuChainService(chainHeads, records, FIXED);
 
         when(chainHeads.ensureHead(any(), any(), any())).thenAnswer(invocation -> {
             UUID companyId = invocation.getArgument(1);
@@ -84,17 +86,17 @@ class VerifactuChainServiceTest {
         return record;
     }
 
-    private ChainedRecordRequest alta(String number, ZonedDateTime generatedAt) {
+    private ChainedRecordRequest alta(String number) {
         return new ChainedRecordRequest(UUID.randomUUID(), VerifactuRecordType.ALTA, "B75777847", number,
                 ISSUE_DATE, InvoiceKind.F1, null, new BigDecimal("4348.68"), new BigDecimal("25052.00"),
-                generatedAt, null);
+                MADRID, null);
     }
 
     // --- cadena ---
 
     @Test
     void firstRecordOfACompanyStartsTheChain() {
-        VerifactuRecord record = service.append(COMPANY, alta("F-2026-0000015", GENERATED_AT));
+        VerifactuRecord record = service.append(COMPANY, alta("F-2026-0000015"));
 
         assertThat(record.getSequenceNumber()).isEqualTo(1L);
         assertThat(record.getPreviousFingerprint()).isNull();
@@ -104,8 +106,8 @@ class VerifactuChainServiceTest {
 
     @Test
     void everyRecordEmbedsTheFingerprintOfThePreviousOne() {
-        VerifactuRecord first = service.append(COMPANY, alta("F-2026-0000015", GENERATED_AT));
-        VerifactuRecord second = service.append(COMPANY, alta("F-2026-0000016", GENERATED_AT.plusMinutes(5)));
+        VerifactuRecord first = service.append(COMPANY, alta("F-2026-0000015"));
+        VerifactuRecord second = service.append(COMPANY, alta("F-2026-0000016"));
 
         assertThat(second.getSequenceNumber()).isEqualTo(2L);
         assertThat(second.getPreviousFingerprint()).isEqualTo(first.getFingerprint());
@@ -114,8 +116,8 @@ class VerifactuChainServiceTest {
 
     @Test
     void chainHeadAdvancesToTheLastRecord() {
-        service.append(COMPANY, alta("F-2026-0000015", GENERATED_AT));
-        VerifactuRecord last = service.append(COMPANY, alta("F-2026-0000016", GENERATED_AT.plusMinutes(5)));
+        service.append(COMPANY, alta("F-2026-0000015"));
+        VerifactuRecord last = service.append(COMPANY, alta("F-2026-0000016"));
 
         InvoiceChainHead head = heads.get(COMPANY);
         assertThat(head.getLastFingerprint()).isEqualTo(last.getFingerprint());
@@ -126,10 +128,10 @@ class VerifactuChainServiceTest {
 
     @Test
     void eachCompanyKeepsItsOwnChain() {
-        service.append(COMPANY, alta("F-2026-0000015", GENERATED_AT));
+        service.append(COMPANY, alta("F-2026-0000015"));
 
         UUID otherCompany = UUID.randomUUID();
-        VerifactuRecord other = service.append(otherCompany, alta("A-2026-0000001", GENERATED_AT));
+        VerifactuRecord other = service.append(otherCompany, alta("A-2026-0000001"));
 
         assertThat(other.getSequenceNumber()).isEqualTo(1L);
         assertThat(other.getPreviousFingerprint()).isNull();
@@ -140,8 +142,8 @@ class VerifactuChainServiceTest {
     @Test
     void recordCannotBeGeneratedBeforeTheInvoiceWasIssued() {
         ChainedRecordRequest impossible = new ChainedRecordRequest(UUID.randomUUID(),
-                VerifactuRecordType.ALTA, "B75777847", "F-2026-0000015", ISSUE_DATE, InvoiceKind.F1, null,
-                BigDecimal.ZERO, BigDecimal.TEN, ZonedDateTime.of(2026, 8, 3, 11, 38, 11, 0, MADRID), null);
+                VerifactuRecordType.ALTA, "B75777847", "F-2026-0000015", LocalDate.of(2026, 8, 25),
+                InvoiceKind.F1, null, BigDecimal.ZERO, BigDecimal.TEN, MADRID, null);
 
         assertThatThrownBy(() -> service.append(COMPANY, impossible))
                 .isInstanceOf(BusinessRuleException.class)
@@ -150,11 +152,36 @@ class VerifactuChainServiceTest {
 
     @Test
     void chainRejectsTimeGoingBackwards() {
-        service.append(COMPANY, alta("F-2026-0000015", GENERATED_AT));
+        service.append(COMPANY, alta("F-2026-0000015"));
 
-        assertThatThrownBy(() -> service.append(COMPANY, alta("F-2026-0000016", GENERATED_AT.minusHours(2))))
+        // Un reloj que retrocede —un ajuste de NTP mal dado, por ejemplo— no puede colar un
+        // registro fechado antes que el anterior de la cadena.
+        VerifactuChainService rewound = new VerifactuChainService(chainHeads, records,
+                Clock.fixed(Instant.parse("2026-08-19T07:30:00Z"), ZoneOffset.UTC));
+
+        assertThatThrownBy(() -> rewound.append(COMPANY, alta("F-2026-0000016")))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("registro previo");
+    }
+
+    @Test
+    void twoRecordsStampedInTheSameInstantStillChain() {
+        VerifactuRecord first = service.append(COMPANY, alta("F-2026-0000015"));
+        VerifactuRecord second = service.append(COMPANY, alta("F-2026-0000016"));
+
+        // El reloj está fijo: ambos registros comparten instante. Es lo que ocurre cuando dos
+        // facturas se expiden a la vez, y no puede rechazarse.
+        assertThat(second.getGeneratedAt()).isEqualTo(first.getGeneratedAt());
+        assertThat(second.getPreviousFingerprint()).isEqualTo(first.getFingerprint());
+        assertThat(second.getFingerprint()).isNotEqualTo(first.getFingerprint());
+    }
+
+    @Test
+    void theRecordIsStampedInTheCompanyTimeZone() {
+        VerifactuRecord record = service.append(COMPANY, alta("F-2026-0000015"));
+
+        assertThat(record.getGeneratedAt().atZone(MADRID).getHour()).isEqualTo(11);
+        assertThat(record.getGeneratedAt().atZone(MADRID).getOffset().getTotalSeconds()).isEqualTo(7200);
     }
 
     // --- validaciones de contenido ---
@@ -163,7 +190,7 @@ class VerifactuChainServiceTest {
     void altaRequiresTheInvoiceKind() {
         ChainedRecordRequest withoutKind = new ChainedRecordRequest(UUID.randomUUID(),
                 VerifactuRecordType.ALTA, "B75777847", "F-9", ISSUE_DATE, null, null,
-                BigDecimal.ZERO, BigDecimal.TEN, GENERATED_AT, null);
+                BigDecimal.ZERO, BigDecimal.TEN, MADRID, null);
 
         assertThatThrownBy(() -> service.append(COMPANY, withoutKind))
                 .isInstanceOf(BusinessRuleException.class)
@@ -174,7 +201,7 @@ class VerifactuChainServiceTest {
     void issuerTaxIdIsMandatory() {
         ChainedRecordRequest withoutIssuer = new ChainedRecordRequest(UUID.randomUUID(),
                 VerifactuRecordType.ALTA, "   ", "F-9", ISSUE_DATE, InvoiceKind.F1, null,
-                BigDecimal.ZERO, BigDecimal.TEN, GENERATED_AT, null);
+                BigDecimal.ZERO, BigDecimal.TEN, MADRID, null);
 
         assertThatThrownBy(() -> service.append(COMPANY, withoutIssuer))
                 .isInstanceOf(BusinessRuleException.class)
@@ -185,7 +212,7 @@ class VerifactuChainServiceTest {
     void invoiceNumberIsMandatory() {
         ChainedRecordRequest withoutNumber = new ChainedRecordRequest(UUID.randomUUID(),
                 VerifactuRecordType.ALTA, "B75777847", "", ISSUE_DATE, InvoiceKind.F1, null,
-                BigDecimal.ZERO, BigDecimal.TEN, GENERATED_AT, null);
+                BigDecimal.ZERO, BigDecimal.TEN, MADRID, null);
 
         assertThatThrownBy(() -> service.append(COMPANY, withoutNumber))
                 .isInstanceOf(BusinessRuleException.class)
@@ -196,11 +223,11 @@ class VerifactuChainServiceTest {
 
     @Test
     void anulacionChainsWithoutAnInvoiceKind() {
-        VerifactuRecord alta = service.append(COMPANY, alta("F-2026-0000015", GENERATED_AT));
+        VerifactuRecord alta = service.append(COMPANY, alta("F-2026-0000015"));
 
         ChainedRecordRequest cancellation = new ChainedRecordRequest(UUID.randomUUID(),
                 VerifactuRecordType.ANULACION, "B75777847", "F-2026-0000015", ISSUE_DATE, null, null,
-                null, null, GENERATED_AT.plusMinutes(1), null);
+                null, null, MADRID, null);
         VerifactuRecord record = service.append(COMPANY, cancellation);
 
         assertThat(record.getInvoiceKind()).isNull();
@@ -212,7 +239,7 @@ class VerifactuChainServiceTest {
 
     @Test
     void sendingARecordCountsTheAttempt() {
-        VerifactuRecord record = service.append(COMPANY, alta("F-2026-0000015", GENERATED_AT));
+        VerifactuRecord record = service.append(COMPANY, alta("F-2026-0000015"));
 
         record.markSent(Instant.now());
 
@@ -222,7 +249,7 @@ class VerifactuChainServiceTest {
 
     @Test
     void acceptedResponseStoresTheCsv() {
-        VerifactuRecord record = service.append(COMPANY, alta("F-2026-0000015", GENERATED_AT));
+        VerifactuRecord record = service.append(COMPANY, alta("F-2026-0000015"));
 
         record.applyResponse(VerifactuState.ACCEPTED, "CSV-123", "{}", Instant.now());
 
@@ -232,7 +259,7 @@ class VerifactuChainServiceTest {
 
     @Test
     void aResponseCannotLeaveTheRecordPending() {
-        VerifactuRecord record = service.append(COMPANY, alta("F-2026-0000015", GENERATED_AT));
+        VerifactuRecord record = service.append(COMPANY, alta("F-2026-0000015"));
 
         assertThatThrownBy(() -> record.applyResponse(VerifactuState.PENDING, null, null, Instant.now()))
                 .isInstanceOf(BusinessRuleException.class);

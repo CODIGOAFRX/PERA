@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [switch]$SkipBuild
 )
@@ -17,6 +17,16 @@ $internalServiceKey = 'pera-local-internal-service-key-change-me'
 # llegar por PERA_VERIFACTU_DEVELOPER_TAX_ID; si ya viene definido, este script lo respeta.
 if (-not $env:PERA_VERIFACTU_DEVELOPER_TAX_ID) {
     $env:PERA_VERIFACTU_DEVELOPER_TAX_ID = '89890001K'
+}
+# Razon social de quien comercializa PERA. No tiene valor por defecto en la aplicacion a proposito:
+# caer al nombre del programa producia un registro que parecia completo y no lo estaba.
+if (-not $env:PERA_VERIFACTU_DEVELOPER_NAME) {
+    $env:PERA_VERIFACTU_DEVELOPER_NAME = 'PERA ERP (desarrollo)'
+}
+# Identifica la INSTALACION del programa, no a la empresa que lo usa: varias empresas en la misma
+# instalacion tienen que declarar todas el mismo numero.
+if (-not $env:PERA_VERIFACTU_INSTALLATION_NUMBER) {
+    $env:PERA_VERIFACTU_INSTALLATION_NUMBER = 'PERA-LOCAL-DEV'
 }
 
 function Resolve-PostgresBin {

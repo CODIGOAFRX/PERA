@@ -42,13 +42,37 @@ interface ProductType extends ActiveCatalogItem { supertypeId: string }
 interface ProductGroup extends ActiveCatalogItem { productTypeId: string }
 type ClassificationEntity = ProductNature | ProductSupertype | ProductType | ProductGroup
 
+type OperationQualification = 'SUBJECT_NOT_EXEMPT' | 'REVERSE_CHARGE' | 'NOT_SUBJECT' | 'NOT_SUBJECT_LOCATION' | 'EXEMPT'
+type ExemptionCause = 'ARTICLE_20' | 'ARTICLE_21' | 'ARTICLE_22' | 'ARTICLES_23_AND_24' | 'ARTICLE_25' | 'OTHER'
+
 interface TaxCode extends ActiveCatalogItem {
   countryCode: string
   percentage: number
   validFrom: string
   validUntil: string | null
   exempt: boolean
+  operationQualification: OperationQualification | null
+  exemptionCause: ExemptionCause | null
+  regimeKey: string | null
 }
+
+/** Etiquetas de Veri*Factu. Se declaran junto al formulario porque solo se usan aquí. */
+const qualificationOptions: Array<[OperationQualification, string, string]> = [
+  ['SUBJECT_NOT_EXEMPT', 'S1 · Sujeta y no exenta', 'S1 · Subject, not exempt'],
+  ['REVERSE_CHARGE', 'S2 · Inversión del sujeto pasivo', 'S2 · Reverse charge'],
+  ['NOT_SUBJECT', 'N1 · No sujeta (art. 7, 14 y otros)', 'N1 · Out of scope (art. 7, 14 and others)'],
+  ['NOT_SUBJECT_LOCATION', 'N2 · No sujeta por localización', 'N2 · Out of scope by place of supply'],
+  ['EXEMPT', 'Exenta', 'Exempt'],
+]
+
+const exemptionCauseOptions: Array<[ExemptionCause, string, string]> = [
+  ['ARTICLE_20', 'E1 · Exenta por el artículo 20', 'E1 · Exempt under article 20'],
+  ['ARTICLE_21', 'E2 · Exportaciones (artículo 21)', 'E2 · Exports (article 21)'],
+  ['ARTICLE_22', 'E3 · Operaciones asimiladas (artículo 22)', 'E3 · Similar operations (article 22)'],
+  ['ARTICLES_23_AND_24', 'E4 · Regímenes suspensivos (artículos 23 y 24)', 'E4 · Suspensive regimes (articles 23 and 24)'],
+  ['ARTICLE_25', 'E5 · Entregas intracomunitarias (artículo 25)', 'E5 · Intra-community supplies (article 25)'],
+  ['OTHER', 'E6 · Otras causas', 'E6 · Other reasons'],
+]
 
 interface ProductLookup {
   id: string
@@ -191,6 +215,9 @@ const localCopy = {
     country: 'País', percentage: 'Porcentaje', validity: 'Vigencia', exempt: 'Exento', editTax: 'Editar impuesto',
     taxLocked: 'País y código quedan bloqueados tras el alta.', countryIso: 'País ISO-3166', validFrom: 'Válido desde',
     validUntil: 'Válido hasta', exemption: 'Exención', createTax: 'Crear impuesto',
+    qualification: 'Calificación de la operación', exemptionCause: 'Causa de exención',
+    regimeKey: 'Clave de régimen', regimeHint: '01 es el régimen general.',
+    qualificationHint: 'Determina cómo se declara la operación en Veri*Factu.',
     allCustomers: 'Todos los clientes', searchTariff: 'Buscar por número, código o nombre', newTariff: 'Nueva tarifa',
     allOptions: 'Todos', filterCustomer: 'Filtrar por cliente', filterNature: 'Filtrar por naturaleza',
     filterSupertype: 'Filtrar por supertipo', filterType: 'Filtrar por tipo', filterScope: 'Filtrar por ámbito',
@@ -255,6 +282,9 @@ const localCopy = {
     country: 'Country', percentage: 'Percentage', validity: 'Validity', exempt: 'Exempt', editTax: 'Edit tax',
     taxLocked: 'Country and code cannot be changed after creation.', countryIso: 'ISO-3166 country', validFrom: 'Valid from',
     validUntil: 'Valid until', exemption: 'Exemption', createTax: 'Create tax',
+    qualification: 'Operation qualification', exemptionCause: 'Exemption reason',
+    regimeKey: 'Regime key', regimeHint: '01 is the general regime.',
+    qualificationHint: 'Determines how the operation is reported under Veri*Factu.',
     allCustomers: 'All customers', searchTariff: 'Search by number, code or name', newTariff: 'New tariff',
     allOptions: 'All', filterCustomer: 'Filter by customer', filterNature: 'Filter by nature',
     filterSupertype: 'Filter by supertype', filterType: 'Filter by type', filterScope: 'Filter by scope',
@@ -588,7 +618,9 @@ function TaxesTab() {
     try {
       await apiFetch(`/api/v1/tax-codes/${tax.id}`, { method: 'PUT', body: JSON.stringify({
         countryCode: tax.countryCode, code: tax.code, name: tax.name, percentage: tax.percentage,
-        validFrom: tax.validFrom, validUntil: tax.validUntil, exempt: tax.exempt, active: false,
+        validFrom: tax.validFrom, validUntil: tax.validUntil, exempt: tax.exempt,
+        operationQualification: tax.operationQualification, exemptionCause: tax.exemptionCause,
+        regimeKey: tax.regimeKey, active: false,
       }) })
       setRefresh((value) => value + 1); notify(copy.deactivated)
     } catch (cause) { setActionError(errorMessage(cause)) }
@@ -611,13 +643,34 @@ function TaxesTab() {
 
 function TaxForm({ tax, onCancel, onSaved }: { tax: TaxCode | null; onCancel: () => void; onSaved: () => void }) {
   const copy = useLocalCopy()
-  const [form, setForm] = useState({ countryCode: tax?.countryCode ?? 'ES', code: tax?.code ?? '', name: tax?.name ?? '', percentage: String(tax?.percentage ?? 21), validFrom: tax?.validFrom ?? today(), validUntil: tax?.validUntil ?? '', exempt: tax?.exempt ?? false, active: tax?.active ?? true })
+  const { language } = useTranslation()
+  const [form, setForm] = useState({
+    countryCode: tax?.countryCode ?? 'ES', code: tax?.code ?? '', name: tax?.name ?? '',
+    percentage: String(tax?.percentage ?? 21), validFrom: tax?.validFrom ?? today(),
+    validUntil: tax?.validUntil ?? '',
+    qualification: (tax?.operationQualification ?? 'SUBJECT_NOT_EXEMPT') as OperationQualification,
+    exemptionCause: (tax?.exemptionCause ?? 'OTHER') as ExemptionCause,
+    regimeKey: tax?.regimeKey ?? '01',
+    active: tax?.active ?? true,
+  })
+  const isExempt = form.qualification === 'EXEMPT'
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setSaving(true); setError('')
-    const payload = { countryCode: form.countryCode.trim().toUpperCase(), code: form.code.trim(), name: form.name.trim(), percentage: Number(form.percentage), validFrom: form.validFrom, validUntil: form.validUntil || null, exempt: form.exempt, active: form.active }
+    const payload = {
+      countryCode: form.countryCode.trim().toUpperCase(), code: form.code.trim(), name: form.name.trim(),
+      percentage: isExempt ? 0 : Number(form.percentage), validFrom: form.validFrom,
+      validUntil: form.validUntil || null,
+      // exempt se envía derivado de la calificación: el backend lo acepta por compatibilidad, pero
+      // la fuente de verdad es operationQualification.
+      exempt: isExempt,
+      operationQualification: form.qualification,
+      exemptionCause: isExempt ? form.exemptionCause : null,
+      regimeKey: form.regimeKey.trim() || '01',
+      active: form.active,
+    }
     try { await apiFetch(tax ? `/api/v1/tax-codes/${tax.id}` : '/api/v1/tax-codes', { method: tax ? 'PUT' : 'POST', body: JSON.stringify(payload) }); onSaved() }
     catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
   }
@@ -625,10 +678,12 @@ function TaxForm({ tax, onCancel, onSaved }: { tax: TaxCode | null; onCancel: ()
     <Field label={copy.countryIso} htmlFor="tax-country" required><input id="tax-country" value={form.countryCode} maxLength={2} disabled={Boolean(tax)} required onChange={(event) => update('countryCode', event.target.value)} /></Field>
     <Field label={copy.code} htmlFor="tax-code" required><input id="tax-code" value={form.code} maxLength={40} disabled={Boolean(tax)} required onChange={(event) => update('code', event.target.value)} /></Field>
     <Field label={copy.name} htmlFor="tax-name" required><input id="tax-name" value={form.name} maxLength={140} required onChange={(event) => update('name', event.target.value)} /></Field>
-    <Field label={copy.percentage} htmlFor="tax-percentage" required><input id="tax-percentage" type="number" min="0" max="100" step="0.0001" value={form.percentage} required disabled={form.exempt} onChange={(event) => update('percentage', event.target.value)} /></Field>
+    <Field label={copy.percentage} htmlFor="tax-percentage" required><input id="tax-percentage" type="number" min="0" max="100" step="0.0001" value={isExempt ? '0' : form.percentage} required disabled={isExempt} onChange={(event) => update('percentage', event.target.value)} /></Field>
     <Field label={copy.validFrom} htmlFor="tax-from" required><input id="tax-from" type="date" value={form.validFrom} required onChange={(event) => update('validFrom', event.target.value)} /></Field>
     <Field label={copy.validUntil} htmlFor="tax-until"><input id="tax-until" type="date" value={form.validUntil} min={form.validFrom} onChange={(event) => update('validUntil', event.target.value)} /></Field>
-    <Field label={copy.exemption} htmlFor="tax-exempt"><label className="switch-row" htmlFor="tax-exempt"><input id="tax-exempt" type="checkbox" checked={form.exempt} onChange={(event) => setForm((current) => ({ ...current, exempt: event.target.checked, percentage: event.target.checked ? '0' : current.percentage }))} /><span>{copy.exempt}</span></label></Field>
+    <Field label={copy.qualification} htmlFor="tax-qualification" required hint={copy.qualificationHint} wide><select id="tax-qualification" value={form.qualification} onChange={(event) => update('qualification', event.target.value)}>{qualificationOptions.map(([value, es, en]) => <option key={value} value={value}>{language === 'es' ? es : en}</option>)}</select></Field>
+    <Field label={copy.exemptionCause} htmlFor="tax-exemption-cause" wide><select id="tax-exemption-cause" value={form.exemptionCause} disabled={!isExempt} onChange={(event) => update('exemptionCause', event.target.value)}>{exemptionCauseOptions.map(([value, es, en]) => <option key={value} value={value}>{language === 'es' ? es : en}</option>)}</select></Field>
+    <Field label={copy.regimeKey} htmlFor="tax-regime" required hint={copy.regimeHint}><input id="tax-regime" value={form.regimeKey} maxLength={2} pattern="\d{2}" required onChange={(event) => update('regimeKey', event.target.value.replace(/\D/g, ''))} /></Field>
     <Field label={copy.status} htmlFor="tax-active"><label className="switch-row" htmlFor="tax-active"><input id="tax-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.active}</span></label></Field>
   </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={tax ? copy.saveChanges : copy.createTax} /></form>
 }

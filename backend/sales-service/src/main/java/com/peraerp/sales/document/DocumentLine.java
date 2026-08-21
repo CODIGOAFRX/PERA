@@ -38,6 +38,14 @@ public class DocumentLine extends AuditableEntity {
     private String taxNameSnapshot;
     @Column(name = "tax_exempt_snapshot")
     private Boolean taxExemptSnapshot;
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "tax_qualification_snapshot", length = 24)
+    private com.peraerp.sales.verifactu.domain.OperationQualification taxQualificationSnapshot;
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "tax_exemption_cause_snapshot", length = 24)
+    private com.peraerp.sales.verifactu.domain.ExemptionCause taxExemptionCauseSnapshot;
+    @Column(name = "tax_regime_key_snapshot", length = 2)
+    private String taxRegimeKeySnapshot;
     @Column(name = "net_amount", nullable = false, precision = 19, scale = 4)
     private BigDecimal netAmount = BigDecimal.ZERO;
     @Column(name = "tax_amount", nullable = false, precision = 19, scale = 4)
@@ -83,6 +91,21 @@ public class DocumentLine extends AuditableEntity {
         this.taxCountryCodeSnapshot=taxCountryCodeSnapshot; this.taxNameSnapshot=taxNameSnapshot;
         this.taxExemptSnapshot=taxExemptSnapshot;
     }
+
+    /**
+     * Congela la calificación fiscal del código de impuesto en la línea.
+     *
+     * <p>Es lo que alimenta el desglose del registro. Como el resto de snapshots de PERA, se copia
+     * al emitir: si mañana el código fiscal cambia de calificación, el registro ya remitido sigue
+     * siendo reproducible.</p>
+     */
+    public void applyFiscalQualification(com.peraerp.sales.verifactu.domain.OperationQualification qualification,
+                                         com.peraerp.sales.verifactu.domain.ExemptionCause exemptionCause,
+                                         String regimeKey) {
+        this.taxQualificationSnapshot = qualification;
+        this.taxExemptionCauseSnapshot = qualification != null && qualification.isExempt() ? exemptionCause : null;
+        this.taxRegimeKeySnapshot = regimeKey == null || regimeKey.isBlank() ? null : regimeKey.trim();
+    }
     void attachTo(CommercialDocument document, int order) { this.document=document; this.lineOrder=order; }
     void recalculate(DocumentAmountsCalculator calculator) {
         LineAmounts amounts = pricingResolvedAmount == null
@@ -91,10 +114,12 @@ public class DocumentLine extends AuditableEntity {
         netAmount=amounts.net(); taxAmount=amounts.tax(); totalAmount=amounts.total();
     }
     DocumentLine copySnapshot() {
-        return new DocumentLine(productId, productCodeSnapshot, description, requestedQuantity, quantity, unitPrice,
-                discountPercentage, taxPercentage, tariffId, tariffCodeSnapshot, pricingResolvedAmount,
-                pricingTraceJson, taxCodeId, taxCodeSnapshot, taxCountryCodeSnapshot, taxNameSnapshot,
-                taxExemptSnapshot);
+        DocumentLine copy = new DocumentLine(productId, productCodeSnapshot, description, requestedQuantity,
+                quantity, unitPrice, discountPercentage, taxPercentage, tariffId, tariffCodeSnapshot,
+                pricingResolvedAmount, pricingTraceJson, taxCodeId, taxCodeSnapshot, taxCountryCodeSnapshot,
+                taxNameSnapshot, taxExemptSnapshot);
+        copy.applyFiscalQualification(taxQualificationSnapshot, taxExemptionCauseSnapshot, taxRegimeKeySnapshot);
+        return copy;
     }
     public int getLineOrder() { return lineOrder; }
     public UUID getProductId() { return productId; }
@@ -110,6 +135,9 @@ public class DocumentLine extends AuditableEntity {
     public String getTaxCountryCodeSnapshot() { return taxCountryCodeSnapshot; }
     public String getTaxNameSnapshot() { return taxNameSnapshot; }
     public Boolean getTaxExemptSnapshot() { return taxExemptSnapshot; }
+    public com.peraerp.sales.verifactu.domain.OperationQualification getTaxQualificationSnapshot() { return taxQualificationSnapshot; }
+    public com.peraerp.sales.verifactu.domain.ExemptionCause getTaxExemptionCauseSnapshot() { return taxExemptionCauseSnapshot; }
+    public String getTaxRegimeKeySnapshot() { return taxRegimeKeySnapshot; }
     public BigDecimal getNetAmount() { return netAmount; }
     public BigDecimal getTaxAmount() { return taxAmount; }
     public BigDecimal getTotalAmount() { return totalAmount; }
