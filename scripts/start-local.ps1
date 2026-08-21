@@ -79,14 +79,23 @@ function Get-JavaMajorVersion {
     )
 
     try {
-        $versionLine = (& $JavaExe -version 2>&1 | Select-Object -First 1).ToString()
+        $javaBin = Split-Path $JavaExe -Parent
+        $javacExe = Join-Path $javaBin 'javac.exe'
 
-        # Java moderno:
-        # openjdk version "21.0.12"
-        #
-        # Java antiguo:
-        # java version "1.8.0_503"
-        if ($versionLine -match 'version "(?:1\.)?(\d+)') {
+        # PERA necesita un JDK, no solamente un JRE.
+        if (-not (Test-Path $javacExe)) {
+            return 0
+        }
+
+        # javac -version funciona correctamente tanto en
+        # Windows PowerShell 5.1 como en PowerShell 7.
+        $versionOutput = (& $javacExe -version 2>&1 | Select-Object -First 1).ToString()
+
+        # Ejemplos:
+        # javac 21.0.12
+        # javac 17.0.10
+        # javac 1.8.0_503
+        if ($versionOutput -match 'javac\s+(?:1\.)?(\d+)') {
             return [int]$Matches[1]
         }
     }
