@@ -1,8 +1,9 @@
-import { Boxes, Pencil, Plus } from 'lucide-react'
+import { Boxes, FileUp, Pencil, Plus } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
 import { Field, FormActions } from '../components/Form'
 import { Modal } from '../components/Modal'
+import { MasterDataImportModal } from '../components/MasterDataImportModal'
 import { PageHeader } from '../components/PageHeader'
 import { Pagination } from '../components/Pagination'
 import { StatusBadge } from '../components/StatusBadge'
@@ -36,7 +37,8 @@ interface TaxCodeOption extends ProductTypeOption {
 }
 
 export function CatalogPage() {
-  const { locale, t } = useTranslation()
+  const { language, locale, t } = useTranslation()
+  const c = (es: string, en: string) => language === 'es' ? es : en
   const [data, setData] = useState<PageResponse<Product> | null>(null)
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query)
@@ -45,6 +47,7 @@ export function CatalogPage() {
   const [error, setError] = useState('')
   const [baseCurrency, setBaseCurrency] = useState('EUR')
   const [editing, setEditing] = useState<Product | 'new' | null>(null)
+  const [importing, setImporting] = useState(false)
   const [refresh, setRefresh] = useState(0)
   const { notify } = useToast()
 
@@ -68,13 +71,17 @@ export function CatalogPage() {
 
   const saved = () => { setEditing(null); setRefresh((value) => value + 1); notify(t('catalog.saved')) }
   return <div className="page-stack">
-    <PageHeader eyebrow={t('masterData.eyebrow')} title={t('catalog.title')} description={t('catalog.description')} icon={Boxes} actions={<button className="button button-primary" type="button" onClick={() => setEditing('new')}><Plus size={17} />{t('catalog.new')}</button>} />
+    <PageHeader eyebrow={t('masterData.eyebrow')} title={t('catalog.title')} description={t('catalog.description')} icon={Boxes} actions={<>
+      <button className="button button-secondary" type="button" onClick={() => setImporting(true)}><FileUp size={17} />{c('Importar', 'Import')}</button>
+      <button className="button button-primary" type="button" onClick={() => setEditing('new')}><Plus size={17} />{t('catalog.new')}</button>
+    </>} />
     <section className="panel table-panel">
       <TableToolbar value={query} onChange={setQuery} placeholder={t('catalog.search')} />
       {error && <div className="inline-error">{error}</div>}
       {loading ? <LoadingState /> : data && data.content.length > 0 ? <><div className="table-scroll"><table><thead><tr><th>{t('field.code')}</th><th>{t('catalog.product')}</th><th>{t('catalog.unit')}</th><th>{t('catalog.basePrice')}</th><th>{t('catalog.tax')}</th><th>{t('field.status')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead><tbody>{data.content.map((product) => <tr key={product.id}><td><span className="code-cell">{product.code}</span></td><td><strong>{product.name}</strong>{product.description && <small>{product.description}</small>}</td><td>{t(unitKey[product.unitOfMeasure])}</td><td><strong>{formatCurrency(product.basePrice, baseCurrency, locale)}</strong></td><td>{formatNumber(product.taxRate, locale)} %</td><td><StatusBadge tone={product.active ? 'success' : 'neutral'}>{product.active ? t('common.active') : t('common.inactive')}</StatusBadge></td><td><button className="icon-button" type="button" onClick={() => setEditing(product)} aria-label={t('catalog.editAria', { name: product.name })}><Pencil size={16} /></button></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('catalog.empty')} description={query ? t('common.noResults') : t('catalog.emptyDescription')} action={!query && <button className="button button-secondary" type="button" onClick={() => setEditing('new')}>{t('catalog.create')}</button>} />}
     </section>
     <Modal open={editing !== null} title={editing === 'new' ? t('catalog.new') : t('catalog.edit')} description={t('catalog.modalDescription')} onClose={() => setEditing(null)}>{editing && <ProductForm key={editing === 'new' ? 'new' : editing.id} product={editing === 'new' ? null : editing} onCancel={() => setEditing(null)} onSaved={saved} />}</Modal>
+    <MasterDataImportModal open={importing} entityName={c('artículos', 'products')} basePath="/api/v1/products" onClose={() => setImporting(false)} onImported={(count) => { setRefresh((value) => value + 1); notify(c(`${count} artículos importados.`, `${count} products imported.`)) }} />
   </div>
 }
 

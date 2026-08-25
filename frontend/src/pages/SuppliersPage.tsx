@@ -1,8 +1,9 @@
-import { Building2, Pencil, Plus } from 'lucide-react'
+import { Building2, FileUp, Pencil, Plus } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
 import { Field, FormActions } from '../components/Form'
 import { Modal } from '../components/Modal'
+import { MasterDataImportModal } from '../components/MasterDataImportModal'
 import { PageHeader } from '../components/PageHeader'
 import { Pagination } from '../components/Pagination'
 import { StatusBadge } from '../components/StatusBadge'
@@ -14,7 +15,8 @@ import { useTranslation } from '../i18n/I18nProvider'
 import type { PageResponse, Supplier, SupplierInput } from '../types/api'
 
 export function SuppliersPage() {
-  const { t } = useTranslation()
+  const { language, t } = useTranslation()
+  const c = (es: string, en: string) => language === 'es' ? es : en
   const [data, setData] = useState<PageResponse<Supplier> | null>(null)
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query)
@@ -22,6 +24,7 @@ export function SuppliersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<Supplier | 'new' | null>(null)
+  const [importing, setImporting] = useState(false)
   const [refresh, setRefresh] = useState(0)
   const { notify } = useToast()
 
@@ -39,13 +42,17 @@ export function SuppliersPage() {
   const saved = () => { setEditing(null); setRefresh((value) => value + 1); notify(t('suppliers.saved')) }
 
   return <div className="page-stack">
-    <PageHeader eyebrow={t('masterData.eyebrow')} title={t('suppliers.title')} description={t('suppliers.description')} icon={Building2} actions={<button className="button button-primary" type="button" onClick={() => setEditing('new')}><Plus size={17} />{t('suppliers.new')}</button>} />
+    <PageHeader eyebrow={t('masterData.eyebrow')} title={t('suppliers.title')} description={t('suppliers.description')} icon={Building2} actions={<>
+      <button className="button button-secondary" type="button" onClick={() => setImporting(true)}><FileUp size={17} />{c('Importar', 'Import')}</button>
+      <button className="button button-primary" type="button" onClick={() => setEditing('new')}><Plus size={17} />{t('suppliers.new')}</button>
+    </>} />
     <section className="panel table-panel">
       <TableToolbar value={query} onChange={setQuery} placeholder={t('suppliers.search')} />
       {error && <div className="inline-error">{error}</div>}
       {loading ? <LoadingState /> : data && data.content.length > 0 ? <><div className="table-scroll"><table><thead><tr><th>{t('field.code')}</th><th>{t('suppliers.supplier')}</th><th>{t('field.taxId')}</th><th>{t('suppliers.contact')}</th><th>{t('field.carrier')}</th><th>{t('field.route')}</th><th>{t('field.status')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead><tbody>{data.content.map((supplier) => <tr key={supplier.id}><td><span className="code-cell">{supplier.code}</span></td><td><strong>{supplier.legalName}</strong>{supplier.tradeName && <small>{supplier.tradeName}</small>}</td><td>{supplier.taxId || '—'}</td><td>{supplier.email || supplier.phone || '—'}</td><td>{supplier.carrier || '—'}</td><td>{supplier.route || '—'}</td><td><StatusBadge tone={supplier.active ? 'success' : 'neutral'}>{supplier.active ? t('common.active') : t('common.inactive')}</StatusBadge></td><td><button className="icon-button" type="button" onClick={() => setEditing(supplier)} aria-label={t('suppliers.editAria', { name: supplier.legalName })}><Pencil size={16} /></button></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('suppliers.empty')} description={query ? t('common.noResults') : t('suppliers.emptyDescription')} action={!query && <button className="button button-secondary" type="button" onClick={() => setEditing('new')}>{t('suppliers.create')}</button>} />}
     </section>
     <Modal open={editing !== null} title={editing === 'new' ? t('suppliers.new') : t('suppliers.edit')} description={t('suppliers.modalDescription')} onClose={() => setEditing(null)} size="large">{editing && <SupplierForm key={editing === 'new' ? 'new' : editing.id} supplier={editing === 'new' ? null : editing} onCancel={() => setEditing(null)} onSaved={saved} />}</Modal>
+    <MasterDataImportModal open={importing} entityName={c('proveedores', 'suppliers')} basePath="/api/v1/suppliers" onClose={() => setImporting(false)} onImported={(count) => { setRefresh((value) => value + 1); notify(c(`${count} proveedores importados.`, `${count} suppliers imported.`)) }} />
   </div>
 }
 

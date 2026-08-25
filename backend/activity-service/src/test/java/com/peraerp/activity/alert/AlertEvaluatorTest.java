@@ -70,6 +70,17 @@ class AlertEvaluatorTest {
         verify(alertRepository, never()).save(any());
     }
 
+    @Test
+    void keepsLegacyApiMutationRulesCompatibleWithBusinessActivityEvents() {
+        AlertRule legacyRule = new AlertRule(companyId, "LEGACY", "Regla anterior", "API_MUTATION", null,
+                null, null, null, null, AlertSeverity.INFO, "Cambio", "Cambio de negocio", 0, true);
+        AuditEvent businessEvent = new AuditEvent(companyId, UUID.randomUUID(), Instant.now(), "api-gateway",
+                "BUSINESS_ACTIVITY", UUID.randomUUID(), "Ada", "CREATE", "CUSTOMER", "C001",
+                AuditOutcome.SUCCESS, "corr-2", "{}");
+
+        assertThat(evaluator.matches(legacyRule, businessEvent, Map.of())).isTrue();
+    }
+
     private AlertRule rule(AlertConditionOperator operator, String field, String value, int cooldown) {
         return new AlertRule(companyId, "HIGH_INVOICE", "Factura elevada", "INVOICE_ISSUED", "ISSUE",
                 "INVOICE", field, operator, value, AlertSeverity.WARNING, "Factura {{resourceId}}",

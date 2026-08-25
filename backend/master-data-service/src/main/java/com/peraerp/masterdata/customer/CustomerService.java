@@ -29,14 +29,28 @@ public class CustomerService {
     @Transactional
     @SuppressWarnings("deprecation") // Frontera de compatibilidad: se conserva el valor heredado sin interpretarlo.
     public CustomerResponse create(CustomerRequest request) {
+        return create(request, false);
+    }
+
+    @Transactional
+    @SuppressWarnings("deprecation") // La importación conserva datos fiscales heredados aunque no sean válidos.
+    public CustomerResponse createImported(CustomerRequest request) {
+        return create(request, true);
+    }
+
+    private CustomerResponse create(CustomerRequest request, boolean imported) {
         UUID companyId = companyProvider.requireCompanyId();
         if (partyRepository.existsByCompanyIdAndCodeIgnoreCase(companyId, request.code())) {
             throw new BusinessRuleException("Ya existe un tercero con el código " + request.code());
         }
-        Party party = partyRepository.save(new Party(companyId, request.code().trim().toUpperCase(),
-                request.legalName().trim(), request.tradeName(), request.taxId(),
-                request.taxIdentificationType(), request.taxCountryCode(),
-                request.phone(), request.email(), request.observations()));
+        Party party = imported
+                ? Party.imported(companyId, request.code().trim().toUpperCase(), request.legalName().trim(),
+                request.tradeName(), request.taxId(), request.taxIdentificationType(), request.taxCountryCode(),
+                request.phone(), request.email(), request.observations())
+                : new Party(companyId, request.code().trim().toUpperCase(), request.legalName().trim(),
+                request.tradeName(), request.taxId(), request.taxIdentificationType(), request.taxCountryCode(),
+                request.phone(), request.email(), request.observations());
+        party = partyRepository.save(party);
         CustomerProfile profile = customerRepository.save(new CustomerProfile(companyId, party.getId(),
                 request.priceListId(), request.defaultPaymentMethodId(), request.supplierCode(),
                 request.calculationMultiplier(), request.creditLimit(), request.riskWarningThreshold(), request.riskPolicy()));

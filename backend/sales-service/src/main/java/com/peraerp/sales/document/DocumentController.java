@@ -15,13 +15,14 @@ public class DocumentController {
     private final DocumentService service;
     public DocumentController(DocumentService service) { this.service=service; }
     @GetMapping
-    Page<DocumentResponse> search(@RequestParam(required=false) DocumentType type,
+    Page<DocumentResponse> search(@RequestParam(required=false) String q,
+                                  @RequestParam(required=false) DocumentType type,
                                   @RequestParam(required=false) DocumentStatus status,
                                   @RequestParam(required=false) UUID customerId,
                                   @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate fromDate,
                                   @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate toDate,
                                   Pageable pageable) {
-        return service.search(type, status, customerId, fromDate, toDate, pageable);
+        return service.search(q, type, status, customerId, fromDate, toDate, pageable);
     }
     @GetMapping("/{id}") DocumentResponse findById(@PathVariable UUID id) { return service.findById(id); }
     @PostMapping @ResponseStatus(HttpStatus.CREATED) DocumentResponse create(@Valid @RequestBody CreateDocumentRequest request) { return service.create(request); }

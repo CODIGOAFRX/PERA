@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -91,5 +92,16 @@ class VerifactuRecordQueryServiceTest {
         assertThatThrownBy(() -> service.payloadXml(id))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("XML");
+    }
+
+    @Test
+    void registeredDocumentAvailabilityIsScopedToTheActiveCompany() {
+        UUID registered = UUID.randomUUID();
+        UUID absent = UUID.randomUUID();
+        when(records.findDocumentIdsWithRegistration(COMPANY, List.of(registered, absent)))
+                .thenReturn(List.of(registered));
+
+        assertThat(service.findRegisteredDocuments(List.of(registered, absent)))
+                .containsExactly(registered);
     }
 }

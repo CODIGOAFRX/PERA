@@ -8,13 +8,13 @@ PERA es un monorepo de microservicios de granularidad gruesa. La plataforma actu
 
 - `api-gateway`: entrada única, CORS, JWT, auditoría de mutaciones, enrutamiento y control de licencia.
 - `identity-service`: empresas, usuarios, permisos, parámetros de empresa y almacenamiento seguro de logos.
-- `master-data-service`: clientes, proveedores, productos, jerarquías, impuestos, tarifas, reglas de precio y embalajes.
+- `master-data-service`: clientes, proveedores, productos, importación CSV/Excel, jerarquías, impuestos, tarifas, reglas de precio y embalajes.
 - `sales-service`: numeraciones configurables, presupuestos, pedidos, albaranes, facturas, snapshots y conversiones.
-- `finance-service`: formas de pago, vencimientos, monedas, tipos de cambio y conversiones reproducibles.
+- `finance-service`: formas de pago, vencimientos, monedas, tipos de cambio, conversiones reproducibles y contabilidad inicial con plan de cuentas, bandeja de facturas y libro diario.
 - `operations-service`: workflows configurables, transportistas, vehículos, rutas, fletes, expediciones y archivos enviados.
 - `activity-service`: historial central, exportación CSV y alertas personalizadas.
 - `licensing-service`: emisión, activación, validación periódica, suspensión y revocación de licencias.
-- React con dashboard económico comparativo, centro de informes imprimibles, rutas protegidas por perfil, administración de usuarios, barra lateral ajustable, selector persistente ES/EN y formatos por idioma/moneda.
+- React con dashboard económico comparativo, contabilidad visual, importadores de maestros, centro de informes imprimibles, rutas protegidas por perfil, administración de usuarios, barra lateral ajustable, selector persistente ES/EN y formatos por idioma/moneda.
 - PostgreSQL 17 con una base lógica por servicio propietario, Flyway, seguridad por permisos, Actuator y OpenAPI.
 
 La ampliación se controla con la matriz verificable de [`docs/11-ampliacion-plataforma.md`](docs/11-ampliacion-plataforma.md). PERA sigue siendo un producto en desarrollo: no debe presentarse todavía como un ERP contable/fiscal listo para producción.
@@ -90,4 +90,4 @@ La [auditoría de generalización](docs/08-generalizacion-erp-horizontal.md) doc
 - Importes con `BigDecimal` y snapshots comerciales en documentos emitidos.
 - Migraciones versionadas; Hibernate valida el esquema y no lo crea en producción.
 - El núcleo no depende de modelos de un sector concreto; cualquier vertical futuro se integrará como extensión explícita.
-- Los módulos financieros avanzados quedan modelados, pero su comportamiento se implementará después del flujo comercial MVP.
+- La contabilidad inicial exige asientos equilibrados e integra facturas de venta. Compras, conciliación, cierres y obligaciones fiscales siguen fuera del alcance operativo actual.

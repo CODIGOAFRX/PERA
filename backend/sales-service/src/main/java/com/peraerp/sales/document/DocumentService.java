@@ -80,9 +80,11 @@ public class DocumentService {
     public DocumentResponse findById(UUID id) { return DocumentResponse.from(requireDocument(id)); }
 
     @Transactional(readOnly = true)
-    public Page<DocumentResponse> search(DocumentType type, DocumentStatus status, UUID customerId,
-                                         LocalDate fromDate, LocalDate toDate, Pageable pageable) {
-        return repository.search(companyProvider.requireCompanyId(), type, status, customerId, fromDate, toDate, pageable)
+    public Page<DocumentResponse> search(String query, DocumentType type, DocumentStatus status, UUID customerId,
+                                          LocalDate fromDate, LocalDate toDate, Pageable pageable) {
+        String normalizedQuery = query == null ? "" : query.trim();
+        return repository.search(companyProvider.requireCompanyId(), normalizedQuery, type, status, customerId,
+                        fromDate, toDate, pageable)
                 .map(DocumentResponse::from);
     }
 

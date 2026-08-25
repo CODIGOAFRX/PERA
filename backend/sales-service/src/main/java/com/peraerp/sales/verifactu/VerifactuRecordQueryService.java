@@ -45,6 +45,14 @@ public class VerifactuRecordQueryService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<UUID> findRegisteredDocuments(List<UUID> documentIds) {
+        if (documentIds == null || documentIds.isEmpty()) {
+            return List.of();
+        }
+        return records.findDocumentIdsWithRegistration(companyProvider.requireCompanyId(), documentIds);
+    }
+
     /**
      * Devuelve el XML del registro tal y como se remitirá a la AEAT.
      *

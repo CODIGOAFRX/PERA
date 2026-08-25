@@ -24,16 +24,69 @@ class GatewayAuditEventFactory {
                 ? 2 : 0;
         String resourceSegment = segments.size() > apiIndex ? segments.get(apiIndex) : "api";
         String resourceId = segments.size() > apiIndex + 1 ? abbreviate(segments.get(apiIndex + 1), 100) : null;
-        String resourceType = resourceSegment.replace('-', '_').toUpperCase(Locale.ROOT);
+        String resourceType = businessResource(resourceSegment);
+        String action = businessAction(method, segments, apiIndex);
         String actorName = stringClaim(claims, "display_name", "username", "name", "preferred_username", "email");
         String outcome = statusCode == 401 || statusCode == 402 || statusCode == 403
                 ? "DENIED"
                 : statusCode >= 400 ? "FAILURE" : "SUCCESS";
 
         return Optional.of(new GatewayAuditEvent(UUID.randomUUID(), companyId, occurredAt, "api-gateway",
-                "API_MUTATION", uuid(claims.get("sub")), abbreviate(actorName, 160), method.name(),
+                "BUSINESS_ACTIVITY", uuid(claims.get("sub")), abbreviate(actorName, 160), action,
                 abbreviate(resourceType, 100), resourceId, outcome, correlationId,
-                Map.of("statusCode", statusCode, "durationMs", durationMillis, "path", abbreviate(path, 500))));
+                Map.of("method", method.name(), "statusCode", statusCode, "durationMs", durationMillis,
+                        "path", abbreviate(path, 500))));
+    }
+
+    private String businessAction(HttpMethod method, List<String> segments, int apiIndex) {
+        String operation = segments.size() > apiIndex + 1
+                ? segments.get(segments.size() - 1).replace('-', '_').toUpperCase(Locale.ROOT)
+                : "";
+        if (!operation.isBlank()) {
+            return switch (operation) {
+                case "CONVERT" -> "CONVERT";
+                case "PAYMENT_STATUS" -> "UPDATE_PAYMENT_STATUS";
+                case "SEND" -> "SEND";
+                case "ACCEPT" -> "ACCEPT";
+                case "REJECT" -> "REJECT";
+                case "ISSUE" -> "ISSUE";
+                case "ACKNOWLEDGE" -> "ACKNOWLEDGE";
+                case "RESOLVE" -> "RESOLVE";
+                case "DISPATCH" -> "DISPATCH";
+                case "DELIVER" -> "DELIVER";
+                case "CANCEL" -> "CANCEL";
+                case "UPLOAD" -> "UPLOAD";
+                case "IMPORT" -> "IMPORT";
+                case "POST" -> "accounting".equals(segments.get(apiIndex)) ? "POST_ACCOUNTING" : methodAction(method);
+                default -> methodAction(method);
+            };
+        }
+        return methodAction(method);
+    }
+
+    private String methodAction(HttpMethod method) {
+        if (method == HttpMethod.POST) return "CREATE";
+        if (method == HttpMethod.PUT || method == HttpMethod.PATCH) return "UPDATE";
+        if (method == HttpMethod.DELETE) return "DELETE";
+        return "CHANGE";
+    }
+
+    private String businessResource(String segment) {
+        return switch (segment) {
+            case "documents" -> "SALES_DOCUMENT";
+            case "quotes" -> "QUOTE";
+            case "customers" -> "CUSTOMER";
+            case "suppliers" -> "SUPPLIER";
+            case "products" -> "PRODUCT";
+            case "users" -> "USER";
+            case "company-settings" -> "COMPANY_SETTINGS";
+            case "verifactu-settings", "verifactu-records" -> "VERIFACTU";
+            case "shipments" -> "SHIPMENT";
+            case "payment-methods" -> "PAYMENT_METHOD";
+            case "due-dates" -> "DUE_DATE";
+            case "accounting" -> "ACCOUNTING";
+            default -> segment.replace('-', '_').toUpperCase(Locale.ROOT);
+        };
     }
 
     private UUID uuid(Object value) {

@@ -22,7 +22,7 @@ public class Party extends CompanyScopedEntity {
     private String legalName;
     @Column(name = "trade_name", length = 180)
     private String tradeName;
-    @Column(name = "tax_id", length = 30)
+    @Column(name = "tax_id", columnDefinition = "text")
     private String taxId;
     @Enumerated(EnumType.STRING) @Column(name = "tax_identification_type", length = 20)
     private TaxIdentificationType taxIdentificationType;
@@ -49,6 +49,12 @@ public class Party extends CompanyScopedEntity {
     public Party(UUID companyId, String code, String legalName, String tradeName, String taxId,
                  TaxIdentificationType taxIdentificationType, String taxCountryCode,
                  String phone, String email, String observations) {
+        this(companyId, code, legalName, tradeName, phone, email, observations);
+        applyTaxIdentification(taxId, taxIdentificationType, taxCountryCode);
+    }
+
+    private Party(UUID companyId, String code, String legalName, String tradeName,
+                  String phone, String email, String observations) {
         super(companyId);
         this.code = code;
         this.legalName = legalName;
@@ -56,7 +62,18 @@ public class Party extends CompanyScopedEntity {
         this.phone = phone;
         this.email = email;
         this.observations = observations;
-        applyTaxIdentification(taxId, taxIdentificationType, taxCountryCode);
+    }
+
+    /**
+     * Crea un tercero desde una migración de datos sin juzgar la validez fiscal del identificador heredado.
+     * La facturación y Veri*Factu conservan sus propias validaciones cuando el dato vaya a utilizarse fiscalmente.
+     */
+    public static Party imported(UUID companyId, String code, String legalName, String tradeName, String taxId,
+                                 TaxIdentificationType taxIdentificationType, String taxCountryCode,
+                                 String phone, String email, String observations) {
+        Party party = new Party(companyId, code, legalName, tradeName, phone, email, observations);
+        party.applyImportedTaxIdentification(taxId, taxIdentificationType, taxCountryCode);
+        return party;
     }
 
     public void update(String legalName, String tradeName, String taxId, String phone, String email,
@@ -106,6 +123,22 @@ public class Party extends CompanyScopedEntity {
                 ? null : countryCode.trim().toUpperCase(Locale.ROOT);
         this.taxCountryCode = normalizedCountry == null && this.taxIdentificationType == TaxIdentificationType.NIF
                 ? "ES" : normalizedCountry;
+    }
+
+    private void applyImportedTaxIdentification(String taxId, TaxIdentificationType type, String countryCode) {
+        String importedTaxId = taxId == null || taxId.isBlank() ? null : taxId.trim();
+        if (importedTaxId == null) {
+            this.taxId = null;
+            this.taxIdentificationType = null;
+            this.taxCountryCode = null;
+            return;
+        }
+        this.taxId = importedTaxId;
+        this.taxIdentificationType = type == null ? TaxIdentificationType.NIF : type;
+        String importedCountry = countryCode == null || countryCode.isBlank()
+                ? null : countryCode.trim().toUpperCase(Locale.ROOT);
+        this.taxCountryCode = importedCountry == null && this.taxIdentificationType == TaxIdentificationType.NIF
+                ? "ES" : importedCountry;
     }
 
     public String getCode() { return code; }

@@ -2,6 +2,7 @@ import { Leaf, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-rea
 import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { useTranslation } from '../i18n/I18nProvider'
+import { apiFetch } from '../lib/api'
 import { Link, useRouter } from '../routing/Router'
 import { appRoutes, isRouteActive, isRouteAllowed, type NavigationGroup } from '../routing/routes'
 import { LanguageSelector } from './LanguageSelector'
@@ -31,6 +32,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth)
   const [resizing, setResizing] = useState(false)
+  const [accountingPending, setAccountingPending] = useState(0)
   const compact = sidebarWidth > 0 && sidebarWidth < COMPACT_THRESHOLD
   const visibleRoutes = useMemo(() => appRoutes.filter((route) => isRouteAllowed(route, identity?.roles ?? [])), [identity?.roles])
   const navigationGroups = visibleRoutes.reduce<Array<{ id: NavigationGroup; labelKey: typeof appRoutes[number]['navigation']['groupLabelKey']; routes: typeof appRoutes }>>((groups, route) => {
@@ -41,6 +43,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth)), [sidebarWidth])
+
+  useEffect(() => {
+    if (!identity?.permissions.includes('accounting:read')) { setAccountingPending(0); return }
+    let active = true
+    const refreshAccounting = () => apiFetch<{ pending: number }>('/api/v1/accounting/inbox/count')
+      .then((response) => { if (active) setAccountingPending(response.pending) })
+      .catch(() => undefined)
+    void refreshAccounting()
+    const timer = window.setInterval(refreshAccounting, 30_000)
+    window.addEventListener('pera:accounting-updated', refreshAccounting)
+    return () => { active = false; window.clearInterval(timer); window.removeEventListener('pera:accounting-updated', refreshAccounting) }
+  }, [identity?.permissions])
 
   const resize = (event: PointerEvent<HTMLButtonElement>) => {
     if (resizing) setSidebarWidth(normalizeWidth(event.clientX))
@@ -91,6 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               const Icon = route.navigation.icon
               return <Link key={route.id} to={route.path} title={compact ? t(route.navigation.labelKey) : undefined} onClick={() => setMobileOpen(false)} className={isRouteActive(route, path) ? 'nav-link active' : 'nav-link'}>
                 <Icon size={19} strokeWidth={1.8} /><span>{t(route.navigation.labelKey)}</span>
+                {route.id === 'accounting' && accountingPending > 0 && <b className="nav-notification" aria-label={language === 'es' ? `${accountingPending} pendientes` : `${accountingPending} pending`}>{accountingPending > 99 ? '99+' : accountingPending}</b>}
               </Link>
             })}
           </div>)}

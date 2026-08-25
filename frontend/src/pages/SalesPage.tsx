@@ -23,8 +23,13 @@ export function SalesPage() {
   const { locale, t } = useTranslation()
   const [data, setData] = useState<PageResponse<CommercialDocument> | null>(null)
   const [page, setPage] = useState(0)
+  const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [type, setType] = useState<DocumentType | ''>('')
   const [status, setStatus] = useState<DocumentStatus | ''>('')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [verifactuDocuments, setVerifactuDocuments] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
@@ -32,17 +37,30 @@ export function SalesPage() {
   const [refresh, setRefresh] = useState(0)
   const { notify } = useToast()
 
-  useEffect(() => setPage(0), [type, status])
+  useEffect(() => { const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250); return () => window.clearTimeout(timer) }, [query])
+  useEffect(() => setPage(0), [debouncedQuery, type, status, fromDate, toDate])
   useEffect(() => {
     let active = true
     setLoading(true)
     const params = new URLSearchParams({ page: String(page), size: '12', sort: 'issueDate,desc' })
+    if (debouncedQuery) params.set('q', debouncedQuery)
     if (type) params.set('type', type)
     if (status) params.set('status', status)
-    apiFetch<PageResponse<CommercialDocument>>(`/api/v1/documents?${params}`).then((response) => { if (active) { setData(response); setError('') } })
+    if (fromDate) params.set('fromDate', fromDate)
+    if (toDate) params.set('toDate', toDate)
+    apiFetch<PageResponse<CommercialDocument>>(`/api/v1/documents?${params}`).then(async (response) => {
+      if (!active) return
+      setData(response); setError('')
+      const invoiceIds = response.content.filter((item) => item.type === 'INVOICE' || item.type === 'RECTIFYING_INVOICE').map((item) => item.id)
+      if (!invoiceIds.length) { setVerifactuDocuments(new Set()); return }
+      const availability = new URLSearchParams()
+      invoiceIds.forEach((id) => availability.append('documentIds', id))
+      const registered = await apiFetch<string[]>(`/api/v1/verifactu-records/availability?${availability}`)
+      if (active) setVerifactuDocuments(new Set(registered))
+    })
       .catch((cause) => { if (active) setError(errorMessage(cause)) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [page, type, status, refresh])
+  }, [page, debouncedQuery, type, status, fromDate, toDate, refresh])
 
   const runAction = async (action: 'convert' | 'paid', document: CommercialDocument) => {
     try {
@@ -71,12 +89,14 @@ export function SalesPage() {
   return <div className="page-stack">
     <PageHeader eyebrow={t('sales.eyebrow')} title={t('sales.title')} description={t('sales.description')} icon={FileText} actions={<button className="button button-primary" type="button" onClick={() => setCreating(true)}><Plus size={17} />{t('sales.newDocument')}</button>} />
     <section className="panel table-panel">
-      <TableToolbar value="" onChange={() => undefined} placeholder={t('sales.searchDocuments')} hideSearch>
+      <TableToolbar value={query} onChange={setQuery} placeholder={t('sales.searchDocuments')}>
         <select aria-label={t('sales.filterType')} value={type} onChange={(event) => setType(event.target.value as DocumentType | '')}><option value="">{t('sales.allTypes')}</option>{documentTypes.map((item) => <option key={item} value={item}>{t(documentTypeKey[item])}</option>)}</select>
         <select aria-label={t('sales.filterStatus')} value={status} onChange={(event) => setStatus(event.target.value as DocumentStatus | '')}><option value="">{t('sales.allStatuses')}</option>{documentStatuses.map((item) => <option key={item} value={item}>{t(documentStatusKey[item])}</option>)}</select>
+        <label className="toolbar-date"><span>{t('common.from')}</span><input aria-label={t('common.from')} type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
+        <label className="toolbar-date"><span>{t('common.to')}</span><input aria-label={t('common.to')} type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label>
       </TableToolbar>
       {error && <div className="inline-error">{error}</div>}
-      {loading ? <LoadingState /> : data && data.content.length > 0 ? <><div className="table-scroll"><table><thead><tr><th>{t('sales.number')}</th><th>{t('sales.type')}</th><th>{t('sales.customer')}</th><th>{t('sales.date')}</th><th>{t('sales.status')}</th><th>{t('sales.payment')}</th><th className="align-right">{t('sales.total')}</th></tr></thead><tbody>{data.content.map((document) => <tr key={document.id} className="clickable-row" onClick={() => setSelected(document)}><td><strong className="document-number">{document.number}</strong></td><td>{t(documentTypeKey[document.type])}</td><td><strong>{document.customerName}</strong><small>{document.customerCode}</small></td><td>{formatDate(document.issueDate, locale)}</td><td><StatusBadge tone={statusTone(document.status)}>{t(documentStatusKey[document.status])}</StatusBadge></td><td><StatusBadge tone={paymentTone(document.paymentStatus)}>{t(paymentStatusKey[document.paymentStatus])}</StatusBadge></td><td className="align-right"><strong>{formatCurrency(document.totalAmount, document.currency, locale)}</strong></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('sales.empty')} description={t('sales.emptyDescription')} action={<button className="button button-secondary" type="button" onClick={() => setCreating(true)}>{t('sales.createDocument')}</button>} />}
+      {loading ? <LoadingState /> : data && data.content.length > 0 ? <><div className="table-scroll"><table><thead><tr><th>{t('sales.number')}</th><th>{t('sales.type')}</th><th>{t('sales.customer')}</th><th>{t('sales.date')}</th><th>{t('sales.status')}</th><th>{t('sales.payment')}</th><th className="align-right">{t('sales.total')}</th></tr></thead><tbody>{data.content.map((document) => <tr key={document.id} className={`clickable-row${document.status === 'CONVERTED' ? ' document-row-converted' : ''}`} onClick={() => setSelected(document)}><td><span className="document-number-wrap"><strong className="document-number">{document.number}</strong>{verifactuDocuments.has(document.id) && <span className="verifactu-list-mark" title="VERI*FACTU" aria-label="VERI*FACTU"><CheckCircle2 size={16} /><span>V</span></span>}</span></td><td>{t(documentTypeKey[document.type])}</td><td><strong>{document.customerName}</strong><small>{document.customerCode}</small></td><td>{formatDate(document.issueDate, locale)}</td><td><StatusBadge tone={statusTone(document.status)}>{t(documentStatusKey[document.status])}</StatusBadge></td><td><StatusBadge tone={paymentTone(document.paymentStatus)}>{t(paymentStatusKey[document.paymentStatus])}</StatusBadge></td><td className="align-right"><strong>{formatCurrency(document.totalAmount, document.currency, locale)}</strong></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('sales.empty')} description={t('sales.emptyDescription')} action={<button className="button button-secondary" type="button" onClick={() => setCreating(true)}>{t('sales.createDocument')}</button>} />}
     </section>
 
     <Modal open={creating} title={t('sales.newDocument')} description={t('sales.newDescription')} onClose={() => setCreating(false)} size="large"><CreateDocumentForm onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); setRefresh((value) => value + 1); notify(t('sales.created')) }} /></Modal>

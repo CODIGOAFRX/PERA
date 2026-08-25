@@ -1,4 +1,4 @@
-import { Boxes, Building2, FileCheck2, FileText, History as HistoryIcon, LayoutDashboard, Printer, ReceiptText, Settings, SlidersHorizontal, Truck, UserCog, Users, type LucideIcon } from 'lucide-react'
+import { BookOpenCheck, Boxes, Building2, FileCheck2, FileText, History as HistoryIcon, LayoutDashboard, Printer, ReceiptText, Settings, SlidersHorizontal, Truck, UserCog, Users, type LucideIcon } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type { UserRoleCode } from '../auth/AuthContext'
 import type { TranslationKey } from '../i18n/catalogs'
@@ -7,6 +7,7 @@ import { CatalogConfigurationPage } from '../pages/CatalogConfigurationPage'
 import { CustomersPage } from '../pages/CustomersPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { FinancePage } from '../pages/FinancePage'
+import { AccountingPage } from '../pages/AccountingPage'
 import { HistoryPage } from '../pages/HistoryPage'
 import { OperationsPage } from '../pages/OperationsPage'
 import { SalesPage } from '../pages/SalesPage'
@@ -42,6 +43,7 @@ export const appRoutes: AppRoute[] = [
   { id: 'quotes', path: '/presupuestos', component: QuotesPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.quotes', group: 'operations', groupLabelKey: 'nav.group.operations', icon: FileCheck2 } },
   { id: 'sales', path: '/ventas', component: SalesPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.sales', group: 'operations', groupLabelKey: 'nav.group.operations', icon: FileText } },
   { id: 'finance', path: '/finanzas', component: FinancePage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.finance', group: 'operations', groupLabelKey: 'nav.group.operations', icon: ReceiptText } },
+  { id: 'accounting', path: '/contabilidad', component: AccountingPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.accounting', group: 'operations', groupLabelKey: 'nav.group.operations', icon: BookOpenCheck } },
   { id: 'operations', path: '/operaciones', component: OperationsPage, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS'], navigation: { labelKey: 'nav.operations', group: 'operations', groupLabelKey: 'nav.group.operations', icon: Truck } },
   { id: 'history', path: '/historial', component: HistoryPage, allowedRoles: ['OWNER', 'ADMIN'], navigation: { labelKey: 'nav.history', group: 'operations', groupLabelKey: 'nav.group.operations', icon: HistoryIcon } },
   { id: 'settings', path: '/configuracion', component: SettingsPage, allowedRoles: ['OWNER', 'ADMIN'], navigation: { labelKey: 'nav.settings', group: 'general', groupLabelKey: 'nav.group.general', icon: Settings } },

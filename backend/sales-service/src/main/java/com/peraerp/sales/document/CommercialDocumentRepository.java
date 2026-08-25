@@ -15,12 +15,18 @@ public interface CommercialDocumentRepository extends JpaRepository<CommercialDo
     Optional<CommercialDocument> findByIdAndCompanyId(UUID id, UUID companyId);
     Optional<CommercialDocument> findByIdAndCompanyIdAndType(UUID id, UUID companyId, DocumentType type);
     boolean existsByCompanyIdAndTypeAndDocumentNumber(UUID companyId, DocumentType type, String documentNumber);
+    List<CommercialDocument> findAllByCompanyIdAndTypeInAndStatusInOrderByIssueDateDesc(
+            UUID companyId, List<DocumentType> types, List<DocumentStatus> statuses);
 
     @Query("select d from CommercialDocument d where d.companyId = :companyId " +
+            "and (:query = '' or lower(d.documentNumber) like concat('%', lower(:query), '%') " +
+            "or lower(d.customerCodeSnapshot) like concat('%', lower(:query), '%') " +
+            "or lower(d.customerNameSnapshot) like concat('%', lower(:query), '%')) " +
             "and (:type is null or d.type = :type) and (:status is null or d.status = :status) " +
             "and (:customerId is null or d.customerId = :customerId) " +
             "and (:fromDate is null or d.issueDate >= :fromDate) and (:toDate is null or d.issueDate <= :toDate)")
-    Page<CommercialDocument> search(@Param("companyId") UUID companyId, @Param("type") DocumentType type,
+    Page<CommercialDocument> search(@Param("companyId") UUID companyId, @Param("query") String query,
+                                    @Param("type") DocumentType type,
                                     @Param("status") DocumentStatus status, @Param("customerId") UUID customerId,
                                     @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate,
                                     Pageable pageable);

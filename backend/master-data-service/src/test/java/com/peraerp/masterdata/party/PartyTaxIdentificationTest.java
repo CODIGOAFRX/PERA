@@ -91,4 +91,14 @@ class PartyTaxIdentificationTest {
         assertThat(TaxIdentificationType.OTHER_DOCUMENT.code()).isEqualTo("06");
         assertThat(TaxIdentificationType.NOT_REGISTERED.code()).isEqualTo("07");
     }
+
+    @Test
+    void importedTaxIdIsOpaqueAndDoesNotRequireAValidControlDigit() {
+        Party party = Party.imported(COMPANY, "C001", "Cliente heredado", null,
+                "me cago en tus muertos", TaxIdentificationType.NIF, "ES", null, null, null);
+
+        assertThat(party.getTaxId()).isEqualTo("me cago en tus muertos");
+        assertThat(party.getTaxIdentificationType()).isEqualTo(TaxIdentificationType.NIF);
+        assertThat(party.getTaxCountryCode()).isEqualTo("ES");
+    }
 }

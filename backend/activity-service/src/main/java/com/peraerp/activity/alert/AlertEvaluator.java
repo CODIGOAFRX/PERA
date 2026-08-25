@@ -44,7 +44,10 @@ public class AlertEvaluator {
     }
 
     boolean matches(AlertRule rule, AuditEvent event, Map<String, Object> metadata) {
-        if (!("*".equals(rule.getEventType()) || rule.getEventType().equalsIgnoreCase(event.getEventType()))) {
+        boolean legacyBusinessMutation = "API_MUTATION".equalsIgnoreCase(rule.getEventType())
+                && "BUSINESS_ACTIVITY".equalsIgnoreCase(event.getEventType());
+        if (!("*".equals(rule.getEventType()) || rule.getEventType().equalsIgnoreCase(event.getEventType())
+                || legacyBusinessMutation)) {
             return false;
         }
         if (rule.getAction() != null && !rule.getAction().equalsIgnoreCase(event.getAction())) return false;

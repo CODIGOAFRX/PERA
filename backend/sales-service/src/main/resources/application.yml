@@ -11,6 +11,7 @@ spring:
     properties.hibernate.jdbc.time_zone: UTC
   flyway.enabled: true
 pera.jwt.secret: ${PERA_JWT_SECRET:change-me-development-secret-at-least-32-bytes}
+pera.internal.service-key: ${PERA_INTERNAL_SERVICE_KEY:pera-local-internal-service-key-change-me}
 pera.services:
   identity-url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
   finance-url: ${FINANCE_SERVICE_URL:http://localhost:8084}

@@ -9,6 +9,9 @@ La primera interfaz de PERA ERP cubre el flujo comercial que ya tiene soporte re
 - conversión presupuesto → albarán → factura;
 - formas de pago, consulta y generación de vencimientos;
 - actualización del estado de cobro de facturas.
+- búsqueda comercial por número, cliente y fechas, diferenciación visual de documentos convertidos y marca de registro Veri*Factu.
+- importación de clientes, proveedores y artículos mediante CSV/Excel y plantillas descargables; en artículos se aceptan abreviaturas habituales como `ud`, `paquete`, `kg`, `m`, `m²` o `h`.
+- contabilidad visual con notificación de facturas pendientes, plan de cuentas buscable, Debe/Haber separado y libro diario.
 - administración de usuarios y cinco perfiles de acceso aplicados al menú, rutas y APIs.
 - centro de informes por módulo con selección de columnas, filtros, ordenación, vista previa y salida A4 para impresión o guardado como PDF.
 
@@ -22,7 +25,7 @@ El informe de cobros pendientes calcula el saldo con los vencimientos existentes
 
 ## Criterios visuales
 
-La interfaz usa blanco, crema muy suave y un verde pera vivo. La marca emplea una pera lineal en SVG en lugar de una inicial. No depende de animaciones para comunicar estado, mantiene foco visible, respeta `prefers-reduced-motion` y adapta navegación, formularios y paneles a escritorio y móvil. La barra lateral se puede redimensionar con puntero o teclado; se compacta y termina ocultándose, con un control para recuperarla.
+La interfaz usa blanco, crema muy suave y un verde pera vivo. La marca emplea una pera lineal en SVG en lugar de una inicial. No depende de animaciones para comunicar estado, mantiene foco visible, respeta `prefers-reduced-motion` y adapta navegación, formularios y paneles a escritorio y móvil. Los encabezados, cuerpos y pies de los modales comparten un padding interior coherente. La barra lateral se puede redimensionar con puntero o teclado; se compacta y termina ocultándose, con un control para recuperarla.
 
 ### Mayúsculas en el texto visible
 
@@ -52,4 +55,4 @@ React conserva la sesión en el navegador, extrae del JWT firmado la identidad, 
 - Recorrido real en navegador sobre PostgreSQL: login, maestros, creación y conversión de documento, factura, vencimientos y cobro.
 - Revisión visual en 1280 × 800 y 390 × 844 píxeles.
 
-El frontend es un MVP funcional: compras, inventario avanzado, contabilidad completa, remesas y caja siguen en el roadmap aunque parte de su modelo backend ya exista.
+El frontend es un MVP funcional: la contabilidad inicial cubre facturas de venta y asientos manuales equilibrados. Compras, inventario avanzado, conciliación, cierres, contabilidad fiscal completa, remesas y caja siguen en el roadmap aunque parte de su modelo backend ya exista.

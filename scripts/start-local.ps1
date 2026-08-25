@@ -384,6 +384,7 @@ $env:PERA_BOOTSTRAP_ADMIN_PASSWORD = 'ChangeMe123!'
 $env:PERA_INTERNAL_SERVICE_KEY = $internalServiceKey
 $env:PERA_COMPANY_LOGO_STORAGE_ROOT = Join-Path $runtimeRoot 'company-logos'
 $env:MASTER_DATA_SERVICE_URL = 'http://localhost:8082'
+$env:SALES_SERVICE_URL = 'http://localhost:8083'
 
 Start-JavaService `
     'identity' `

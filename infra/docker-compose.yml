@@ -107,6 +107,7 @@ services:
       <<: *service-environment
       SERVER_PORT: 8084
       DB_URL: jdbc:postgresql://postgres:5432/pera_finance
+      SALES_SERVICE_URL: http://sales-service:8083
     expose: ["8084"]
 
   operations-service:

@@ -26,6 +26,11 @@ public class VerifactuRecordController {
         return service.findByDocument(documentId);
     }
 
+    @GetMapping("/availability")
+    List<UUID> findRegisteredDocuments(@RequestParam List<UUID> documentIds) {
+        return service.findRegisteredDocuments(documentIds);
+    }
+
     /**
      * XML del registro, en su propio recurso porque pesa y casi nunca se mira.
      *

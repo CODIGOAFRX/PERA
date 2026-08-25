@@ -22,6 +22,8 @@ export const es = {
   'common.pagination': '{count} registros · Página {page} de {totalPages}',
   'common.unexpectedError': 'Ha ocurrido un error inesperado.',
   'common.noResults': 'No se han encontrado coincidencias.',
+  'common.from': 'Desde',
+  'common.to': 'Hasta',
 
   'nav.main': 'Navegación principal',
   'nav.group.general': 'General',
@@ -36,6 +38,7 @@ export const es = {
   'nav.sales': 'Ventas',
   'nav.quotes': 'Presupuestos',
   'nav.finance': 'Finanzas',
+  'nav.accounting': 'Contabilidad',
   'nav.operations': 'Logística y procesos',
   'nav.history': 'Historial',
   'nav.settings': 'Configuración',
@@ -452,6 +455,8 @@ export const en = {
   'common.pagination': '{count} records · Page {page} of {totalPages}',
   'common.unexpectedError': 'An unexpected error occurred.',
   'common.noResults': 'No matches were found.',
+  'common.from': 'From',
+  'common.to': 'To',
 
   'nav.main': 'Main navigation',
   'nav.group.general': 'General',
@@ -466,6 +471,7 @@ export const en = {
   'nav.sales': 'Sales',
   'nav.quotes': 'Quotes',
   'nav.finance': 'Finance',
+  'nav.accounting': 'Accounting',
   'nav.operations': 'Logistics and workflows',
   'nav.history': 'History',
   'nav.settings': 'Settings',

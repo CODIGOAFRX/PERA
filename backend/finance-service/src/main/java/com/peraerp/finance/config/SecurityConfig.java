@@ -23,6 +23,8 @@ public class SecurityConfig {
                     .hasAuthority("currencies:write")
                 .requestMatchers(HttpMethod.GET, "/api/v1/payment-methods/**", "/api/v1/due-dates/**").hasAuthority("finance:read")
                 .requestMatchers("/api/v1/payment-methods/**", "/api/v1/due-dates/**").hasAuthority("finance:write")
+                .requestMatchers(HttpMethod.GET, "/api/v1/accounting/**").hasAuthority("accounting:read")
+                .requestMatchers("/api/v1/accounting/**").hasAuthority("accounting:write")
                 .anyRequest().authenticated()).oauth2ResourceServer(s -> s.jwt(jwt ->
                         jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))).build();
     }

@@ -8,7 +8,7 @@ public record SupplierRequest(
         @NotBlank @Size(max = 40) String code,
         @NotBlank @Size(max = 180) String legalName,
         @Size(max = 180) String tradeName,
-        @Size(max = 30) String taxId,
+        String taxId,
         @Size(max = 40) String phone,
         @Size(max = 180) String email,
         String observations,

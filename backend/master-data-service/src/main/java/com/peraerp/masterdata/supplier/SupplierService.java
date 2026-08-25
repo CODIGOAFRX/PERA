@@ -28,13 +28,25 @@ public class SupplierService {
 
     @Transactional
     public SupplierResponse create(SupplierRequest request) {
+        return create(request, false);
+    }
+
+    @Transactional
+    public SupplierResponse createImported(SupplierRequest request) {
+        return create(request, true);
+    }
+
+    private SupplierResponse create(SupplierRequest request, boolean imported) {
         UUID companyId = companyProvider.requireCompanyId();
         if (partyRepository.existsByCompanyIdAndCodeIgnoreCase(companyId, request.code())) {
             throw new BusinessRuleException("Ya existe un tercero con el código " + request.code());
         }
-        Party party = partyRepository.save(new Party(companyId, request.code().trim().toUpperCase(),
-                request.legalName().trim(), request.tradeName(), request.taxId(), request.phone(), request.email(),
-                request.observations()));
+        Party party = imported
+                ? Party.imported(companyId, request.code().trim().toUpperCase(), request.legalName().trim(),
+                request.tradeName(), request.taxId(), null, null, request.phone(), request.email(), request.observations())
+                : new Party(companyId, request.code().trim().toUpperCase(), request.legalName().trim(),
+                request.tradeName(), request.taxId(), request.phone(), request.email(), request.observations());
+        party = partyRepository.save(party);
         SupplierProfile profile = supplierRepository.save(new SupplierProfile(companyId, party.getId(),
                 request.carrier(), request.route(), request.defaultPaymentMethodId()));
         return SupplierResponse.from(profile, party);

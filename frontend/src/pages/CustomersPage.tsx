@@ -1,8 +1,9 @@
-import { Pencil, Plus, Users } from 'lucide-react'
+import { FileUp, Pencil, Plus, Users } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
 import { Field, FormActions } from '../components/Form'
 import { Modal } from '../components/Modal'
+import { MasterDataImportModal } from '../components/MasterDataImportModal'
 import { PageHeader } from '../components/PageHeader'
 import { Pagination } from '../components/Pagination'
 import { StatusBadge } from '../components/StatusBadge'
@@ -16,7 +17,8 @@ import { useTranslation } from '../i18n/I18nProvider'
 import type { Customer, CustomerInput, PageResponse, RiskPolicy, TaxIdentificationType } from '../types/api'
 
 export function CustomersPage() {
-  const { locale, t } = useTranslation()
+  const { language, locale, t } = useTranslation()
+  const c = (es: string, en: string) => language === 'es' ? es : en
   const [data, setData] = useState<PageResponse<Customer> | null>(null)
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query)
@@ -24,6 +26,7 @@ export function CustomersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<Customer | 'new' | null>(null)
+  const [importing, setImporting] = useState(false)
   const [refresh, setRefresh] = useState(0)
   const { notify } = useToast()
 
@@ -48,7 +51,10 @@ export function CustomersPage() {
   }
 
   return <div className="page-stack">
-    <PageHeader eyebrow={t('masterData.eyebrow')} title={t('customers.title')} description={t('customers.description')} icon={Users} actions={<button className="button button-primary" type="button" onClick={() => setEditing('new')}><Plus size={17} />{t('customers.new')}</button>} />
+    <PageHeader eyebrow={t('masterData.eyebrow')} title={t('customers.title')} description={t('customers.description')} icon={Users} actions={<>
+      <button className="button button-secondary" type="button" onClick={() => setImporting(true)}><FileUp size={17} />{c('Importar', 'Import')}</button>
+      <button className="button button-primary" type="button" onClick={() => setEditing('new')}><Plus size={17} />{t('customers.new')}</button>
+    </>} />
     <section className="panel table-panel">
       <TableToolbar value={query} onChange={setQuery} placeholder={t('customers.search')} />
       {error && <div className="inline-error">{error}</div>}
@@ -60,6 +66,7 @@ export function CustomersPage() {
     <Modal open={editing !== null} title={editing === 'new' ? t('customers.new') : t('customers.edit')} description={t('customers.modalDescription')} onClose={() => setEditing(null)} size="large">
       {editing && <CustomerForm key={editing === 'new' ? 'new' : editing.id} customer={editing === 'new' ? null : editing} onCancel={() => setEditing(null)} onSaved={saved} />}
     </Modal>
+    <MasterDataImportModal open={importing} entityName={c('clientes', 'customers')} basePath="/api/v1/customers" onClose={() => setImporting(false)} onImported={(count) => { setRefresh((value) => value + 1); notify(c(`${count} clientes importados.`, `${count} customers imported.`)) }} />
   </div>
 }
 
