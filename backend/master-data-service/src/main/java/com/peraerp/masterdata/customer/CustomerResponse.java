@@ -15,7 +15,7 @@ public record CustomerResponse(
         UUID defaultPaymentMethodId, String supplierCode,
         @Schema(description = "Campo heredado congelado; no interviene en el cálculo horizontal de precios.", deprecated = true)
         @Deprecated(since = "0.2", forRemoval = false) BigDecimal calculationMultiplier,
-        BigDecimal creditLimit, BigDecimal riskWarningThreshold, RiskPolicy riskPolicy, Instant createdAt
+        BigDecimal creditLimit, BigDecimal riskWarningThreshold, RiskPolicy riskPolicy, Instant createdAt, com.peraerp.platform.domain.ContactDetails details
 ) {
     @SuppressWarnings("deprecation") // Frontera de compatibilidad: el campo se devuelve, pero no se usa en reglas nuevas.
     static CustomerResponse from(CustomerProfile profile, Party party) {
@@ -24,6 +24,6 @@ public record CustomerResponse(
                 party.getPhone(), party.getEmail(), party.getObservations(),
                 party.isActive(), profile.getPriceListId(), profile.getDefaultPaymentMethodId(),
                 profile.getSupplierCode(), profile.getCalculationMultiplier(), profile.getCreditLimit(),
-                profile.getRiskWarningThreshold(), profile.getRiskPolicy(), profile.getCreatedAt());
+                profile.getRiskWarningThreshold(), profile.getRiskPolicy(), profile.getCreatedAt(), party.getDetails());
     }
 }

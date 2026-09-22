@@ -1,6 +1,7 @@
 import { FileUp, Pencil, Plus, Users } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
+import { ContactDetailsFields } from '../components/ContactDetailsFields'
 import { Field, FormActions } from '../components/Form'
 import { Modal } from '../components/Modal'
 import { MasterDataImportModal } from '../components/MasterDataImportModal'
@@ -80,6 +81,7 @@ function CustomerForm({ customer, onCancel, onSaved }: { customer: Customer | nu
     riskWarningThreshold: String(customer?.riskWarningThreshold ?? 0), riskPolicy: customer?.riskPolicy ?? 'WARN' as RiskPolicy,
     active: customer?.active ?? true,
   })
+  const [details, setDetails] = useState(customer?.details ?? {})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
@@ -88,7 +90,7 @@ function CustomerForm({ customer, onCancel, onSaved }: { customer: Customer | nu
     event.preventDefault()
     setSaving(true)
     setError('')
-    const payload: CustomerInput = {
+    const payload: CustomerInput = { details,
       code: form.code.trim(), legalName: form.legalName.trim(), tradeName: form.tradeName.trim() || null,
       taxId: form.taxId.trim() || null,
       taxIdentificationType: form.taxId.trim() ? form.taxIdentificationType : null,
@@ -120,6 +122,7 @@ function CustomerForm({ customer, onCancel, onSaved }: { customer: Customer | nu
     <Field label={t('customers.riskWarning')} htmlFor="customer-risk"><input id="customer-risk" type="number" min="0" step="0.01" value={form.riskWarningThreshold} onChange={(event) => update('riskWarningThreshold', event.target.value)} /></Field>
     <Field label={t('customers.riskPolicy')} htmlFor="customer-policy"><select id="customer-policy" value={form.riskPolicy} onChange={(event) => update('riskPolicy', event.target.value)}>{(Object.keys(riskPolicyKey) as RiskPolicy[]).map((policy) => <option key={policy} value={policy}>{t(riskPolicyKey[policy])}</option>)}</select></Field>
     <Field label={t('field.status')} htmlFor="customer-active"><label className="switch-row" htmlFor="customer-active"><input id="customer-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{t('customers.active')}</span></label></Field>
+    <ContactDetailsFields value={details} onChange={setDetails} prefix="customer" />
     <Field label={t('field.observations')} htmlFor="customer-notes" wide><textarea id="customer-notes" rows={3} value={form.observations} onChange={(event) => update('observations', event.target.value)} /></Field>
   </div>{error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={customer ? t('customers.saveChanges') : t('customers.create')} /></form>
 }

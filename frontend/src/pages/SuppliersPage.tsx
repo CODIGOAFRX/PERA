@@ -1,6 +1,7 @@
 import { Building2, FileUp, Pencil, Plus } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
+import { ContactDetailsFields } from '../components/ContactDetailsFields'
 import { Field, FormActions } from '../components/Form'
 import { Modal } from '../components/Modal'
 import { MasterDataImportModal } from '../components/MasterDataImportModal'
@@ -58,14 +59,15 @@ export function SuppliersPage() {
 
 function SupplierForm({ supplier, onCancel, onSaved }: { supplier: Supplier | null; onCancel: () => void; onSaved: () => void }) {
   const { t } = useTranslation()
-  const [form, setForm] = useState({ code: supplier?.code ?? '', legalName: supplier?.legalName ?? '', tradeName: supplier?.tradeName ?? '', taxId: supplier?.taxId ?? '', phone: supplier?.phone ?? '', email: supplier?.email ?? '', observations: '', carrier: supplier?.carrier ?? '', route: supplier?.route ?? '', active: supplier?.active ?? true })
+  const [form, setForm] = useState({ code: supplier?.code ?? '', legalName: supplier?.legalName ?? '', tradeName: supplier?.tradeName ?? '', taxId: supplier?.taxId ?? '', phone: supplier?.phone ?? '', email: supplier?.email ?? '', observations: supplier?.observations ?? '', carrier: supplier?.carrier ?? '', route: supplier?.route ?? '', active: supplier?.active ?? true })
+  const [details, setDetails] = useState(supplier?.details ?? {})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
 
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setSaving(true); setError('')
-    const payload: SupplierInput = { code: form.code.trim(), legalName: form.legalName.trim(), tradeName: form.tradeName.trim() || null, taxId: form.taxId.trim() || null, phone: form.phone.trim() || null, email: form.email.trim() || null, observations: form.observations.trim() || null, carrier: form.carrier.trim() || null, route: form.route.trim() || null, active: form.active }
+    const payload: SupplierInput = { details, code: form.code.trim(), legalName: form.legalName.trim(), tradeName: form.tradeName.trim() || null, taxId: form.taxId.trim() || null, phone: form.phone.trim() || null, email: form.email.trim() || null, observations: form.observations.trim() || null, carrier: form.carrier.trim() || null, route: form.route.trim() || null, active: form.active }
     try { await apiFetch<Supplier>(supplier ? `/api/v1/suppliers/${supplier.id}` : '/api/v1/suppliers', { method: supplier ? 'PUT' : 'POST', body: JSON.stringify(payload) }); onSaved() }
     catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
   }
@@ -80,6 +82,7 @@ function SupplierForm({ supplier, onCancel, onSaved }: { supplier: Supplier | nu
     <Field label={t('field.carrier')} htmlFor="supplier-carrier"><input id="supplier-carrier" value={form.carrier} onChange={(event) => update('carrier', event.target.value)} maxLength={160} /></Field>
     <Field label={t('field.route')} htmlFor="supplier-route"><input id="supplier-route" value={form.route} onChange={(event) => update('route', event.target.value)} maxLength={160} /></Field>
     <Field label={t('field.status')} htmlFor="supplier-active"><label className="switch-row" htmlFor="supplier-active"><input id="supplier-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{t('suppliers.active')}</span></label></Field>
+    <ContactDetailsFields value={details} onChange={setDetails} prefix="supplier" />
     <Field label={t('field.observations')} htmlFor="supplier-notes" wide><textarea id="supplier-notes" rows={3} value={form.observations} onChange={(event) => update('observations', event.target.value)} /></Field>
   </div>{error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={supplier ? t('suppliers.saveChanges') : t('suppliers.create')} /></form>
 }

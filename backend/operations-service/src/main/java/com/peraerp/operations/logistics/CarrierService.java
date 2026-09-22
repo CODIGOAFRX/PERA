@@ -88,6 +88,7 @@ public class CarrierService {
     }
 
     private void apply(Carrier carrier, CarrierRequest request, boolean defaultActive) {
+        carrier.setDetails(request.details());
         carrier.update(request.name().trim(), request.ownership(), normalizeNullable(request.taxIdentifier()),
                 normalizeNullable(request.externalIdentifier()), normalizeNullable(request.contactName()),
                 lowerNullable(request.contactEmail()), normalizeNullable(request.contactPhone()),

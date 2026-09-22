@@ -14,7 +14,10 @@ import java.util.UUID;
  */
 public record CustomerSnapshot(UUID id, String code, String legalName, boolean active,
                                String taxId, TaxIdentificationType taxIdentificationType,
-                               String taxCountryCode) {
+                               String taxCountryCode, String email, com.peraerp.platform.domain.ContactDetails details) {
+    public CustomerSnapshot(UUID id, String code, String legalName, boolean active, String taxId, TaxIdentificationType taxIdentificationType, String taxCountryCode) {
+        this(id, code, legalName, active, taxId, taxIdentificationType, taxCountryCode, null, null);
+    }
 
     /** Constructor de compatibilidad para los usos que todavía no necesitan datos fiscales. */
     public CustomerSnapshot(UUID id, String code, String legalName, boolean active) {

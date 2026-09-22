@@ -1,3 +1,4 @@
+import { DocumentEmail } from '../components/DocumentEmail'
 import { ArrowRight, CheckCircle2, FileCheck2, Plus, Send, Trash2, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
@@ -113,7 +114,7 @@ export function QuotesPage() {
       <CreateQuoteForm onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); setRefresh((value) => value + 1); notify(t('quotes.created')) }} />
     </Modal>
     <Modal open={selected !== null} title={selected?.number ?? t('quotes.quote')} description={selected?.customerName ?? ''} onClose={() => setSelected(null)} size="large">
-      {selected && <QuoteDetail quote={selected} onAction={runAction} />}
+      {selected && <QuoteDetail quote={selected} onQueued={() => { void apiFetch<CommercialDocument>(`/api/v1/quotes/${selected.id}`).then(setSelected).catch(cause => notify(errorMessage(cause), 'error')); setRefresh(v => v + 1) }} onAction={runAction} />}
     </Modal>
   </div>
 }
@@ -211,7 +212,7 @@ function CreateQuoteForm({ onCancel, onSaved }: { onCancel: () => void; onSaved:
   </form>
 }
 
-function QuoteDetail({ quote, onAction }: { quote: CommercialDocument; onAction: (action: 'send' | 'accept' | 'reject' | 'convert', quote: CommercialDocument, reason?: string) => void }) {
+function QuoteDetail({ quote, onAction, onQueued }: { quote: CommercialDocument; onQueued: () => void; onAction: (action: 'send' | 'accept' | 'reject' | 'convert', quote: CommercialDocument, reason?: string) => void }) {
   const { locale, t } = useTranslation()
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
@@ -220,6 +221,7 @@ function QuoteDetail({ quote, onAction }: { quote: CommercialDocument; onAction:
     <div className="detail-summary"><div><small>{t('sales.customer')}</small><strong>{quote.customerName}</strong><span>{quote.customerCode}</span></div><div><small>{t('sales.issue')}</small><strong>{formatDate(quote.issueDate, locale)}</strong><span>{t('quotes.validThrough', { date: formatDate(quote.quoteValidUntil, locale) })}</span></div><div><small>{t('sales.status')}</small><StatusBadge tone={quoteTone(status)}>{t(`quote.status.${status}`)}</StatusBadge></div><div><small>{t('sales.total')}</small><strong className="detail-total">{formatCurrency(quote.totalAmount, quote.currency, locale)}</strong><span>{quote.currency}</span></div></div>
     <div className="table-scroll detail-lines"><table><thead><tr><th>#</th><th>{t('sales.lineDescription')}</th><th className="align-right">{t('sales.quantity')}</th><th className="align-right">{t('sales.price')}</th><th className="align-right">{t('sales.discount')}</th><th className="align-right">{t('sales.total')}</th></tr></thead><tbody>{quote.lines.map((line) => <tr key={line.id || line.order}><td>{line.order}</td><td><strong>{line.description}</strong>{line.productCode && <small>{line.productCode}</small>}</td><td className="align-right">{formatNumber(line.quantity, locale, 6)}</td><td className="align-right">{formatCurrency(line.unitPrice, quote.currency, locale)}</td><td className="align-right">{formatNumber(line.discountPercentage, locale, 4)} %</td><td className="align-right"><strong>{formatCurrency(line.totalAmount, quote.currency, locale)}</strong></td></tr>)}</tbody></table></div>
     <div className="detail-totals"><span>{t('sales.net')} <strong>{formatCurrency(quote.netAmount, quote.currency, locale)}</strong></span><span>{t('catalog.tax')} <strong>{formatCurrency(quote.taxAmount, quote.currency, locale)}</strong></span><span>{t('sales.total')} <strong>{formatCurrency(quote.totalAmount, quote.currency, locale)}</strong></span></div>
+    <DocumentEmail id={quote.id} onQueued={onQueued} quote disabled={status === 'EXPIRED' || status === 'REJECTED'} />
     {rejecting && <div className="quote-rejection"><Field label={t('quotes.rejectionReason')} htmlFor="quote-reason" required><textarea id="quote-reason" rows={2} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} /></Field></div>}
     <div className="modal-action-strip">
       {status === 'DRAFT' && <button className="button button-primary" type="button" onClick={() => onAction('send', quote)}><Send size={17} />{t('quotes.send')}</button>}

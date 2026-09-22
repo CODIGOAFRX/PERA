@@ -54,6 +54,9 @@ public class ApiExceptionHandler {
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
             MissingServletRequestParameterException.class, ConstraintViolationException.class})
     ProblemDetail handleMalformedRequest(Exception exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            if (cause instanceof BusinessRuleException rule) return handleBusinessRule(rule);
+        }
         return problem(HttpStatus.BAD_REQUEST, "Petición no válida",
                 "La petición no tiene el formato esperado.", "malformed-request");
     }

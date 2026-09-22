@@ -5,6 +5,7 @@ import org.apache.pdfbox.pdmodel.font.PDFont;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -174,6 +175,8 @@ class PdfCanvas {
     }
 
     private static String printable(String value) {
+        // Compose pasted accents before mapping to the PDF font character set.
+        value = Normalizer.normalize(value, Normalizer.Form.NFC);
         StringBuilder safe = new StringBuilder(value.length());
         for (char character : value.toCharArray()) {
             boolean supported = (character >= 32 && character <= 126)

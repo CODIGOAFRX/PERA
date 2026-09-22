@@ -21,6 +21,8 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
+import { ContactDetailsFields } from '../components/ContactDetailsFields'
+import type { ContactDetails } from '../types/api'
 import { Field, FormActions } from '../components/Form'
 import { Modal } from '../components/Modal'
 import { PageHeader } from '../components/PageHeader'
@@ -93,6 +95,7 @@ interface WorkExecution {
 }
 
 interface Carrier {
+  details?: ContactDetails | null
   id: string
   code: string
   name: string
@@ -647,11 +650,11 @@ function ExecutionForm({ templates, onCancel, onSaved }: { templates: WorkflowTe
 
 function CarrierForm({ item, onCancel, onSaved }: { item?: Carrier; onCancel: () => void; onSaved: () => void }) {
   const { language } = useTranslation()
-  const [form, setForm] = useState({ code: item?.code ?? '', name: item?.name ?? '', ownership: item?.ownership ?? 'THIRD_PARTY' as CarrierOwnership, taxIdentifier: item?.taxIdentifier ?? '', externalIdentifier: item?.externalIdentifier ?? '', contactName: item?.contactName ?? '', contactEmail: item?.contactEmail ?? '', contactPhone: item?.contactPhone ?? '', active: item?.active ?? true })
+  const [form, setForm] = useState({ code: item?.code ?? '', name: item?.name ?? '', ownership: item?.ownership ?? 'THIRD_PARTY' as CarrierOwnership, taxIdentifier: item?.taxIdentifier ?? '', externalIdentifier: item?.externalIdentifier ?? '', contactName: item?.contactName ?? '', contactEmail: item?.contactEmail ?? '', contactPhone: item?.contactPhone ?? '', details: item?.details ?? {} as ContactDetails, active: item?.active ?? true })
   const [saving, setSaving] = useState(false); const [error, setError] = useState('')
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setSaving(true); setError('')
-    const body = { code: form.code.trim(), name: form.name.trim(), ownership: form.ownership, taxIdentifier: nullable(form.taxIdentifier), externalIdentifier: nullable(form.externalIdentifier), contactName: nullable(form.contactName), contactEmail: nullable(form.contactEmail), contactPhone: nullable(form.contactPhone), active: form.active }
+    const body = { code: form.code.trim(), name: form.name.trim(), ownership: form.ownership, taxIdentifier: nullable(form.taxIdentifier), externalIdentifier: nullable(form.externalIdentifier), contactName: nullable(form.contactName), contactEmail: nullable(form.contactEmail), contactPhone: nullable(form.contactPhone), details: form.details, active: form.active }
     try { await apiFetch<Carrier>(item ? `/api/v1/carriers/${item.id}` : '/api/v1/carriers', { method: item ? 'PUT' : 'POST', body: JSON.stringify(body) }); onSaved() }
     catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
   }
@@ -663,6 +666,7 @@ function CarrierForm({ item, onCancel, onSaved }: { item?: Carrier; onCancel: ()
     <Field label={local(language, 'Identificador externo', 'External identifier')} htmlFor="carrier-external"><input id="carrier-external" value={form.externalIdentifier} onChange={(event) => setForm({ ...form, externalIdentifier: event.target.value })} maxLength={100} /></Field>
     <Field label={local(language, 'Persona de contacto', 'Contact person')} htmlFor="carrier-contact"><input id="carrier-contact" value={form.contactName} onChange={(event) => setForm({ ...form, contactName: event.target.value })} maxLength={180} /></Field>
     <Field label={local(language, 'Correo', 'Email')} htmlFor="carrier-email"><input id="carrier-email" type="email" value={form.contactEmail} onChange={(event) => setForm({ ...form, contactEmail: event.target.value })} maxLength={254} /></Field>
+    <ContactDetailsFields value={form.details} onChange={details => setForm({ ...form, details })} prefix="carrier" />
     <Field label={local(language, 'Teléfono', 'Phone')} htmlFor="carrier-phone"><input id="carrier-phone" value={form.contactPhone} onChange={(event) => setForm({ ...form, contactPhone: event.target.value })} maxLength={40} /></Field>
     <Field label={local(language, 'Estado', 'Status')} htmlFor="carrier-active"><label className="switch-row" htmlFor="carrier-active"><input id="carrier-active" type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /><span>{form.active ? local(language, 'Activo', 'Active') : local(language, 'Inactivo', 'Inactive')}</span></label></Field>
   </div>{error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={item ? local(language, 'Guardar transportista', 'Save carrier') : local(language, 'Crear transportista', 'Create carrier')} /></form>

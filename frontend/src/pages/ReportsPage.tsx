@@ -7,6 +7,7 @@ import { useAuth, type UserRoleCode } from '../auth/AuthContext'
 import { EmptyState, LoadingState } from '../components/DataState'
 import { Field } from '../components/Form'
 import { PageHeader } from '../components/PageHeader'
+import { DocumentPrintCenter } from '../components/DocumentPrintCenter'
 import { PearBrandMark } from '../components/PearBrandMark'
 import { useTranslation } from '../i18n/I18nProvider'
 import { apiFetch, errorMessage } from '../lib/api'
@@ -155,24 +156,24 @@ function documentFields(quote: boolean): ReportField[] {
 
 const copy = {
   es: {
-    eyebrow: 'Centro de impresión', title: 'Informes e impresión', description: 'Elige un módulo, decide qué datos necesitas y genera un documento listo para imprimir o guardar como PDF.',
+    eyebrow: 'Centro de impresión', title: 'Informes e impresión', description: 'Obtén facturas y presupuestos completos o prepara informes con los registros que necesites.',
     choose: '1. Elige qué quieres imprimir', chooseHint: 'Solo aparecen los módulos incluidos en tu perfil de acceso.', fields: '2. Selecciona los datos', fieldsHint: 'Marca únicamente las columnas que necesites.',
     recommended: 'Recomendados', all: 'Todos', none: 'Ninguno', options: '3. Filtra y ordena', search: 'Buscar en los registros', searchPlaceholder: 'Código, nombre, documento…',
     status: 'Estado', type: 'Tipo de documento', from: 'Desde', to: 'Hasta', activeAll: 'Todos', active: 'Solo activos', inactive: 'Solo inactivos',
     allStatuses: 'Todos los estados', allTypes: 'Todos los tipos', sort: 'Ordenar por', direction: 'Dirección', ascending: 'Ascendente', descending: 'Descendente',
     reportTitle: 'Título del informe', generate: 'Generar vista previa', generating: 'Preparando todos los datos…', selectedColumns: 'columnas seleccionadas',
-    preview: 'Vista previa', print: 'Imprimir / guardar PDF', regenerate: 'Actualizar informe', rows: 'registros', generated: 'Generado', filters: 'Filtros', noFilters: 'Todos los registros, sin filtros adicionales.',
+    preview: 'Vista previa', print: 'Imprimir listado / guardar PDF', regenerate: 'Actualizar informe', rows: 'registros', generated: 'Generado', filters: 'Filtros', noFilters: 'Todos los registros, sin filtros adicionales.',
     noRows: 'No hay datos para este informe', noRowsHint: 'Cambia los filtros o comprueba que existan registros en el módulo.', selectModule: 'Selecciona uno de los módulos para configurar el informe.',
     selectionRequired: 'Selecciona al menos una columna.', loadError: 'No se ha podido preparar el informe.', totals: 'Totales', accessHint: 'Los permisos del usuario se respetan también al consultar los datos.',
   },
   en: {
-    eyebrow: 'Print centre', title: 'Reports and printing', description: 'Choose a module, decide which data you need and generate a document ready to print or save as PDF.',
+    eyebrow: 'Print centre', title: 'Reports and printing', description: 'Get complete invoices and quotes or prepare reports with the records you need.',
     choose: '1. Choose what to print', chooseHint: 'Only modules included in your access profile are shown.', fields: '2. Select the data', fieldsHint: 'Select only the columns you need.',
     recommended: 'Recommended', all: 'All', none: 'None', options: '3. Filter and sort', search: 'Search records', searchPlaceholder: 'Code, name, document…',
     status: 'Status', type: 'Document type', from: 'From', to: 'To', activeAll: 'All', active: 'Active only', inactive: 'Inactive only',
     allStatuses: 'All statuses', allTypes: 'All types', sort: 'Sort by', direction: 'Direction', ascending: 'Ascending', descending: 'Descending',
     reportTitle: 'Report title', generate: 'Generate preview', generating: 'Preparing all data…', selectedColumns: 'selected columns',
-    preview: 'Preview', print: 'Print / save PDF', regenerate: 'Refresh report', rows: 'records', generated: 'Generated', filters: 'Filters', noFilters: 'All records, with no additional filters.',
+    preview: 'Preview', print: 'Print list / save PDF', regenerate: 'Refresh report', rows: 'records', generated: 'Generated', filters: 'Filters', noFilters: 'All records, with no additional filters.',
     noRows: 'There is no data for this report', noRowsHint: 'Change the filters or check that the module contains records.', selectModule: 'Select one of the modules to configure the report.',
     selectionRequired: 'Select at least one column.', loadError: 'The report could not be prepared.', totals: 'Totals', accessHint: 'User permissions are also enforced when retrieving data.',
   },
@@ -182,6 +183,9 @@ export function ReportsPage() {
   const { language, locale } = useTranslation()
   const { company, identity } = useAuth()
   const c = copy[language]
+  const canPrintDocuments = (identity?.roles ?? []).some(role => ['OWNER', 'ADMIN', 'ECONOMY'].includes(role.toUpperCase()))
+  const [mode, setMode] = useState<'documents' | 'reports'>('documents')
+  const showDocuments = canPrintDocuments && mode === 'documents'
   const availableModules = useMemo(() => reportModulesForRoles(identity?.roles ?? []), [identity?.roles])
   const [moduleId, setModuleId] = useState<ReportModuleId | null>(null)
   const selectedModule = reportModules.find((module) => module.id === moduleId) ?? null
@@ -247,6 +251,11 @@ export function ReportsPage() {
   return <div className="page-stack report-page">
     <PageHeader eyebrow={c.eyebrow} title={c.title} description={c.description} icon={Printer} />
 
+    {canPrintDocuments && <div className="document-print-actions" role="group" aria-label={language === 'es' ? 'Qué quieres obtener' : 'What to produce'}>
+      <button className={`button ${showDocuments ? 'button-primary' : 'button-secondary'}`} aria-pressed={showDocuments} onClick={() => setMode('documents')}>{language === 'es' ? 'Facturas y presupuestos completos' : 'Complete invoices and quotes'}</button>
+      <button className={`button ${!showDocuments ? 'button-primary' : 'button-secondary'}`} aria-pressed={!showDocuments} onClick={() => setMode('reports')}>{language === 'es' ? 'Informes de registros' : 'Record reports'}</button>
+    </div>}
+    {showDocuments ? <DocumentPrintCenter /> : <>
     <section className="report-module-section" aria-labelledby="report-module-title">
       <div className="section-heading"><div><h2 id="report-module-title">{c.choose}</h2><p>{c.chooseHint}</p></div><span className="permission-note"><Check size={14} />{c.accessHint}</span></div>
       <div className="report-module-grid">
@@ -306,6 +315,7 @@ export function ReportsPage() {
 
     {loading && <section className="panel"><LoadingState label={c.generating} /></section>}
     {snapshot && <ReportPreview snapshot={snapshot} settings={settings} language={language} locale={locale} onPrint={print} onRefresh={generate} loading={loading} />}
+    </>}
   </div>
 }
 

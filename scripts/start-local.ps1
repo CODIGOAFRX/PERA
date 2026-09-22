@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [switch]$SkipBuild
 )
@@ -376,6 +376,19 @@ if (-not $SkipBuild) {
     finally {
         Pop-Location
     }
+}
+
+# The key stays outside source control and must survive local restarts.
+if (-not $env:PERA_MAIL_ENCRYPTION_KEY) {
+    $mailKeyPath = Join-Path $runtimeRoot 'mail-encryption.key'
+    if (-not (Test-Path -LiteralPath $mailKeyPath)) {
+        $mailKeyBytes = New-Object byte[] 32
+        $mailRng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+        $mailRng.GetBytes($mailKeyBytes)
+        $mailRng.Dispose()
+        [System.IO.File]::WriteAllText($mailKeyPath, [Convert]::ToBase64String($mailKeyBytes))
+    }
+    $env:PERA_MAIL_ENCRYPTION_KEY = [System.IO.File]::ReadAllText($mailKeyPath).Trim()
 }
 
 Write-Host 'Arrancando servicios...'

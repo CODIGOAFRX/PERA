@@ -50,6 +50,7 @@ public class CustomerService {
                 : new Party(companyId, request.code().trim().toUpperCase(), request.legalName().trim(),
                 request.tradeName(), request.taxId(), request.taxIdentificationType(), request.taxCountryCode(),
                 request.phone(), request.email(), request.observations());
+        party.setDetails(request.details());
         party = partyRepository.save(party);
         CustomerProfile profile = customerRepository.save(new CustomerProfile(companyId, party.getId(),
                 request.priceListId(), request.defaultPaymentMethodId(), request.supplierCode(),
@@ -71,6 +72,7 @@ public class CustomerService {
         party.update(request.legalName().trim(), request.tradeName(), request.taxId(),
                 request.taxIdentificationType(), request.taxCountryCode(), request.phone(),
                 request.email(), request.observations(), request.active() == null || request.active());
+        party.setDetails(request.details());
         profile.update(request.priceListId(), request.defaultPaymentMethodId(), request.supplierCode(),
                 request.calculationMultiplier(), request.creditLimit(), request.riskWarningThreshold(),
                 request.riskPolicy());

@@ -91,6 +91,7 @@ services:
     environment:
       <<: *service-environment
       SERVER_PORT: 8083
+      PERA_MAIL_ENCRYPTION_KEY: ${PERA_MAIL_ENCRYPTION_KEY:-}
       DB_URL: jdbc:postgresql://postgres:5432/pera_sales
       IDENTITY_SERVICE_URL: http://identity-service:8081
       FINANCE_SERVICE_URL: http://finance-service:8084

@@ -141,6 +141,12 @@ public class Party extends CompanyScopedEntity {
                 ? "ES" : importedCountry;
     }
 
+    @jakarta.persistence.Embedded
+    private com.peraerp.platform.domain.ContactDetails details;
+    public com.peraerp.platform.domain.ContactDetails getDetails() { return details; }
+    public void setDetails(com.peraerp.platform.domain.ContactDetails details) {
+        if (details != null) this.details = details;
+    }
     public String getCode() { return code; }
     public String getLegalName() { return legalName; }
     public String getTradeName() { return tradeName; }

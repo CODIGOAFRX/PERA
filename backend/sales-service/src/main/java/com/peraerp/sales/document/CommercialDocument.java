@@ -89,6 +89,16 @@ public class CommercialDocument extends CompanyScopedEntity {
     @OrderBy("lineOrder ASC")
     private List<DocumentLine> lines = new ArrayList<>();
 
+    @Column(name = "customer_email_snapshot", length = 254)
+    private String customerEmailSnapshot;
+    @Column(name = "customer_address_snapshot", length = 600)
+    private String customerAddressSnapshot;
+    public String getCustomerEmailSnapshot() { return customerEmailSnapshot; }
+    public String getCustomerAddressSnapshot() { return customerAddressSnapshot; }
+    public void applyCustomerContactSnapshot(String email, String address) {
+        customerEmailSnapshot = email;
+        customerAddressSnapshot = address;
+    }
     protected CommercialDocument() {}
 
     public CommercialDocument(UUID companyId, String documentNumber, DocumentType type, UUID customerId,

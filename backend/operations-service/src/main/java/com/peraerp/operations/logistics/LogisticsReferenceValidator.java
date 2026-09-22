@@ -52,10 +52,10 @@ public class LogisticsReferenceValidator {
         if (routeId != null) {
             route = requireRoute(companyId, routeId, true);
             if (carrierId != null && route.getCarrierId() != null && !route.getCarrierId().equals(carrierId)) {
-                throw new BusinessRuleException("La ruta estÃ¡ vinculada a otro transportista.");
+                throw new BusinessRuleException("La ruta está vinculada a otro transportista.");
             }
             if (vehicleId != null && route.getVehicleId() != null && !route.getVehicleId().equals(vehicleId)) {
-                throw new BusinessRuleException("La ruta estÃ¡ vinculada a otro vehÃ­culo.");
+                throw new BusinessRuleException("La ruta está vinculada a otro vehículo.");
             }
             if (carrierId == null) {
                 carrierId = route.getCarrierId();

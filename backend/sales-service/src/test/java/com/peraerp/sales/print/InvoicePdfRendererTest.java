@@ -67,6 +67,16 @@ class InvoicePdfRendererTest {
                 FINGERPRINT, "https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR");
     }
 
+    @Test
+    void quoteHasItsOwnLabelsAndNoInvoiceQr() throws IOException {
+        var c = content(1, null);
+        var quote = new InvoicePdfContent(c.issuer(), c.recipient(), "Presupuesto", "PRE-2026-000001",
+                c.issueDate(), c.dueDate(), null, null, null, c.currency(), c.lines(), c.taxes(),
+                c.netAmount(), c.taxAmount(), c.totalAmount(), c.paymentMethod(), c.notes(), null, null);
+        assertThat(textOf(renderer.render(quote))).contains("Presupuesto", "Total presupuesto", "Válido hasta", "Importe previsto")
+                .doesNotContain("Total factura", LEGEND);
+    }
+
     private String textOf(byte[] pdf) throws IOException {
         try (PDDocument document = Loader.loadPDF(pdf)) {
             return new PDFTextStripper().getText(document);

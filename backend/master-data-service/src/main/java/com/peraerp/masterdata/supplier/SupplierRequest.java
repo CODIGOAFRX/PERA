@@ -15,5 +15,10 @@ public record SupplierRequest(
         @Size(max = 160) String carrier,
         @Size(max = 160) String route,
         UUID defaultPaymentMethodId,
-        Boolean active
-) {}
+        Boolean active,
+        @jakarta.validation.Valid com.peraerp.platform.domain.ContactDetails details
+) {
+    public SupplierRequest(String code, String legalName, String tradeName, String taxId, String phone, String email, String observations, String carrier, String route, UUID defaultPaymentMethodId, Boolean active) {
+        this(code, legalName, tradeName, taxId, phone, email, observations, carrier, route, defaultPaymentMethodId, active, null);
+    }
+}

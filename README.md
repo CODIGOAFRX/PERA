@@ -63,6 +63,10 @@ npm test
 npm run build
 ```
 
+## Correo comercial y conexiones
+
+En `/conexiones`, un propietario o administrador configura SMTP y activa el envío automático de facturas. Presupuestos y facturas permiten enviar su PDF desde el detalle. Clientes, proveedores y transportistas incluyen dirección e IBAN opcionales. Consulta [configuración, seguridad y límites](docs/12-conexiones-correo.md).
+
 ## Licencias de instalación
 
 El control permanece desactivado en desarrollo (`PERA_LICENSE_ENFORCEMENT_ENABLED=false`). Para activar una licencia emitida sin exponer el código en la línea de comandos:

@@ -207,7 +207,7 @@ public class InvoicePdfRenderer {
 
     /** Fecha, vencimiento y tipo de factura, en tres casillas con su rótulo encima. */
     private void drawIdentityData(PdfCanvas canvas, InvoicePdfContent content, float totalWidth) {
-        String[] labels = {"Fecha", "Vencimiento", "Tipo"};
+        String[] labels = {"Fecha", "Presupuesto".equals(content.title()) ? "Válido hasta" : "Vencimiento", "Tipo"};
         String[] values = {
                 DATE.format(content.issueDate()),
                 content.dueDate() == null ? "—" : DATE.format(content.dueDate()),
@@ -348,7 +348,7 @@ public class InvoicePdfRenderer {
 
         y -= TOTALS_ROW_HEIGHT;
         canvas.filledBox(LEFT, y, width, TOTALS_ROW_HEIGHT, SOFT_FILL, RULE_GREY);
-        canvas.text(bold, 9f, LEFT + 6f, y + 4.5f, "Total factura");
+        canvas.text(bold, 9f, LEFT + 6f, y + 4.5f, "Presupuesto".equals(content.title()) ? "Total presupuesto" : "Total factura");
         canvas.textRight(bold, 8f, LEFT + cells[0] + cells[1] - 6f, y + 4.5f, amount(content.netAmount()));
         canvas.textRight(bold, 8f, LEFT + cells[0] + cells[1] + cells[2] - 6f, y + 4.5f, amount(content.taxAmount()));
         canvas.textRight(bold, 10f, RIGHT - 6f, y + 4f, money(content.totalAmount(), content.currency()));
@@ -360,7 +360,7 @@ public class InvoicePdfRenderer {
         canvas.text(regular, 8f, LEFT + 68f, y + 12f, nullToDash(content.paymentMethod()));
         // El vencimiento ya sale arriba en su casilla. Aquí lo que interesa es a cuánto asciende
         // lo que hay que pagar y cuándo, junto: repetir solo la fecha no aporta nada.
-        canvas.text(bold, 8f, LEFT, y + 1f, "Importe a pagar");
+        canvas.text(bold, 8f, LEFT, y + 1f, "Presupuesto".equals(content.title()) ? "Importe previsto" : "Importe a pagar");
         canvas.text(regular, 8f, LEFT + 68f, y + 1f,
                 money(content.totalAmount(), content.currency())
                         + (content.dueDate() == null ? "  a la vista" : "  el " + DATE.format(content.dueDate())));

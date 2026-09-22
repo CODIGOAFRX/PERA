@@ -29,3 +29,5 @@ management:
   endpoints.web.exposure.include: health,info,prometheus
   endpoint.health.probes.enabled: true
 springdoc.swagger-ui.path: /swagger-ui.html
+
+pera.mail.encryption-key: ${PERA_MAIL_ENCRYPTION_KEY:}

@@ -46,6 +46,7 @@ public class SupplierService {
                 request.tradeName(), request.taxId(), null, null, request.phone(), request.email(), request.observations())
                 : new Party(companyId, request.code().trim().toUpperCase(), request.legalName().trim(),
                 request.tradeName(), request.taxId(), request.phone(), request.email(), request.observations());
+        party.setDetails(request.details());
         party = partyRepository.save(party);
         SupplierProfile profile = supplierRepository.save(new SupplierProfile(companyId, party.getId(),
                 request.carrier(), request.route(), request.defaultPaymentMethodId()));
@@ -64,6 +65,7 @@ public class SupplierService {
         }
         party.update(request.legalName().trim(), request.tradeName(), request.taxId(), request.phone(),
                 request.email(), request.observations(), request.active() == null || request.active());
+        party.setDetails(request.details());
         profile.update(request.carrier(), request.route(), request.defaultPaymentMethodId());
         return SupplierResponse.from(profile, party);
     }

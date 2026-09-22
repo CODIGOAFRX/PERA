@@ -82,6 +82,8 @@ class DocumentServiceTest {
         CommercialDocument source = document(sourceId, DocumentType.QUOTE);
         source.addLine(new DocumentLine(UUID.randomUUID(), "A001", "Servicio", BigDecimal.ONE,
                 new BigDecimal("50"), BigDecimal.ZERO, new BigDecimal("21")));
+        source.configureQuoteValidity(LocalDate.now().plusDays(30));
+        source.applyCustomerContactSnapshot("client@example.test", "Calle Mayor 1, Madrid");
         source.recalculate(new DocumentAmountsCalculator());
         source.confirm();
         when(documents.findByIdAndCompanyId(sourceId, companyId)).thenReturn(Optional.of(source));

@@ -34,7 +34,7 @@ import java.util.UUID;
 public class InvoicePdfService {
 
     private static final String ADDRESS_NOTICE =
-            "Domicilio pendiente: PERA todavía no guarda la dirección de los clientes.";
+            "Domicilio pendiente: el documento no contiene una dirección del cliente.";
 
     private final CommercialDocumentRepository documents;
     private final VerifactuRecordRepository records;
@@ -58,13 +58,16 @@ public class InvoicePdfService {
     }
 
     @Transactional(readOnly = true)
-    public InvoicePdf render(UUID documentId) {
+    public InvoicePdf render(UUID documentId) { return prepare(documentId); }
+
+    /** Called inside the sales transaction; preparation failures must not mark issuance rollback-only. */
+    public InvoicePdf prepare(UUID documentId) {
         UUID companyId = companyProvider.requireCompanyId();
         CommercialDocument invoice = documents.findByIdAndCompanyId(documentId, companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Documento", documentId));
-        if (!invoice.getType().isInvoice()) {
+        if (!invoice.getType().isInvoice() && invoice.getType() != com.peraerp.sales.document.DocumentType.QUOTE) {
             throw new BusinessRuleException(
-                    "Solo se pueden imprimir facturas; este documento es " + invoice.getType() + ".");
+                    "Solo se pueden imprimir facturas y presupuestos; este documento es " + invoice.getType() + ".");
         }
 
         Optional<VerifactuSettings> configuration = settings.findByCompanyId(companyId);
@@ -73,10 +76,10 @@ public class InvoicePdfService {
                 issuer(company, configuration.orElse(null)),
                 recipient(invoice),
                 invoice.getType() == com.peraerp.sales.document.DocumentType.RECTIFYING_INVOICE
-                        ? "Factura rectificativa" : "Factura",
+                        ? "Factura rectificativa" : invoice.getType() == com.peraerp.sales.document.DocumentType.QUOTE ? "Presupuesto" : "Factura",
                 invoice.getDocumentNumber(),
                 invoice.getIssueDate(),
-                invoice.getDueDate(),
+                invoice.getType() == com.peraerp.sales.document.DocumentType.QUOTE ? invoice.getQuoteValidUntil() : invoice.getDueDate(),
                 invoice.getInvoiceKind() == null ? null : invoice.getInvoiceKind().code(),
                 invoice.getRectifiedNumberSnapshot(),
                 invoice.getRectifiedIssueDateSnapshot(),
@@ -91,7 +94,7 @@ public class InvoicePdfService {
                 verifactu(invoice, companyId, configuration.orElse(null)),
                 companyProfile.logo());
 
-        return new InvoicePdf(fileName(invoice.getDocumentNumber()), renderer.render(content));
+        return new InvoicePdf((invoice.getType() == com.peraerp.sales.document.DocumentType.QUOTE ? "Presupuesto-" : "Factura-") + invoice.getDocumentNumber().replaceAll("[^A-Za-z0-9._-]", "-") + ".pdf", renderer.render(content));
     }
 
     /**
@@ -111,7 +114,7 @@ public class InvoicePdfService {
 
     private InvoicePdfContent.Recipient recipient(CommercialDocument invoice) {
         return new InvoicePdfContent.Recipient(invoice.getCustomerNameSnapshot(),
-                invoice.getCustomerTaxIdSnapshot(), invoice.getCustomerCodeSnapshot(), ADDRESS_NOTICE);
+                invoice.getCustomerTaxIdSnapshot(), invoice.getCustomerCodeSnapshot(), isBlank(invoice.getCustomerAddressSnapshot()) ? ADDRESS_NOTICE : invoice.getCustomerAddressSnapshot());
     }
 
     private List<InvoicePdfContent.Line> lines(CommercialDocument invoice) {

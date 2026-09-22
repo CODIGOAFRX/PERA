@@ -12,6 +12,8 @@
 10. [Frontend MVP](10-frontend-mvp.md)
 11. [Ampliación funcional de la plataforma](11-ampliacion-plataforma.md)
 
+12. [Conexiones de correo y datos de terceros](12-conexiones-correo.md)
+
 La carpeta `reference/` contiene material de descubrimiento. Ese material ayuda a entender el ERP legado, pero no sustituye requisitos validados con usuarios ni constituye una orden de copiar código, datos o estructuras privadas.
 
 Desde agosto de 2026, el producto se dirige a pymes de distintos sectores. El material legado se usa solo como contexto histórico y no define el núcleo funcional.

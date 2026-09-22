@@ -1,3 +1,13 @@
+export interface ContactDetails {
+  addressLine1?: string | null
+  city?: string | null
+  region?: string | null
+  postalCode?: string | null
+  countryCode?: string | null
+  iban?: string | null
+  bankAccountHolder?: string | null
+}
+
 export interface PageMetadata {
   size: number
   number: number
@@ -81,6 +91,7 @@ export type TaxIdentificationType =
   | 'RESIDENCE_CERTIFICATE' | 'OTHER_DOCUMENT' | 'NOT_REGISTERED'
 
 export interface Customer {
+  details?: ContactDetails | null
   id: string
   partyId: string
   code: string
@@ -104,6 +115,7 @@ export interface Customer {
 }
 
 export interface CustomerInput {
+  details?: ContactDetails | null
   code: string
   legalName: string
   tradeName?: string | null
@@ -123,6 +135,7 @@ export interface CustomerInput {
 }
 
 export interface Supplier {
+  details?: ContactDetails | null
   id: string
   partyId: string
   code: string
@@ -140,6 +153,7 @@ export interface Supplier {
 }
 
 export interface SupplierInput {
+  details?: ContactDetails | null
   code: string
   legalName: string
   tradeName?: string | null

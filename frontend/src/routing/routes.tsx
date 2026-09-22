@@ -1,3 +1,5 @@
+import { Cable } from 'lucide-react'
+import { ConnectionsPage } from '../pages/ConnectionsPage'
 import { BookOpenCheck, Boxes, Building2, FileCheck2, FileText, History as HistoryIcon, LayoutDashboard, Printer, ReceiptText, Settings, SlidersHorizontal, Truck, UserCog, Users, type LucideIcon } from 'lucide-react'
 import type { ComponentType } from 'react'
 import type { UserRoleCode } from '../auth/AuthContext'
@@ -46,6 +48,7 @@ export const appRoutes: AppRoute[] = [
   { id: 'accounting', path: '/contabilidad', component: AccountingPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.accounting', group: 'operations', groupLabelKey: 'nav.group.operations', icon: BookOpenCheck } },
   { id: 'operations', path: '/operaciones', component: OperationsPage, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS'], navigation: { labelKey: 'nav.operations', group: 'operations', groupLabelKey: 'nav.group.operations', icon: Truck } },
   { id: 'history', path: '/historial', component: HistoryPage, allowedRoles: ['OWNER', 'ADMIN'], navigation: { labelKey: 'nav.history', group: 'operations', groupLabelKey: 'nav.group.operations', icon: HistoryIcon } },
+  { id: 'connections', path: '/conexiones', component: ConnectionsPage, allowedRoles: ['OWNER', 'ADMIN'], navigation: { labelKey: 'nav.connections', group: 'general', groupLabelKey: 'nav.group.general', icon: Cable } },
   { id: 'settings', path: '/configuracion', component: SettingsPage, allowedRoles: ['OWNER', 'ADMIN'], navigation: { labelKey: 'nav.settings', group: 'general', groupLabelKey: 'nav.group.general', icon: Settings } },
   { id: 'users', path: '/usuarios', component: UsersPage, allowedRoles: ['OWNER', 'ADMIN'], navigation: { labelKey: 'nav.users', group: 'general', groupLabelKey: 'nav.group.general', icon: UserCog } },
 ]

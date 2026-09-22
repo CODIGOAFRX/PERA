@@ -22,6 +22,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
                                 "/internal/v1/accounting/invoices").permitAll()
+                        .requestMatchers("/api/v1/connections/**").hasAnyRole("OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/documents/**").hasAuthority("documents:read")
                         .requestMatchers("/api/v1/documents/**").hasAuthority("documents:write")
                         .requestMatchers(HttpMethod.GET, "/api/v1/quotes/**").hasAuthority("quotes:read")

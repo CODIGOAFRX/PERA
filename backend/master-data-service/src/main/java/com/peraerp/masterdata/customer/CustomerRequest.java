@@ -30,5 +30,10 @@ public record CustomerRequest(
         @DecimalMin("0") BigDecimal creditLimit,
         @DecimalMin("0") BigDecimal riskWarningThreshold,
         RiskPolicy riskPolicy,
-        Boolean active
-) {}
+        Boolean active,
+        @jakarta.validation.Valid com.peraerp.platform.domain.ContactDetails details
+) {
+    public CustomerRequest(String code, String legalName, String tradeName, String taxId, TaxIdentificationType taxIdentificationType, String taxCountryCode, String phone, String email, String observations, UUID priceListId, UUID defaultPaymentMethodId, String supplierCode, BigDecimal calculationMultiplier, BigDecimal creditLimit, BigDecimal riskWarningThreshold, RiskPolicy riskPolicy, Boolean active) {
+        this(code, legalName, tradeName, taxId, taxIdentificationType, taxCountryCode, phone, email, observations, priceListId, defaultPaymentMethodId, supplierCode, calculationMultiplier, creditLimit, riskWarningThreshold, riskPolicy, active, null);
+    }
+}

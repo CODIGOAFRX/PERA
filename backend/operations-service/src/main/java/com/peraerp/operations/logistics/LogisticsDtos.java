@@ -33,20 +33,25 @@ public final class LogisticsDtos {
             @Size(max = 180) String contactName,
             @Email @Size(max = 254) String contactEmail,
             @Size(max = 40) String contactPhone,
-            Boolean active
+            Boolean active,
+            @Valid com.peraerp.platform.domain.ContactDetails details
     ) {
+        public CarrierRequest(String code, String name, CarrierOwnership ownership, String taxIdentifier,
+                              String externalIdentifier, String contactName, String contactEmail, String contactPhone, Boolean active) {
+            this(code, name, ownership, taxIdentifier, externalIdentifier, contactName, contactEmail, contactPhone, active, null);
+        }
     }
 
     public record CarrierResponse(
             UUID id, String code, String name, CarrierOwnership ownership, String taxIdentifier,
             String externalIdentifier, String contactName, String contactEmail, String contactPhone,
-            boolean active, Instant createdAt, Instant updatedAt
+            boolean active, Instant createdAt, Instant updatedAt, com.peraerp.platform.domain.ContactDetails details
     ) {
         static CarrierResponse from(Carrier carrier) {
             return new CarrierResponse(carrier.getId(), carrier.getCode(), carrier.getName(), carrier.getOwnership(),
                     carrier.getTaxIdentifier(), carrier.getExternalIdentifier(), carrier.getContactName(),
                     carrier.getContactEmail(), carrier.getContactPhone(), carrier.isActive(), carrier.getCreatedAt(),
-                    carrier.getUpdatedAt());
+                    carrier.getUpdatedAt(), carrier.getDetails());
         }
     }
 

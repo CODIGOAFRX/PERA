@@ -57,6 +57,7 @@ public class DocumentService {
             document.addLine(toLine(line));
         }
         document.recalculate(calculator);
+        document.applyCustomerContactSnapshot(customer.email(), customer.details() == null ? null : customer.details().postalAddress());
         document.applyCustomerTaxSnapshot(customer.taxId(), customer.taxIdentificationType(),
                 customer.taxCountryCode());
         DocumentCurrencySnapshot currencySnapshot = currencyService.resolve(document.getCurrency(), request.issueDate());
@@ -112,6 +113,7 @@ public class DocumentService {
             target.addLine(line.copySnapshot());
         }
         target.recalculate(calculator);
+        target.applyCustomerContactSnapshot(source.getCustomerEmailSnapshot(), source.getCustomerAddressSnapshot());
         target.applyCustomerTaxSnapshot(source.getCustomerTaxIdSnapshot(),
                 source.getCustomerTaxIdentificationTypeSnapshot(), source.getCustomerTaxCountrySnapshot());
         target.applyCurrencySnapshot(source.getBaseCurrency(), source.getExchangeRate(), source.getExchangeRateDate(),
