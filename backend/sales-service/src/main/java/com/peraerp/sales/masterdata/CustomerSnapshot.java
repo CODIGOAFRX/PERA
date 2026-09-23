@@ -2,6 +2,7 @@ package com.peraerp.sales.masterdata;
 
 import com.peraerp.sales.verifactu.domain.TaxIdentificationType;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -14,7 +15,15 @@ import java.util.UUID;
  */
 public record CustomerSnapshot(UUID id, String code, String legalName, boolean active,
                                String taxId, TaxIdentificationType taxIdentificationType,
-                               String taxCountryCode, String email, com.peraerp.platform.domain.ContactDetails details) {
+                               String taxCountryCode, String email, com.peraerp.platform.domain.ContactDetails details,
+                               BigDecimal creditLimit, BigDecimal riskWarningThreshold, String riskPolicy) {
+    /** Sin datos de riesgo: el cliente no tiene límite ni política que aplicar. */
+    public CustomerSnapshot(UUID id, String code, String legalName, boolean active, String taxId,
+                            TaxIdentificationType taxIdentificationType, String taxCountryCode, String email,
+                            com.peraerp.platform.domain.ContactDetails details) {
+        this(id, code, legalName, active, taxId, taxIdentificationType, taxCountryCode, email, details, null, null, null);
+    }
+
     public CustomerSnapshot(UUID id, String code, String legalName, boolean active, String taxId, TaxIdentificationType taxIdentificationType, String taxCountryCode) {
         this(id, code, legalName, active, taxId, taxIdentificationType, taxCountryCode, null, null);
     }

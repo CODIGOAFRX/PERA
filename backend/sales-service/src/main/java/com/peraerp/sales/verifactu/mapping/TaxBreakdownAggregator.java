@@ -2,6 +2,7 @@ package com.peraerp.sales.verifactu.mapping;
 
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.sales.document.DocumentLine;
+import com.peraerp.sales.document.MonetaryRounding;
 import com.peraerp.sales.verifactu.domain.ExemptionCause;
 import com.peraerp.sales.verifactu.domain.OperationQualification;
 import org.springframework.stereotype.Component;
@@ -52,6 +53,14 @@ public class TaxBreakdownAggregator {
      */
     public List<TaxBreakdownEntry> aggregate(List<DocumentLine> lines, String fallbackRegime,
                                              OperationQualification fallbackQualification) {
+        return aggregate(lines, fallbackRegime, fallbackQualification, BigDecimal.ONE);
+    }
+
+    public List<TaxBreakdownEntry> aggregate(List<DocumentLine> lines, String fallbackRegime,
+                                             OperationQualification fallbackQualification, BigDecimal exchangeRate) {
+        if (exchangeRate == null || exchangeRate.signum() <= 0) {
+            throw new BusinessRuleException("El tipo de cambio debe ser positivo.");
+        }
         if (lines == null || lines.isEmpty()) {
             throw new BusinessRuleException("Una factura sin líneas no puede generar desglose.");
         }
@@ -74,9 +83,16 @@ public class TaxBreakdownAggregator {
         }
 
         List<TaxBreakdownEntry> breakdown = new ArrayList<>(grouped.size());
-        grouped.forEach((key, accumulator) -> breakdown.add(new TaxBreakdownEntry(
-                key.regimeKey(), key.qualification(), key.exemptionCause(), key.taxRate(),
-                accumulator.taxableBase(), accumulator.taxAmount())));
+        List<BigDecimal> bases = MonetaryRounding.distribute(grouped.values().stream()
+                .map(accumulator -> accumulator.taxableBase.multiply(exchangeRate)).toList());
+        List<BigDecimal> taxes = MonetaryRounding.distribute(grouped.values().stream()
+                .map(accumulator -> accumulator.taxAmount.multiply(exchangeRate)).toList());
+        int index = 0;
+        for (BreakdownKey key : grouped.keySet()) {
+            breakdown.add(new TaxBreakdownEntry(key.regimeKey(), key.qualification(), key.exemptionCause(),
+                    key.taxRate(), bases.get(index), taxes.get(index)));
+            index++;
+        }
         return List.copyOf(breakdown);
     }
 
@@ -139,13 +155,6 @@ public class TaxBreakdownAggregator {
             taxAmount = taxAmount.add(zeroIfNull(line.getTaxAmount()));
         }
 
-        /**
-         * Se redondea al sumar, no antes. Redondear cada línea y luego sumar produce desviaciones
-         * de céntimos frente al total de la factura, y el total sí viaja en el registro.
-         */
-        BigDecimal taxableBase() { return taxableBase.setScale(2, RoundingMode.HALF_UP); }
-
-        BigDecimal taxAmount() { return taxAmount.setScale(2, RoundingMode.HALF_UP); }
     }
 
     /** Orden estable para comparar dos desgloses en pruebas o diagnósticos. */

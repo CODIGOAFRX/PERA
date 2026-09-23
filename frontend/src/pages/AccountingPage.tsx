@@ -1,14 +1,16 @@
 import { BellRing, BookOpenCheck, CircleDollarSign, Landmark, Plus, Search, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
-import { Field } from '../components/Form'
+import { Field, FormErrors, useFormErrors } from '../components/Form'
 import { Modal } from '../components/Modal'
 import { PageHeader } from '../components/PageHeader'
 import { StatusBadge } from '../components/StatusBadge'
 import { useToast } from '../components/Toast'
 import { apiFetch, errorMessage } from '../lib/api'
 import { formatCurrency, formatDate } from '../lib/format'
+import { localIsoDate } from '../lib/date'
 import { useTranslation } from '../i18n/I18nProvider'
+import { TableCaption } from '../components/TableCaption'
 
 type AccountingTab = 'pending' | 'entries' | 'accounts'
 
@@ -143,12 +145,12 @@ export function AccountingPage() {
 
       {tab === 'entries' && <section className="panel table-panel">
         {entries.length === 0 ? <EmptyState title={c('Todavía no hay asientos', 'No journal entries yet')} description={c('Los asientos confirmados aparecerán aquí.', 'Posted journal entries will appear here.')} />
-          : <div className="table-scroll"><table><thead><tr><th>{c('Fecha', 'Date')}</th><th>{c('Concepto', 'Description')}</th><th>{c('Origen', 'Source')}</th><th className="align-right">{c('Debe = Haber', 'Debit = Credit')}</th><th>{c('Estado', 'Status')}</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td>{formatDate(entry.entryDate, locale)}</td><td><strong>{entry.description}</strong><small>{entry.lines.length} {c('líneas', 'lines')}</small></td><td>{entry.sourceNumber ?? c('Asiento manual', 'Manual entry')}</td><td className="align-right"><strong>{formatCurrency(entry.total, 'EUR', locale)}</strong></td><td><StatusBadge tone="success">{c('Contabilizado', 'Posted')}</StatusBadge></td></tr>)}</tbody></table></div>}
+          : <div className="table-scroll"><table><TableCaption es="Asientos contables" en="Journal entries" /><thead><tr><th>{c('Fecha', 'Date')}</th><th>{c('Concepto', 'Description')}</th><th>{c('Origen', 'Source')}</th><th className="align-right">{c('Debe = Haber', 'Debit = Credit')}</th><th>{c('Estado', 'Status')}</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td>{formatDate(entry.entryDate, locale)}</td><td><strong>{entry.description}</strong><small>{entry.lines.length} {c('líneas', 'lines')}</small></td><td>{entry.sourceNumber ?? c('Asiento manual', 'Manual entry')}</td><td className="align-right"><strong>{formatCurrency(entry.total, 'EUR', locale)}</strong></td><td><StatusBadge tone="success">{c('Contabilizado', 'Posted')}</StatusBadge></td></tr>)}</tbody></table></div>}
       </section>}
 
       {tab === 'accounts' && <section className="panel table-panel">
-        <div className="table-toolbar"><label className="search-control"><Search size={16} /><input value={accountQuery} onChange={(event) => setAccountQuery(event.target.value)} placeholder={c('Prueba “caja”, “banco” o 700…', 'Try “cash”, “bank” or 700…')} /></label></div>
-        <div className="table-scroll"><table><thead><tr><th>{c('Número', 'Number')}</th><th>{c('Cuenta', 'Account')}</th><th>{c('Naturaleza', 'Type')}</th><th>{c('Origen', 'Origin')}</th></tr></thead><tbody>{visibleAccounts.map((account) => <tr key={account.id}><td><strong className="code-cell">{account.code}</strong></td><td>{account.name}</td><td>{accountKind(account.kind, language)}</td><td>{account.systemDefined ? c('Base PERA', 'PERA default') : c('Personalizada', 'Custom')}</td></tr>)}</tbody></table></div>
+        <div className="table-toolbar"><label className="search-control"><Search size={16} aria-hidden="true" /><input type="search" aria-label={c('Buscar cuentas', 'Search accounts')} value={accountQuery} onChange={(event) => setAccountQuery(event.target.value)} placeholder={c('Prueba “caja”, “banco” o 700…', 'Try “cash”, “bank” or 700…')} /></label></div>
+        <div className="table-scroll"><table><TableCaption es="Líneas del asiento" en="Journal entry lines" /><thead><tr><th>{c('Número', 'Number')}</th><th>{c('Cuenta', 'Account')}</th><th>{c('Naturaleza', 'Type')}</th><th>{c('Origen', 'Origin')}</th></tr></thead><tbody>{visibleAccounts.map((account) => <tr key={account.id}><td><strong className="code-cell">{account.code}</strong></td><td>{account.name}</td><td>{accountKind(account.kind, language)}</td><td>{account.systemDefined ? c('Base PERA', 'PERA default') : c('Personalizada', 'Custom')}</td></tr>)}</tbody></table></div>
       </section>}
     </>}
 
@@ -176,11 +178,12 @@ function JournalEntryForm({ source, accounts, onCancel, onSaved }: { source: Inb
   const initialLines = source?.suggestedLines.map((line, index) => ({ key: index, accountId: line.accountId,
     accountText: `${line.accountCode} · ${line.accountName}`, description: '', debit: String(line.debit || ''), credit: String(line.credit || '') }))
     ?? [blankLine(0), blankLine(1)]
-  const [entryDate, setEntryDate] = useState(source?.sourceDate ?? new Date().toISOString().slice(0, 10))
+  const [entryDate, setEntryDate] = useState(source?.sourceDate ?? localIsoDate())
   const [description, setDescription] = useState(source ? `${source.sourceNumber} · ${source.counterpartyName}` : '')
   const [lines, setLines] = useState<EditableLine[]>(initialLines)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const formErrors = useFormErrors()
   const debitTotal = lines.reduce((total, line) => total + Number(line.debit || 0), 0)
   const creditTotal = lines.reduce((total, line) => total + Number(line.credit || 0), 0)
   const balanced = debitTotal > 0 && Math.abs(debitTotal - creditTotal) < 0.00005
@@ -211,13 +214,13 @@ function JournalEntryForm({ source, accounts, onCancel, onSaved }: { source: Inb
         })) }),
       })
       onSaved()
-    } catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+    } catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
   }
 
-  return <form className="journal-form" onSubmit={submit}>
+  return <form className="journal-form" onSubmit={submit}><FormErrors value={formErrors.context}>
     <div className="journal-head">
-      <Field label={c('Fecha del asiento', 'Entry date')} htmlFor="journal-date" required><input id="journal-date" type="date" value={entryDate} onChange={(event) => setEntryDate(event.target.value)} required /></Field>
-      <Field label={c('Concepto', 'Description')} htmlFor="journal-description" required><input id="journal-description" value={description} maxLength={300} onChange={(event) => setDescription(event.target.value)} placeholder={c('¿Qué ha ocurrido?', 'What happened?')} required /></Field>
+      <Field label={c('Fecha del asiento', 'Entry date')} htmlFor="journal-date" name="entryDate" required><input id="journal-date" type="date" value={entryDate} onChange={(event) => setEntryDate(event.target.value)} required /></Field>
+      <Field label={c('Concepto', 'Description')} htmlFor="journal-description" name="description" required><input id="journal-description" value={description} maxLength={300} onChange={(event) => setDescription(event.target.value)} placeholder={c('¿Qué ha ocurrido?', 'What happened?')} required /></Field>
     </div>
     <datalist id="account-options">{accounts.map((account) => <option key={account.id} value={`${account.code} · ${account.name}`} />)}</datalist>
     <div className="journal-guide"><span className="debit">{c('DEBE', 'DEBIT')}<small>{c('Lo que entra o se recibe', 'What comes in or is received')}</small></span><span className="credit">{c('HABER', 'CREDIT')}<small>{c('De dónde sale o cómo se financia', 'Where it comes from or how it is funded')}</small></span></div>
@@ -238,7 +241,7 @@ function JournalEntryForm({ source, accounts, onCancel, onSaved }: { source: Inb
     </section>
     {error && <div className="form-error" role="alert">{error}</div>}
     <footer className="form-actions"><button className="button button-ghost" type="button" onClick={onCancel}>{c('Cancelar', 'Cancel')}</button><button className="button button-primary" type="submit" disabled={saving || !balanced || lines.some((line) => !line.accountId)}>{saving ? c('Contabilizando…', 'Posting…') : c('Contabilizar asiento', 'Post entry')}</button></footer>
-  </form>
+  </FormErrors></form>
 }
 
 function blankLine(key: number): EditableLine { return { key, accountId: '', accountText: '', description: '', debit: '', credit: '' } }

@@ -56,6 +56,7 @@ public class UserAdministrationService {
         companyRepository.findById(companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Empresa", companyId));
 
+        PasswordPolicy.requireBcryptLength(request.password());
         Set<Role> roles = resolveRoles(companyId, request.roleCodes());
         AppUser user = userRepository.save(new AppUser(request.username().trim(),
                 passwordEncoder.encode(request.password()), request.displayName().trim(), nullable(request.email())));
@@ -81,6 +82,7 @@ public class UserAdministrationService {
         AppUser user = membership.getUser();
         user.updateProfile(request.displayName().trim(), nullable(request.email()));
         if (request.password() != null && !request.password().isBlank()) {
+            PasswordPolicy.requireBcryptLength(request.password());
             user.changePassword(passwordEncoder.encode(request.password()));
         }
         membership.replaceRoles(roles);

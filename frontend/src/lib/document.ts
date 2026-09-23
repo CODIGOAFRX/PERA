@@ -6,10 +6,18 @@ export interface PreviewLine {
 }
 
 export function calculateDocumentPreview(lines: PreviewLine[]) {
-  return lines.reduce((result, line) => {
+  const round = (value: number, digits: number) => {
+    const scale = 10 ** digits
+    return Math.round((value + Number.EPSILON) * scale) / scale
+  }
+  const amounts = lines.reduce((result, line) => {
     const gross = Number(line.quantity) * Number(line.unitPrice)
-    const net = gross * (1 - Number(line.discountPercentage) / 100)
-    const tax = net * Number(line.taxPercentage) / 100
-    return { net: result.net + net, tax: result.tax + tax, total: result.total + net + tax }
-  }, { net: 0, tax: 0, total: 0 })
+    const discount = round(gross * Number(line.discountPercentage) / 100, 8)
+    const net = round(gross - discount, 4)
+    const tax = round(net * Number(line.taxPercentage) / 100, 4)
+    return { net: result.net + Math.round(net * 10000), tax: result.tax + Math.round(tax * 10000) }
+  }, { net: 0, tax: 0 })
+  const net = round(amounts.net / 10000, 2)
+  const tax = round(amounts.tax / 10000, 2)
+  return { net, tax, total: round(net + tax, 2) }
 }

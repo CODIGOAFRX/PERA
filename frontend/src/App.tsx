@@ -1,5 +1,7 @@
+import { Suspense } from 'react'
 import { useAuth } from './auth/AuthContext'
 import { AppShell } from './components/AppShell'
+import { LoadingState } from './components/DataState'
 import { LoginPage } from './pages/LoginPage'
 import { AccessDeniedPage } from './pages/AccessDeniedPage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -17,5 +19,5 @@ export default function App() {
     ? isRouteAllowed(match.route, identity?.roles ?? []) ? <Page /> : <AccessDeniedPage />
     : <NotFoundPage />
 
-  return <AppShell>{page}</AppShell>
+  return <AppShell><Suspense fallback={<LoadingState />}>{page}</Suspense></AppShell>
 }

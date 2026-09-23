@@ -2,7 +2,7 @@ import { KeyRound, Pencil, Plus, ShieldCheck, UserCog, UsersRound } from 'lucide
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { EmptyState, LoadingState } from '../components/DataState'
-import { Field, FormActions } from '../components/Form'
+import { Field, FormActions, FormErrors, useFormErrors } from '../components/Form'
 import { Modal } from '../components/Modal'
 import { PageHeader } from '../components/PageHeader'
 import { StatusBadge } from '../components/StatusBadge'
@@ -10,6 +10,7 @@ import { useToast } from '../components/Toast'
 import { useTranslation } from '../i18n/I18nProvider'
 import { apiFetch, errorMessage } from '../lib/api'
 import type { ManagedUser, RoleProfile } from '../types/api'
+import { TableCaption } from '../components/TableCaption'
 
 type EditingUser = ManagedUser | 'new' | null
 
@@ -64,7 +65,7 @@ export function UsersPage() {
         </div>
         {error && <div className="inline-error">{error}</div>}
         {loading ? <LoadingState /> : filtered.length > 0 ? (
-          <div className="table-scroll"><table><thead><tr><th>{c('Persona', 'Person')}</th><th>{c('Usuario', 'Username')}</th><th>{c('Perfil', 'Profile')}</th><th>{c('Estado', 'Status')}</th><th><span className="sr-only">{c('Acciones', 'Actions')}</span></th></tr></thead><tbody>
+          <div className="table-scroll"><table><TableCaption es="Usuarios del equipo" en="Team users" /><thead><tr><th>{c('Persona', 'Person')}</th><th>{c('Usuario', 'Username')}</th><th>{c('Perfil', 'Profile')}</th><th>{c('Estado', 'Status')}</th><th><span className="sr-only">{c('Acciones', 'Actions')}</span></th></tr></thead><tbody>
             {filtered.map((user) => <tr key={user.id}><td><strong>{user.displayName}</strong><small>{user.email || '—'}</small></td><td><span className="code-cell">{user.username}</span></td><td><div className="role-cell">{user.roles.map((role) => <span key={role}>{roleLabel(role, language)}</span>)}</div></td><td><StatusBadge tone={user.active ? 'success' : 'neutral'}>{user.active ? c('Activo', 'Active') : c('Inactivo', 'Inactive')}</StatusBadge></td><td><button className="icon-button" type="button" disabled={user.id === identity?.id} onClick={() => setEditing(user)} aria-label={c(`Editar ${user.displayName}`, `Edit ${user.displayName}`)} title={user.id === identity?.id ? c('Tu cuenta no se modifica durante la sesión activa', 'Your account cannot be changed during its active session') : undefined}><Pencil size={16} /></button></td></tr>)}
           </tbody></table></div>
         ) : <EmptyState title={c('No hay usuarios', 'No users found')} description={query ? c('Prueba con otra búsqueda.', 'Try another search.') : c('Crea la primera cuenta del equipo.', 'Create the first team account.')} />}
@@ -90,6 +91,7 @@ function UserForm({ user, roles, language, onCancel, onSaved }: { user: ManagedU
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const formErrors = useFormErrors()
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
 
   const submit = async (event: FormEvent) => {
@@ -103,24 +105,24 @@ function UserForm({ user, roles, language, onCancel, onSaved }: { user: ManagedU
       await apiFetch<ManagedUser>(user ? `/api/v1/users/${user.id}` : '/api/v1/users', { method: user ? 'PUT' : 'POST', body: JSON.stringify(payload) })
       onSaved()
     } catch (cause) {
-      setError(errorMessage(cause))
+      setError(formErrors.capture(cause))
     } finally {
       setSaving(false)
     }
   }
 
-  return <form onSubmit={submit}>
+  return <form onSubmit={submit}><FormErrors value={formErrors.context}>
     <div className="form-grid">
-      <Field label={c('Nombre visible', 'Display name')} htmlFor="user-display-name" required><input id="user-display-name" value={form.displayName} onChange={(event) => update('displayName', event.target.value)} maxLength={160} required /></Field>
-      <Field label={c('Correo electrónico', 'Email address')} htmlFor="user-email"><input id="user-email" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} maxLength={180} /></Field>
-      <Field label={c('Nombre de usuario', 'Username')} htmlFor="user-username" required><input id="user-username" value={form.username} onChange={(event) => update('username', event.target.value)} maxLength={80} disabled={Boolean(user)} required /></Field>
-      <Field label={user ? c('Nueva contraseña (opcional)', 'New password (optional)') : c('Contraseña', 'Password')} htmlFor="user-password" required={!user}><input id="user-password" type="password" autoComplete="new-password" value={form.password} onChange={(event) => update('password', event.target.value)} minLength={10} maxLength={100} required={!user} /></Field>
-      <Field label={c('Perfil de acceso', 'Access profile')} htmlFor="user-role" wide required><div className="role-picker" id="user-role">{roles.map((role) => <label key={role.code} className={form.role === role.code ? 'selected' : ''}><input type="radio" name="role" value={role.code} checked={form.role === role.code} onChange={(event) => update('role', event.target.value)} /><span><strong>{roleLabel(role.code, language)}</strong><small>{roleDescription(role.code, language)}</small></span></label>)}</div></Field>
-      {user && <Field label={c('Estado', 'Status')} htmlFor="user-active" wide><label className="switch-row" htmlFor="user-active"><input id="user-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{c('Permitir que inicie sesión', 'Allow this user to sign in')}</span></label></Field>}
+      <Field label={c('Nombre visible', 'Display name')} htmlFor="user-display-name" name="displayName" required><input id="user-display-name" value={form.displayName} onChange={(event) => update('displayName', event.target.value)} maxLength={160} required /></Field>
+      <Field label={c('Correo electrónico', 'Email address')} htmlFor="user-email" name="email"><input id="user-email" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} maxLength={180} /></Field>
+      <Field label={c('Nombre de usuario', 'Username')} htmlFor="user-username" name="username" required><input id="user-username" value={form.username} onChange={(event) => update('username', event.target.value)} maxLength={80} disabled={Boolean(user)} required /></Field>
+      <Field label={user ? c('Nueva contraseña (opcional)', 'New password (optional)') : c('Contraseña', 'Password')} htmlFor="user-password" name="password" required={!user} hint={c('Entre 10 y 72 caracteres.', 'Between 10 and 72 characters.')}><input id="user-password" type="password" autoComplete="new-password" value={form.password} onChange={(event) => update('password', event.target.value)} minLength={10} maxLength={72} required={!user} /></Field>
+      <Field label={c('Perfil de acceso', 'Access profile')} htmlFor="user-role" name="roleCodes" wide required><div className="role-picker" id="user-role">{roles.map((role) => <label key={role.code} className={form.role === role.code ? 'selected' : ''}><input type="radio" name="role" value={role.code} checked={form.role === role.code} onChange={(event) => update('role', event.target.value)} /><span><strong>{roleLabel(role.code, language)}</strong><small>{roleDescription(role.code, language)}</small></span></label>)}</div></Field>
+      {user && <Field label={c('Estado', 'Status')} htmlFor="user-active" name="active" wide><label className="switch-row" htmlFor="user-active"><input id="user-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{c('Permitir que inicie sesión', 'Allow this user to sign in')}</span></label></Field>}
     </div>
     {error && <div className="form-error" role="alert">{error}</div>}
     <FormActions onCancel={onCancel} saving={saving} submitLabel={user ? c('Guardar cambios', 'Save changes') : c('Crear usuario', 'Create user')} />
-  </form>
+  </FormErrors></form>
 }
 
 function roleLabel(code: string, language: 'es' | 'en') {

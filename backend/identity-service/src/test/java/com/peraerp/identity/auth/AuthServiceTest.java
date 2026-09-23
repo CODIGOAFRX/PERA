@@ -98,6 +98,33 @@ class AuthServiceTest {
         verifyNoInteractions(memberships, jwtService);
     }
 
+    @Test
+    void unknownUserStillPaysThePasswordHashCostAndGetsTheSameMessage() {
+        when(users.findByUsernameIgnoreCase("ghost")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(org.mockito.ArgumentMatchers.anyString())).thenReturn("dummy-hash");
+        when(passwordEncoder.matches("whatever", "dummy-hash")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.login(new LoginRequest("ghost", "whatever", null)))
+                .isInstanceOf(AuthenticationFailedException.class)
+                .hasMessage("Usuario o contraseña incorrectos.");
+        org.mockito.Mockito.verify(passwordEncoder).matches("whatever", "dummy-hash");
+        verifyNoInteractions(memberships, jwtService);
+    }
+
+    @Test
+    void passwordOverBcryptLimitFailsLikeAWrongPasswordInsteadOfThrowing() {
+        AppUser user = user(UUID.randomUUID());
+        when(users.findByUsernameIgnoreCase("admin")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("", "hash")).thenReturn(true);
+        String tooLong = "ñ".repeat(40); // 80 bytes in UTF-8
+
+        assertThatThrownBy(() -> service.login(new LoginRequest("admin", tooLong, null)))
+                .isInstanceOf(AuthenticationFailedException.class)
+                .hasMessage("Usuario o contraseña incorrectos.");
+        org.mockito.Mockito.verify(passwordEncoder).matches("", "hash");
+        verifyNoInteractions(memberships, jwtService);
+    }
+
     private AppUser user(UUID id) {
         AppUser user = mock(AppUser.class);
         org.mockito.Mockito.lenient().when(user.getId()).thenReturn(id);

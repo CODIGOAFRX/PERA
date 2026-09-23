@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from '../lib/format'
 import { Field } from './Form'
 import { EmptyState, LoadingState } from './DataState'
 import type { CommercialDocument, PageResponse } from '../types/api'
+import { TableCaption } from './TableCaption'
 
 /** The server PDF is the printable document; the application page is never printed here. */
 export function DocumentPrintCenter() {
@@ -54,7 +55,7 @@ export function DocumentPrintCenter() {
     </form>
     {error && <div className="inline-error" role="alert">{error}</div>}
     {loading ? <LoadingState /> : !data?.content.length ? <EmptyState description={c('Prueba otro número, cliente o tipo de documento.', 'Try another number, customer or document type.')} title={c('No hay documentos con estos filtros', 'No documents match these filters')} /> : <>
-      <div className="table-scroll"><table className="data-table"><thead><tr><th>{c('Número', 'Number')}</th><th>{c('Cliente', 'Customer')}</th><th>{c('Fecha', 'Date')}</th><th>{c('Total', 'Total')}</th><th>{c('Documento completo', 'Complete document')}</th></tr></thead><tbody>{data.content.map(item => <tr key={item.id}>
+      <div className="table-scroll"><table className="data-table"><TableCaption es="Documentos para imprimir" en="Documents to print" /><thead><tr><th>{c('Número', 'Number')}</th><th>{c('Cliente', 'Customer')}</th><th>{c('Fecha', 'Date')}</th><th>{c('Total', 'Total')}</th><th>{c('Documento completo', 'Complete document')}</th></tr></thead><tbody>{data.content.map(item => <tr key={item.id}>
         <td>{item.number}{item.status === 'DRAFT' && <small className="document-draft-label">{c('Borrador', 'Draft')}</small>}</td><td>{item.customerName}</td><td>{formatDate(item.issueDate, locale)}</td><td>{formatCurrency(item.totalAmount, item.currency, locale)}</td>
         <td><button className="button button-secondary button-small" disabled={pending !== null || (item.type !== 'QUOTE' && item.status === 'DRAFT')} onClick={() => void prepare(item)}>{item.type !== 'QUOTE' && item.status === 'DRAFT' ? c('Expide la factura primero', 'Issue the invoice first') : pending === item.id ? c('Preparando…', 'Preparing…') : c('Ver PDF completo', 'View full PDF')}</button></td>
       </tr>)}</tbody></table></div>

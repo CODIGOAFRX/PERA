@@ -1,7 +1,7 @@
 import { Boxes, FileUp, Pencil, Plus } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
-import { Field, FormActions } from '../components/Form'
+import { Field, FormActions, FormErrors, useFormErrors } from '../components/Form'
 import { Modal } from '../components/Modal'
 import { MasterDataImportModal } from '../components/MasterDataImportModal'
 import { PageHeader } from '../components/PageHeader'
@@ -12,9 +12,11 @@ import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { apiFetch, errorMessage } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/format'
+import { localIsoDate } from '../lib/date'
 import { unitKey } from '../i18n/businessLabels'
 import { useTranslation } from '../i18n/I18nProvider'
 import type { PageResponse, Product, ProductInput, UnitOfMeasure } from '../types/api'
+import { TableCaption } from '../components/TableCaption'
 
 const units = Object.keys(unitKey) as UnitOfMeasure[]
 
@@ -78,7 +80,7 @@ export function CatalogPage() {
     <section className="panel table-panel">
       <TableToolbar value={query} onChange={setQuery} placeholder={t('catalog.search')} />
       {error && <div className="inline-error">{error}</div>}
-      {loading ? <LoadingState /> : data && data.content.length > 0 ? <><div className="table-scroll"><table><thead><tr><th>{t('field.code')}</th><th>{t('catalog.product')}</th><th>{t('catalog.unit')}</th><th>{t('catalog.basePrice')}</th><th>{t('catalog.tax')}</th><th>{t('field.status')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead><tbody>{data.content.map((product) => <tr key={product.id}><td><span className="code-cell">{product.code}</span></td><td><strong>{product.name}</strong>{product.description && <small>{product.description}</small>}</td><td>{t(unitKey[product.unitOfMeasure])}</td><td><strong>{formatCurrency(product.basePrice, baseCurrency, locale)}</strong></td><td>{formatNumber(product.taxRate, locale)} %</td><td><StatusBadge tone={product.active ? 'success' : 'neutral'}>{product.active ? t('common.active') : t('common.inactive')}</StatusBadge></td><td><button className="icon-button" type="button" onClick={() => setEditing(product)} aria-label={t('catalog.editAria', { name: product.name })}><Pencil size={16} /></button></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('catalog.empty')} description={query ? t('common.noResults') : t('catalog.emptyDescription')} action={!query && <button className="button button-secondary" type="button" onClick={() => setEditing('new')}>{t('catalog.create')}</button>} />}
+      {loading ? <LoadingState /> : data && data.content.length > 0 ? <><div className="table-scroll"><table><TableCaption es="Productos" en="Products" /><thead><tr><th>{t('field.code')}</th><th>{t('catalog.product')}</th><th>{t('catalog.unit')}</th><th>{t('catalog.basePrice')}</th><th>{t('catalog.tax')}</th><th>{t('field.status')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead><tbody>{data.content.map((product) => <tr key={product.id}><td><span className="code-cell">{product.code}</span></td><td><strong>{product.name}</strong>{product.description && <small>{product.description}</small>}</td><td>{t(unitKey[product.unitOfMeasure])}</td><td><strong>{formatCurrency(product.basePrice, baseCurrency, locale)}</strong></td><td>{formatNumber(product.taxRate, locale)} %</td><td><StatusBadge tone={product.active ? 'success' : 'neutral'}>{product.active ? t('common.active') : t('common.inactive')}</StatusBadge></td><td><button className="icon-button" type="button" onClick={() => setEditing(product)} aria-label={t('catalog.editAria', { name: product.name })}><Pencil size={16} /></button></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('catalog.empty')} description={query ? t('common.noResults') : t('catalog.emptyDescription')} action={!query && <button className="button button-secondary" type="button" onClick={() => setEditing('new')}>{t('catalog.create')}</button>} />}
     </section>
     <Modal open={editing !== null} title={editing === 'new' ? t('catalog.new') : t('catalog.edit')} description={t('catalog.modalDescription')} onClose={() => setEditing(null)}>{editing && <ProductForm key={editing === 'new' ? 'new' : editing.id} product={editing === 'new' ? null : editing} onCancel={() => setEditing(null)} onSaved={saved} />}</Modal>
     <MasterDataImportModal open={importing} entityName={c('artículos', 'products')} basePath="/api/v1/products" onClose={() => setImporting(false)} onImported={(count) => { setRefresh((value) => value + 1); notify(c(`${count} artículos importados.`, `${count} products imported.`)) }} />
@@ -88,7 +90,7 @@ export function CatalogPage() {
 function ProductForm({ product, onCancel, onSaved }: { product: Product | null; onCancel: () => void; onSaved: () => void }) {
   const { language, t } = useTranslation()
   const c = (es: string, en: string) => language === 'es' ? es : en
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localIsoDate()
   const [productTypes, setProductTypes] = useState<ProductTypeOption[]>([])
   const [productGroups, setProductGroups] = useState<ProductGroupOption[]>([])
   const [taxCodes, setTaxCodes] = useState<TaxCodeOption[]>([])
@@ -101,6 +103,7 @@ function ProductForm({ product, onCancel, onSaved }: { product: Product | null; 
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const formErrors = useFormErrors()
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
 
   useEffect(() => {
@@ -147,7 +150,7 @@ function ProductForm({ product, onCancel, onSaved }: { product: Product | null; 
       basePrice: Number(form.basePrice), taxRate: Number(form.taxRate), active: form.active,
     }
     try { await apiFetch<Product>(product ? `/api/v1/products/${product.id}` : '/api/v1/products', { method: product ? 'PUT' : 'POST', body: JSON.stringify(payload) }); onSaved() }
-    catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+    catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
   }
 
   if (loadingOptions) return <LoadingState />
@@ -156,16 +159,16 @@ function ProductForm({ product, onCancel, onSaved }: { product: Product | null; 
   const availableTaxes = taxCodes.filter((item) => item.id === form.taxCodeId
     || (item.active && item.validFrom <= today && (!item.validUntil || item.validUntil >= today)))
 
-  return <form onSubmit={submit}><div className="form-grid">
-    <Field label={t('field.code')} htmlFor="product-code" required><input id="product-code" value={form.code} onChange={(event) => update('code', event.target.value)} disabled={Boolean(product)} maxLength={60} required /></Field>
-    <Field label={t('field.name')} htmlFor="product-name" required><input id="product-name" value={form.name} onChange={(event) => update('name', event.target.value)} maxLength={180} required /></Field>
-    <Field label={c('Tipo de producto', 'Product type')} htmlFor="product-type"><select id="product-type" value={form.productTypeId} onChange={(event) => selectProductType(event.target.value)}><option value="">{c('Sin tipo', 'No type')}</option>{availableTypes.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></Field>
-    <Field label={c('Grupo de productos', 'Product group')} htmlFor="product-group" hint={!form.productTypeId ? c('Selecciona primero un tipo.', 'Select a product type first.') : undefined}><select id="product-group" value={form.productGroupId} disabled={!form.productTypeId} onChange={(event) => selectProductGroup(event.target.value)}><option value="">{c('Sin grupo', 'No group')}</option>{availableGroups.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></Field>
-    <Field label={c('Código fiscal', 'Tax code')} htmlFor="product-tax-code"><select id="product-tax-code" value={form.taxCodeId} onChange={(event) => selectTaxCode(event.target.value)}><option value="">{c('Sin código fiscal', 'No tax code')}</option>{availableTaxes.map((item) => <option key={item.id} value={item.id}>{item.countryCode} · {item.code} · {item.name} ({formatNumber(item.percentage, language === 'es' ? 'es-ES' : 'en-GB')} %)</option>)}</select></Field>
-    <Field label={t('catalog.unitOfMeasure')} htmlFor="product-unit" required><select id="product-unit" value={form.unitOfMeasure} onChange={(event) => update('unitOfMeasure', event.target.value)}>{units.map((unit) => <option key={unit} value={unit}>{t(unitKey[unit])}</option>)}</select></Field>
-    <Field label={t('catalog.basePrice')} htmlFor="product-price" required><input id="product-price" type="number" min="0" step="0.0001" value={form.basePrice} onChange={(event) => update('basePrice', event.target.value)} required /></Field>
-    <Field label={t('catalog.taxPercentage')} htmlFor="product-tax" required hint={form.taxCodeId ? c('Se deriva del código fiscal seleccionado.', 'Derived from the selected tax code.') : undefined}><input id="product-tax" type="number" min="0" max="100" step="0.01" value={form.taxRate} disabled={Boolean(form.taxCodeId)} onChange={(event) => update('taxRate', event.target.value)} required /></Field>
-    <Field label={t('field.status')} htmlFor="product-active"><label className="switch-row" htmlFor="product-active"><input id="product-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{t('catalog.active')}</span></label></Field>
-    <Field label={t('field.description')} htmlFor="product-description" wide><textarea id="product-description" rows={3} value={form.description} onChange={(event) => update('description', event.target.value)} /></Field>
-  </div>{error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={product ? t('catalog.saveChanges') : t('catalog.create')} /></form>
+  return <form onSubmit={submit}><FormErrors value={formErrors.context}><div className="form-grid">
+    <Field label={t('field.code')} htmlFor="product-code" name="code" required><input id="product-code" value={form.code} onChange={(event) => update('code', event.target.value)} disabled={Boolean(product)} maxLength={60} required /></Field>
+    <Field label={t('field.name')} htmlFor="product-name" name="name" required><input id="product-name" value={form.name} onChange={(event) => update('name', event.target.value)} maxLength={180} required /></Field>
+    <Field label={c('Tipo de producto', 'Product type')} htmlFor="product-type" name="productTypeId"><select id="product-type" value={form.productTypeId} onChange={(event) => selectProductType(event.target.value)}><option value="">{c('Sin tipo', 'No type')}</option>{availableTypes.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></Field>
+    <Field label={c('Grupo de productos', 'Product group')} htmlFor="product-group" name="productGroupId" hint={!form.productTypeId ? c('Selecciona primero un tipo.', 'Select a product type first.') : undefined}><select id="product-group" value={form.productGroupId} disabled={!form.productTypeId} onChange={(event) => selectProductGroup(event.target.value)}><option value="">{c('Sin grupo', 'No group')}</option>{availableGroups.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></Field>
+    <Field label={c('Código fiscal', 'Tax code')} htmlFor="product-tax-code" name="taxCodeId"><select id="product-tax-code" value={form.taxCodeId} onChange={(event) => selectTaxCode(event.target.value)}><option value="">{c('Sin código fiscal', 'No tax code')}</option>{availableTaxes.map((item) => <option key={item.id} value={item.id}>{item.countryCode} · {item.code} · {item.name} ({formatNumber(item.percentage, language === 'es' ? 'es-ES' : 'en-GB')} %)</option>)}</select></Field>
+    <Field label={t('catalog.unitOfMeasure')} htmlFor="product-unit" name="unitOfMeasure" required><select id="product-unit" value={form.unitOfMeasure} onChange={(event) => update('unitOfMeasure', event.target.value)}>{units.map((unit) => <option key={unit} value={unit}>{t(unitKey[unit])}</option>)}</select></Field>
+    <Field label={t('catalog.basePrice')} htmlFor="product-price" name="basePrice" required><input id="product-price" type="number" min="0" step="0.0001" value={form.basePrice} onChange={(event) => update('basePrice', event.target.value)} required /></Field>
+    <Field label={t('catalog.taxPercentage')} htmlFor="product-tax" name="taxRate" required hint={form.taxCodeId ? c('Se deriva del código fiscal seleccionado.', 'Derived from the selected tax code.') : undefined}><input id="product-tax" type="number" min="0" max="100" step="0.01" value={form.taxRate} disabled={Boolean(form.taxCodeId)} onChange={(event) => update('taxRate', event.target.value)} required /></Field>
+    <Field label={t('field.status')} htmlFor="product-active" name="active"><label className="switch-row" htmlFor="product-active"><input id="product-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{t('catalog.active')}</span></label></Field>
+    <Field label={t('field.description')} htmlFor="product-description" name="description" wide><textarea id="product-description" rows={3} value={form.description} onChange={(event) => update('description', event.target.value)} /></Field>
+  </div>{error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={product ? t('catalog.saveChanges') : t('catalog.create')} /></FormErrors></form>
 }

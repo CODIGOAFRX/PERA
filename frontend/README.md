@@ -28,4 +28,4 @@ npm run build
 npm audit --omit=dev
 ```
 
-Las credenciales iniciales del entorno de desarrollo son `admin` / `ChangeMe123!`.
+El usuario inicial del entorno de desarrollo es `admin`; su contraseña es la definida en `PERA_BOOTSTRAP_ADMIN_PASSWORD`. Cámbiala desde **Usuarios** tras el primer acceso.

@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -25,7 +26,17 @@ public class DocumentController {
         return service.search(q, type, status, customerId, fromDate, toDate, pageable);
     }
     @GetMapping("/{id}") DocumentResponse findById(@PathVariable UUID id) { return service.findById(id); }
-    @PostMapping @ResponseStatus(HttpStatus.CREATED) DocumentResponse create(@Valid @RequestBody CreateDocumentRequest request) { return service.create(request); }
-    @PostMapping("/{id}/convert") @ResponseStatus(HttpStatus.CREATED) DocumentResponse convert(@PathVariable UUID id) { return service.convert(id); }
+    @GetMapping("/credit-risk") CreditRiskService.Assessment creditRisk(@RequestParam UUID customerId,
+                                                                        @RequestParam(defaultValue = "0") BigDecimal amount,
+                                                                        @RequestParam(required = false) String currency,
+                                                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return service.previewCreditRisk(customerId, amount, currency, date);
+    }
+    @PostMapping @ResponseStatus(HttpStatus.CREATED) DocumentResponse create(@Valid @RequestBody CreateDocumentRequest request,
+                                                                              @RequestParam(defaultValue = "false") boolean riskAcknowledged) { return service.create(request, riskAcknowledged); }
+    @PostMapping("/{id}/convert") @ResponseStatus(HttpStatus.CREATED) DocumentResponse convert(@PathVariable UUID id,
+                                                                                            @RequestParam(defaultValue = "false") boolean riskAcknowledged) { return service.convert(id, riskAcknowledged); }
+    @PostMapping("/{id}/confirm") DocumentResponse confirm(@PathVariable UUID id,
+                                                           @RequestParam(defaultValue = "false") boolean riskAcknowledged) { return service.confirmDraft(id, riskAcknowledged); }
     @PatchMapping("/{id}/payment-status") DocumentResponse paymentStatus(@PathVariable UUID id, @Valid @RequestBody UpdatePaymentStatusRequest request) { return service.updatePaymentStatus(id, request.status()); }
 }

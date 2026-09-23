@@ -1,31 +1,32 @@
-import { Cable } from 'lucide-react'
-import { ConnectionsPage } from '../pages/ConnectionsPage'
-import { BookOpenCheck, Boxes, Building2, FileCheck2, FileText, History as HistoryIcon, LayoutDashboard, Printer, ReceiptText, Settings, SlidersHorizontal, Truck, UserCog, Users, type LucideIcon } from 'lucide-react'
-import type { ComponentType } from 'react'
+import { BookOpenCheck, Boxes, Building2, Cable, FileCheck2, FileText, History as HistoryIcon, LayoutDashboard, Printer, ReceiptText, Settings, SlidersHorizontal, Truck, UserCog, Users, type LucideIcon } from 'lucide-react'
+import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 import type { UserRoleCode } from '../auth/AuthContext'
 import type { TranslationKey } from '../i18n/catalogs'
-import { CatalogPage } from '../pages/CatalogPage'
-import { CatalogConfigurationPage } from '../pages/CatalogConfigurationPage'
-import { CustomersPage } from '../pages/CustomersPage'
-import { DashboardPage } from '../pages/DashboardPage'
-import { FinancePage } from '../pages/FinancePage'
-import { AccountingPage } from '../pages/AccountingPage'
-import { HistoryPage } from '../pages/HistoryPage'
-import { OperationsPage } from '../pages/OperationsPage'
-import { SalesPage } from '../pages/SalesPage'
-import { SettingsPage } from '../pages/SettingsPage'
-import { QuotesPage } from '../pages/QuotesPage'
-import { ReportsPage } from '../pages/ReportsPage'
-import { SuppliersPage } from '../pages/SuppliersPage'
-import { UsersPage } from '../pages/UsersPage'
 import { matchPath } from './Router'
+
+// Cada página se descarga al visitarla por primera vez: el paquete inicial solo lleva el armazón.
+const ConnectionsPage = lazy(() => import('../pages/ConnectionsPage').then((module) => ({ default: module.ConnectionsPage })))
+const CatalogPage = lazy(() => import('../pages/CatalogPage').then((module) => ({ default: module.CatalogPage })))
+const CatalogConfigurationPage = lazy(() => import('../pages/CatalogConfigurationPage').then((module) => ({ default: module.CatalogConfigurationPage })))
+const CustomersPage = lazy(() => import('../pages/CustomersPage').then((module) => ({ default: module.CustomersPage })))
+const DashboardPage = lazy(() => import('../pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
+const FinancePage = lazy(() => import('../pages/FinancePage').then((module) => ({ default: module.FinancePage })))
+const AccountingPage = lazy(() => import('../pages/AccountingPage').then((module) => ({ default: module.AccountingPage })))
+const HistoryPage = lazy(() => import('../pages/HistoryPage').then((module) => ({ default: module.HistoryPage })))
+const OperationsPage = lazy(() => import('../pages/OperationsPage').then((module) => ({ default: module.OperationsPage })))
+const SalesPage = lazy(() => import('../pages/SalesPage').then((module) => ({ default: module.SalesPage })))
+const SettingsPage = lazy(() => import('../pages/SettingsPage').then((module) => ({ default: module.SettingsPage })))
+const QuotesPage = lazy(() => import('../pages/QuotesPage').then((module) => ({ default: module.QuotesPage })))
+const ReportsPage = lazy(() => import('../pages/ReportsPage').then((module) => ({ default: module.ReportsPage })))
+const SuppliersPage = lazy(() => import('../pages/SuppliersPage').then((module) => ({ default: module.SuppliersPage })))
+const UsersPage = lazy(() => import('../pages/UsersPage').then((module) => ({ default: module.UsersPage })))
 
 export type NavigationGroup = 'general' | 'masterData' | 'operations'
 
 export interface AppRoute {
   id: string
   path: string
-  component: ComponentType
+  component: ComponentType | LazyExoticComponent<ComponentType>
   allowedRoles?: UserRoleCode[]
   navigation: {
     labelKey: TranslationKey

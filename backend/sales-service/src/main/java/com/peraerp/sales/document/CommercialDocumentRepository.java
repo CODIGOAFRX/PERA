@@ -13,6 +13,14 @@ import java.util.UUID;
 
 public interface CommercialDocumentRepository extends JpaRepository<CommercialDocument, UUID> {
     Optional<CommercialDocument> findByIdAndCompanyId(UUID id, UUID companyId);
+
+    /** Issued invoices of a customer that are not fully collected, in the company base currency. */
+    @Query("select coalesce(sum(d.baseTotalAmount), 0) from CommercialDocument d where d.companyId = :companyId " +
+            "and d.customerId = :customerId " +
+            "and d.type in (com.peraerp.sales.document.DocumentType.INVOICE, com.peraerp.sales.document.DocumentType.RECTIFYING_INVOICE) " +
+            "and d.status = com.peraerp.sales.document.DocumentStatus.CONFIRMED " +
+            "and d.paymentStatus in (com.peraerp.sales.document.PaymentStatus.PENDING, com.peraerp.sales.document.PaymentStatus.PARTIALLY_PAID)")
+    java.math.BigDecimal sumOutstandingInvoices(@Param("companyId") UUID companyId, @Param("customerId") UUID customerId);
     Optional<CommercialDocument> findByIdAndCompanyIdAndType(UUID id, UUID companyId, DocumentType type);
     boolean existsByCompanyIdAndTypeAndDocumentNumber(UUID companyId, DocumentType type, String documentNumber);
     List<CommercialDocument> findAllByCompanyIdAndTypeInAndStatusInOrderByIssueDateDesc(

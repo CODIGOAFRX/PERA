@@ -10,14 +10,17 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
-import { Field, FormActions } from '../components/Form'
+import { Field, FormActions, FormErrors, useFormErrors } from '../components/Form'
 import { Modal } from '../components/Modal'
 import { PageHeader } from '../components/PageHeader'
 import { StatusBadge } from '../components/StatusBadge'
 import { TableToolbar } from '../components/TableToolbar'
+import { useConfirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { useTranslation } from '../i18n/I18nProvider'
 import { apiFetch, errorMessage } from '../lib/api'
+import { localIsoDate } from '../lib/date'
+import { TableCaption } from '../components/TableCaption'
 
 type ConfigurationTab = 'hierarchy' | 'taxes' | 'tariffs' | 'packaging'
 type ClassificationKind = 'nature' | 'supertype' | 'type' | 'group'
@@ -355,7 +358,7 @@ const classificationMeta: Record<ClassificationKind, { endpoint: string }> = {
   group: { endpoint: '/api/v1/product-groups' },
 }
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => localIsoDate()
 const optionalNumber = (value: string) => value.trim() === '' ? null : Number(value)
 const optionalInteger = (value: string) => value.trim() === '' ? null : Number.parseInt(value, 10)
 const valueOf = (value: number | null | undefined) => value == null ? '' : String(value)
@@ -501,6 +504,7 @@ function HierarchyTab() {
   const [actionError, setActionError] = useState('')
   const copy = useLocalCopy()
   const { notify } = useToast()
+  const confirm = useConfirm()
   const natures = useCollection<ProductNature>(classificationMeta.nature.endpoint, refresh)
   const supertypes = useCollection<ProductSupertype>(classificationMeta.supertype.endpoint, refresh)
   const types = useCollection<ProductType>(classificationMeta.type.endpoint, refresh)
@@ -519,7 +523,7 @@ function HierarchyTab() {
   }
 
   const deactivate = async (entity: ClassificationEntity) => {
-    if (!window.confirm(copy.confirmDeactivate)) return
+    if (!(await confirm({ message: copy.confirmDeactivate, danger: true }))) return
     setActionError('')
     try {
       await apiFetch(`${classificationMeta[kind].endpoint}/${entity.id}`, {
@@ -540,7 +544,7 @@ function HierarchyTab() {
       <TableToolbar value={query} onChange={setQuery} placeholder={copy.searchCodeName} />
       <ErrorBlock error={actionError || resource.error || hierarchyError} />
       {resource.loading ? <LoadingState /> : rows.length === 0 ? <EmptyState title={copy.noData} description={query ? copy.noResults : copy.createFirstClassification} /> :
-        <div className="table-scroll"><table><thead><tr><th>{copy.code}</th><th>{copy.name}</th>{kind !== 'nature' && <th>{copy.parent}</th>}<th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead>
+        <div className="table-scroll"><table><TableCaption es="Clasificación de productos" en="Product classification" /><thead><tr><th>{copy.code}</th><th>{copy.name}</th>{kind !== 'nature' && <th>{copy.parent}</th>}<th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead>
           <tbody>{rows.map((item) => <tr key={item.id}><td><span className="code-cell">{item.code}</span></td><td><strong>{item.name}</strong></td>{kind !== 'nature' && <td>{parentName(item)}</td>}<td><ActiveBadge active={item.active} /></td><td><RowActions active={item.active} editLabel={`${copy.edit} ${item.name}`} onEdit={() => setEditing({ kind, entity: item })} onDeactivate={() => deactivate(item)} /></td></tr>)}</tbody>
         </table></div>}
     </section>
@@ -577,6 +581,7 @@ function ClassificationForm({ kind, entity, natures, supertypes, types, onCancel
   const [form, setForm] = useState({ code: entity?.code ?? '', name: entity?.name ?? '', parentId: initialParent, active: entity?.active ?? true })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const formErrors = useFormErrors()
   const parents = kind === 'supertype' ? natures : kind === 'type' ? supertypes : kind === 'group' ? types : []
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
 
@@ -591,15 +596,15 @@ function ClassificationForm({ kind, entity, natures, supertypes, types, onCancel
       await apiFetch(entity ? `${classificationMeta[kind].endpoint}/${entity.id}` : classificationMeta[kind].endpoint,
         { method: entity ? 'PUT' : 'POST', body: JSON.stringify(payload) })
       onSaved()
-    } catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+    } catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
   }
 
-  return <form onSubmit={submit}><div className="form-grid">
-    <Field label={copy.code} htmlFor="classification-code" required><input id="classification-code" value={form.code} maxLength={40} disabled={Boolean(entity)} required onChange={(event) => update('code', event.target.value)} /></Field>
-    <Field label={copy.name} htmlFor="classification-name" required><input id="classification-name" value={form.name} maxLength={140} required onChange={(event) => update('name', event.target.value)} /></Field>
-    {kind !== 'nature' && <Field label={copy.parentItem} htmlFor="classification-parent" required><select id="classification-parent" value={form.parentId} required onChange={(event) => update('parentId', event.target.value)}><option value="">{copy.select}</option>{parents.filter((item) => item.active || item.id === form.parentId).map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>}
-    <Field label={copy.status} htmlFor="classification-active"><label className="switch-row" htmlFor="classification-active"><input id="classification-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.active}</span></label></Field>
-  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={entity ? copy.saveChanges : copy.create} /></form>
+  return <form onSubmit={submit}><FormErrors value={formErrors.context}><div className="form-grid">
+    <Field label={copy.code} htmlFor="classification-code" name="code" required><input id="classification-code" value={form.code} maxLength={40} disabled={Boolean(entity)} required onChange={(event) => update('code', event.target.value)} /></Field>
+    <Field label={copy.name} htmlFor="classification-name" name="name" required><input id="classification-name" value={form.name} maxLength={140} required onChange={(event) => update('name', event.target.value)} /></Field>
+    {kind !== 'nature' && <Field label={copy.parentItem} htmlFor="classification-parent" name="parentId" required><select id="classification-parent" value={form.parentId} required onChange={(event) => update('parentId', event.target.value)}><option value="">{copy.select}</option>{parents.filter((item) => item.active || item.id === form.parentId).map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>}
+    <Field label={copy.status} htmlFor="classification-active" name="active"><label className="switch-row" htmlFor="classification-active"><input id="classification-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.active}</span></label></Field>
+  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={entity ? copy.saveChanges : copy.create} /></FormErrors></form>
 }
 
 function TaxesTab() {
@@ -611,9 +616,10 @@ function TaxesTab() {
   const taxes = useCollection<TaxCode>('/api/v1/tax-codes', refresh)
   const rows = useMemo(() => taxes.items.filter((item) => matches(query, item.code, item.name, item.countryCode)), [query, taxes.items])
   const { notify } = useToast()
+  const confirm = useConfirm()
 
   const deactivate = async (tax: TaxCode) => {
-    if (!window.confirm(copy.confirmDeactivate)) return
+    if (!(await confirm({ message: copy.confirmDeactivate, danger: true }))) return
     setActionError('')
     try {
       await apiFetch(`/api/v1/tax-codes/${tax.id}`, { method: 'PUT', body: JSON.stringify({
@@ -631,7 +637,7 @@ function TaxesTab() {
       <TableToolbar value={query} onChange={setQuery} placeholder={copy.searchTax}><button className="button button-primary" type="button" onClick={() => setEditing('new')}><Plus size={16} />{copy.newTax}</button></TableToolbar>
       <ErrorBlock error={actionError || taxes.error} />
       {taxes.loading ? <LoadingState /> : rows.length === 0 ? <EmptyState title={copy.noData} description={query ? copy.noResults : copy.createFirstTax} /> :
-        <div className="table-scroll"><table><thead><tr><th>{copy.country}</th><th>{copy.code}</th><th>{copy.name}</th><th>{copy.percentage}</th><th>{copy.validity}</th><th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead><tbody>
+        <div className="table-scroll"><table><TableCaption es="Códigos fiscales" en="Tax codes" /><thead><tr><th>{copy.country}</th><th>{copy.code}</th><th>{copy.name}</th><th>{copy.percentage}</th><th>{copy.validity}</th><th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead><tbody>
           {rows.map((tax) => <tr key={tax.id}><td>{tax.countryCode}</td><td><span className="code-cell">{tax.code}</span></td><td><strong>{tax.name}</strong>{tax.exempt && <small>{copy.exempt}</small>}</td><td>{tax.percentage} %</td><td>{tax.validFrom} → {tax.validUntil ?? copy.noEnd}</td><td><ActiveBadge active={tax.active} /></td><td><RowActions active={tax.active} editLabel={`${copy.edit} ${tax.name}`} onEdit={() => setEditing(tax)} onDeactivate={() => deactivate(tax)} /></td></tr>)}
         </tbody></table></div>}
     </section>
@@ -656,6 +662,7 @@ function TaxForm({ tax, onCancel, onSaved }: { tax: TaxCode | null; onCancel: ()
   const isExempt = form.qualification === 'EXEMPT'
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const formErrors = useFormErrors()
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setSaving(true); setError('')
@@ -672,20 +679,20 @@ function TaxForm({ tax, onCancel, onSaved }: { tax: TaxCode | null; onCancel: ()
       active: form.active,
     }
     try { await apiFetch(tax ? `/api/v1/tax-codes/${tax.id}` : '/api/v1/tax-codes', { method: tax ? 'PUT' : 'POST', body: JSON.stringify(payload) }); onSaved() }
-    catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+    catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
   }
-  return <form onSubmit={submit}><div className="form-grid">
-    <Field label={copy.countryIso} htmlFor="tax-country" required><input id="tax-country" value={form.countryCode} maxLength={2} disabled={Boolean(tax)} required onChange={(event) => update('countryCode', event.target.value)} /></Field>
-    <Field label={copy.code} htmlFor="tax-code" required><input id="tax-code" value={form.code} maxLength={40} disabled={Boolean(tax)} required onChange={(event) => update('code', event.target.value)} /></Field>
-    <Field label={copy.name} htmlFor="tax-name" required><input id="tax-name" value={form.name} maxLength={140} required onChange={(event) => update('name', event.target.value)} /></Field>
-    <Field label={copy.percentage} htmlFor="tax-percentage" required><input id="tax-percentage" type="number" min="0" max="100" step="0.0001" value={isExempt ? '0' : form.percentage} required disabled={isExempt} onChange={(event) => update('percentage', event.target.value)} /></Field>
-    <Field label={copy.validFrom} htmlFor="tax-from" required><input id="tax-from" type="date" value={form.validFrom} required onChange={(event) => update('validFrom', event.target.value)} /></Field>
-    <Field label={copy.validUntil} htmlFor="tax-until"><input id="tax-until" type="date" value={form.validUntil} min={form.validFrom} onChange={(event) => update('validUntil', event.target.value)} /></Field>
-    <Field label={copy.qualification} htmlFor="tax-qualification" required hint={copy.qualificationHint} wide><select id="tax-qualification" value={form.qualification} onChange={(event) => update('qualification', event.target.value)}>{qualificationOptions.map(([value, es, en]) => <option key={value} value={value}>{language === 'es' ? es : en}</option>)}</select></Field>
-    <Field label={copy.exemptionCause} htmlFor="tax-exemption-cause" wide><select id="tax-exemption-cause" value={form.exemptionCause} disabled={!isExempt} onChange={(event) => update('exemptionCause', event.target.value)}>{exemptionCauseOptions.map(([value, es, en]) => <option key={value} value={value}>{language === 'es' ? es : en}</option>)}</select></Field>
-    <Field label={copy.regimeKey} htmlFor="tax-regime" required hint={copy.regimeHint}><input id="tax-regime" value={form.regimeKey} maxLength={2} pattern="\d{2}" required onChange={(event) => update('regimeKey', event.target.value.replace(/\D/g, ''))} /></Field>
-    <Field label={copy.status} htmlFor="tax-active"><label className="switch-row" htmlFor="tax-active"><input id="tax-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.active}</span></label></Field>
-  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={tax ? copy.saveChanges : copy.createTax} /></form>
+  return <form onSubmit={submit}><FormErrors value={formErrors.context}><div className="form-grid">
+    <Field label={copy.countryIso} htmlFor="tax-country" name="countryCode" required><input id="tax-country" value={form.countryCode} maxLength={2} disabled={Boolean(tax)} required onChange={(event) => update('countryCode', event.target.value)} /></Field>
+    <Field label={copy.code} htmlFor="tax-code" name="code" required><input id="tax-code" value={form.code} maxLength={40} disabled={Boolean(tax)} required onChange={(event) => update('code', event.target.value)} /></Field>
+    <Field label={copy.name} htmlFor="tax-name" name="name" required><input id="tax-name" value={form.name} maxLength={140} required onChange={(event) => update('name', event.target.value)} /></Field>
+    <Field label={copy.percentage} htmlFor="tax-percentage" name="percentage" required><input id="tax-percentage" type="number" min="0" max="100" step="0.0001" value={isExempt ? '0' : form.percentage} required disabled={isExempt} onChange={(event) => update('percentage', event.target.value)} /></Field>
+    <Field label={copy.validFrom} htmlFor="tax-from" name="validFrom" required><input id="tax-from" type="date" value={form.validFrom} required onChange={(event) => update('validFrom', event.target.value)} /></Field>
+    <Field label={copy.validUntil} htmlFor="tax-until" name="validUntil"><input id="tax-until" type="date" value={form.validUntil} min={form.validFrom} onChange={(event) => update('validUntil', event.target.value)} /></Field>
+    <Field label={copy.qualification} htmlFor="tax-qualification" name="qualification" required hint={copy.qualificationHint} wide><select id="tax-qualification" value={form.qualification} onChange={(event) => update('qualification', event.target.value)}>{qualificationOptions.map(([value, es, en]) => <option key={value} value={value}>{language === 'es' ? es : en}</option>)}</select></Field>
+    <Field label={copy.exemptionCause} htmlFor="tax-exemption-cause" name="exemptionCause" wide><select id="tax-exemption-cause" value={form.exemptionCause} disabled={!isExempt} onChange={(event) => update('exemptionCause', event.target.value)}>{exemptionCauseOptions.map(([value, es, en]) => <option key={value} value={value}>{language === 'es' ? es : en}</option>)}</select></Field>
+    <Field label={copy.regimeKey} htmlFor="tax-regime" name="regimeKey" required hint={copy.regimeHint}><input id="tax-regime" value={form.regimeKey} maxLength={2} pattern="\d{2}" required onChange={(event) => update('regimeKey', event.target.value.replace(/\D/g, ''))} /></Field>
+    <Field label={copy.status} htmlFor="tax-active" name="active"><label className="switch-row" htmlFor="tax-active"><input id="tax-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.active}</span></label></Field>
+  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={tax ? copy.saveChanges : copy.createTax} /></FormErrors></form>
 }
 
 function TariffsTab() {
@@ -700,6 +707,7 @@ function TariffsTab() {
   const [actionError, setActionError] = useState('')
   const copy = useLocalCopy()
   const { notify } = useToast()
+  const confirm = useConfirm()
   const products = useCollection<ProductLookup>('/api/v1/products', refresh)
   const customers = useCollection<CustomerLookup>('/api/v1/customers', refresh)
   const natures = useCollection<ProductNature>('/api/v1/product-natures', refresh)
@@ -739,7 +747,7 @@ function TariffsTab() {
   }
 
   const deactivateTariff = async (tariff: Tariff) => {
-    if (!window.confirm(copy.confirmDeactivate)) return
+    if (!(await confirm({ message: copy.confirmDeactivate, danger: true }))) return
     setActionError('')
     try {
       await apiFetch(`/api/v1/tariffs/${tariff.id}`, { method: 'PUT', body: JSON.stringify(tariffPayload(tariff, false)) })
@@ -748,7 +756,7 @@ function TariffsTab() {
   }
 
   const deactivateItem = async (item: TariffItem) => {
-    if (!selected || !window.confirm(copy.confirmDeactivate)) return
+    if (!selected || !(await confirm({ message: copy.confirmDeactivate, danger: true }))) return
     setActionError('')
     try {
       await apiFetch(`/api/v1/tariffs/${selected.id}/items/${item.id}`, { method: 'PUT', body: JSON.stringify({
@@ -761,7 +769,7 @@ function TariffsTab() {
   }
 
   const deactivateRule = async (rule: PricingRule) => {
-    if (!selected || !window.confirm(copy.confirmDeactivate)) return
+    if (!selected || !(await confirm({ message: copy.confirmDeactivate, danger: true }))) return
     setActionError('')
     try {
       await apiFetch(`/api/v1/tariffs/${selected.id}/rules/${rule.id}`, { method: 'PUT', body: JSON.stringify(rulePayload(rule, false)) })
@@ -784,7 +792,7 @@ function TariffsTab() {
       </div>
       <ErrorBlock error={actionError || tariffs.error || lookupError} />
       {tariffs.loading ? <LoadingState /> : rows.length === 0 ? <EmptyState title={copy.noData} description={hasTariffFilters ? copy.noResults : copy.createFirstTariff} /> :
-        <div className="table-scroll"><table><thead><tr><th>{copy.code}</th><th>{copy.tariff}</th><th>{copy.scope}</th><th>{copy.currency}</th><th>{copy.priority}</th><th>{copy.validity}</th><th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead><tbody>
+        <div className="table-scroll"><table><TableCaption es="Tarifas" en="Tariffs" /><thead><tr><th>{copy.code}</th><th>{copy.tariff}</th><th>{copy.scope}</th><th>{copy.currency}</th><th>{copy.priority}</th><th>{copy.validity}</th><th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead><tbody>
           {rows.map((tariff) => <tr key={tariff.id} className={selectedId === tariff.id ? 'clickable-row' : undefined}><td><span className="code-cell">{tariff.code}</span></td><td><strong>{tariff.name}</strong>{tariff.parentTariffId && <small>{copy.inheritsFrom} {tariffOptions.items.find((parent) => parent.id === tariff.parentTariffId)?.name ?? tariff.parentTariffId}</small>}</td><td>{scopeLabel(tariff.scope, copy)}</td><td>{tariff.currency}</td><td>{tariff.priority}</td><td>{tariff.validFrom} → {tariff.validUntil ?? copy.noEnd}</td><td><ActiveBadge active={tariff.active} /></td><td><div className="toolbar-actions"><button className={`button button-small ${selectedId === tariff.id ? 'button-secondary' : 'button-ghost'}`} type="button" onClick={() => setSelectedId(tariff.id)}>{selectedId === tariff.id ? copy.selected : copy.manage}</button><RowActions active={tariff.active} editLabel={`${copy.edit} ${tariff.name}`} onEdit={() => setEditingTariff(tariff)} onDeactivate={() => deactivateTariff(tariff)} /></div></td></tr>)}
         </tbody></table></div>}
     </section>
@@ -792,12 +800,12 @@ function TariffsTab() {
       <section className="panel table-panel">
         <div className="table-toolbar"><div><strong>{copy.linesOf} {selected.name}</strong><small> · {copy.linesHint}</small></div><button className="button button-secondary" type="button" onClick={() => setEditingItem('new')}><Plus size={16} />{copy.newLine}</button></div>
         <ErrorBlock error={items.error} />
-        {items.loading ? <LoadingState /> : items.items.length === 0 ? <EmptyState title={copy.noLines} description={copy.noLinesDescription} /> : <div className="table-scroll"><table><thead><tr><th>{copy.product}</th><th>{copy.customer}</th><th>{copy.price}</th><th>{copy.discount}</th><th>{copy.surcharge}</th><th>{copy.priority}</th><th>{copy.validity}</th><th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead><tbody>{items.items.map((item) => <tr key={item.id}><td>{productName(item.productId)}</td><td>{customerName(item.customerId)}</td><td>{item.price}</td><td>{item.discountPercentage} %</td><td>{item.surchargePercentage} %</td><td>{item.priority}</td><td>{item.validFrom} → {item.validUntil ?? copy.noEnd}</td><td><ActiveBadge active={item.active} /></td><td><RowActions active={item.active} editLabel={copy.editLine} onEdit={() => setEditingItem(item)} onDeactivate={() => deactivateItem(item)} /></td></tr>)}</tbody></table></div>}
+        {items.loading ? <LoadingState /> : items.items.length === 0 ? <EmptyState title={copy.noLines} description={copy.noLinesDescription} /> : <div className="table-scroll"><table><TableCaption es="Precios de la tarifa" en="Tariff prices" /><thead><tr><th>{copy.product}</th><th>{copy.customer}</th><th>{copy.price}</th><th>{copy.discount}</th><th>{copy.surcharge}</th><th>{copy.priority}</th><th>{copy.validity}</th><th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead><tbody>{items.items.map((item) => <tr key={item.id}><td>{productName(item.productId)}</td><td>{customerName(item.customerId)}</td><td>{item.price}</td><td>{item.discountPercentage} %</td><td>{item.surchargePercentage} %</td><td>{item.priority}</td><td>{item.validFrom} → {item.validUntil ?? copy.noEnd}</td><td><ActiveBadge active={item.active} /></td><td><RowActions active={item.active} editLabel={copy.editLine} onEdit={() => setEditingItem(item)} onDeactivate={() => deactivateItem(item)} /></td></tr>)}</tbody></table></div>}
       </section>
       <section className="panel table-panel">
         <div className="table-toolbar"><div><strong>{copy.typedRulesOf} {selected.name}</strong><small> · {copy.rulesHint}</small></div><button className="button button-secondary" type="button" onClick={() => setEditingRule('new')}><Plus size={16} />{copy.newRule}</button></div>
         <ErrorBlock error={rules.error} />
-        {rules.loading ? <LoadingState /> : rules.items.length === 0 ? <EmptyState title={copy.noRules} description={copy.noRulesDescription} /> : <div className="table-scroll"><table><thead><tr><th>{copy.target}</th><th>{copy.item}</th><th>{copy.customer}</th><th>{copy.fixedPrice}</th><th>{copy.discount}</th><th>{copy.surcharge}</th><th>{copy.priority}</th><th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead><tbody>{rules.items.map((rule) => <tr key={rule.id}><td>{scopeLabel(rule.targetType, copy)}</td><td>{targetName(rule)}</td><td>{customerName(rule.customerId)}</td><td>{rule.fixedPrice ?? '—'}</td><td>{rule.discountPercentage} %</td><td>{rule.surchargePercentage} %</td><td>{rule.priority}</td><td><ActiveBadge active={rule.active} /></td><td><RowActions active={rule.active} editLabel={copy.editRule} onEdit={() => setEditingRule(rule)} onDeactivate={() => deactivateRule(rule)} /></td></tr>)}</tbody></table></div>}
+        {rules.loading ? <LoadingState /> : rules.items.length === 0 ? <EmptyState title={copy.noRules} description={copy.noRulesDescription} /> : <div className="table-scroll"><table><TableCaption es="Reglas de precio" en="Pricing rules" /><thead><tr><th>{copy.target}</th><th>{copy.item}</th><th>{copy.customer}</th><th>{copy.fixedPrice}</th><th>{copy.discount}</th><th>{copy.surcharge}</th><th>{copy.priority}</th><th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead><tbody>{rules.items.map((rule) => <tr key={rule.id}><td>{scopeLabel(rule.targetType, copy)}</td><td>{targetName(rule)}</td><td>{customerName(rule.customerId)}</td><td>{rule.fixedPrice ?? '—'}</td><td>{rule.discountPercentage} %</td><td>{rule.surchargePercentage} %</td><td>{rule.priority}</td><td><ActiveBadge active={rule.active} /></td><td><RowActions active={rule.active} editLabel={copy.editRule} onEdit={() => setEditingRule(rule)} onDeactivate={() => deactivateRule(rule)} /></td></tr>)}</tbody></table></div>}
       </section>
     </>}
     <PricingSimulator lookup={lookup} />
@@ -936,7 +944,7 @@ function PricingSimulator({ lookup }: { lookup: PricingLookups }) {
         <div className="metric-card"><span>{copy.finalPrice}</span><strong>{money(result.finalPrice, result.currency)}</strong></div>
       </div>
       <div className="table-toolbar"><strong>{copy.trace}</strong></div>
-      {result.trace.length === 0 ? <EmptyState title={copy.trace} description={copy.noTrace} /> : <div className="table-scroll"><table><thead><tr><th>#</th><th>{copy.operation}</th><th>{copy.source}</th><th>{copy.descriptionLabel}</th><th>{copy.before}</th><th>{copy.after}</th></tr></thead><tbody>{result.trace.map((step) => <tr key={`${step.order}-${step.operation}`}><td>{step.order}</td><td>{pricingOperationLabel(step.operation, copy)}</td><td>{step.sourceCode ?? '—'}</td><td>{language === 'es' ? step.description : pricingOperationLabel(step.operation, copy)}</td><td>{step.before == null ? '—' : number(step.before)}</td><td>{step.after == null ? '—' : number(step.after)}</td></tr>)}</tbody></table></div>}
+      {result.trace.length === 0 ? <EmptyState title={copy.trace} description={copy.noTrace} /> : <div className="table-scroll"><table><TableCaption es="Traza del cálculo de precio" en="Pricing calculation trace" /><thead><tr><th>#</th><th>{copy.operation}</th><th>{copy.source}</th><th>{copy.descriptionLabel}</th><th>{copy.before}</th><th>{copy.after}</th></tr></thead><tbody>{result.trace.map((step) => <tr key={`${step.order}-${step.operation}`}><td>{step.order}</td><td>{pricingOperationLabel(step.operation, copy)}</td><td>{step.sourceCode ?? '—'}</td><td>{language === 'es' ? step.description : pricingOperationLabel(step.operation, copy)}</td><td>{step.before == null ? '—' : number(step.before)}</td><td>{step.after == null ? '—' : number(step.after)}</td></tr>)}</tbody></table></div>}
     </>}
   </section>
 }
@@ -956,6 +964,7 @@ function TariffForm({ tariff, lookup, onCancel, onSaved }: { tariff: Tariff | nu
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const formErrors = useFormErrors()
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
   const targetOptions: ActiveCatalogItem[] = form.scope === 'PRODUCT_NATURE' ? lookup.natures
     : form.scope === 'PRODUCT_SUPERTYPE' ? lookup.supertypes
@@ -992,27 +1001,27 @@ function TariffForm({ tariff, lookup, onCancel, onSaved }: { tariff: Tariff | nu
       minimumPerPiece: optionalNumber(form.minimumPerPiece),
     }
     try { await apiFetch(tariff ? `/api/v1/tariffs/${tariff.id}` : '/api/v1/tariffs', { method: tariff ? 'PUT' : 'POST', body: JSON.stringify(payload) }); onSaved() }
-    catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+    catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
   }
 
-  return <form onSubmit={submit}><div className="form-grid">
-    <Field label={copy.code} htmlFor="tariff-code" required><input id="tariff-code" value={form.code} maxLength={40} disabled={Boolean(tariff)} required onChange={(event) => update('code', event.target.value)} /></Field>
-    <Field label={copy.name} htmlFor="tariff-name" required><input id="tariff-name" value={form.name} maxLength={140} required onChange={(event) => update('name', event.target.value)} /></Field>
-    <Field label={copy.currencyIso} htmlFor="tariff-currency" required><input id="tariff-currency" value={form.currency} minLength={3} maxLength={3} required onChange={(event) => update('currency', event.target.value)} /></Field>
-    <Field label={copy.priority} htmlFor="tariff-priority" required><input id="tariff-priority" type="number" min="0" step="1" value={form.priority} required onChange={(event) => update('priority', event.target.value)} /></Field>
-    <Field label={copy.scope} htmlFor="tariff-scope" required><select id="tariff-scope" value={form.scope} onChange={(event) => update('scope', event.target.value as PricingScope)}>{(['GENERAL', 'CUSTOMER', 'PRODUCT_NATURE', 'PRODUCT_SUPERTYPE', 'PRODUCT_TYPE', 'PRODUCT_GROUP', 'PRODUCT'] as PricingScope[]).map((scope) => <option key={scope} value={scope}>{scopeLabel(scope, copy)}</option>)}</select></Field>
-    {form.scope !== 'GENERAL' && <Field label={form.scope === 'CUSTOMER' ? copy.customer : copy.optionalSpecificCustomer} htmlFor="tariff-customer" required={form.scope === 'CUSTOMER'}><select id="tariff-customer" value={form.customerId} required={form.scope === 'CUSTOMER'} onChange={(event) => update('customerId', event.target.value)}><option value="">{form.scope === 'CUSTOMER' ? copy.select : copy.allCustomers}</option>{lookup.customers.filter((item) => item.active || item.id === form.customerId).map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>}
-    {targetOptions.length > 0 && <Field label={scopeLabel(form.scope, copy)} htmlFor="tariff-target" required><select id="tariff-target" value={targetValue} required onChange={(event) => update(targetField, event.target.value)}><option value="">{copy.select}</option>{targetOptions.filter((item) => item.active || item.id === targetValue).map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>}
-    <Field label={copy.parentTariff} htmlFor="tariff-parent"><select id="tariff-parent" value={form.parentTariffId} onChange={(event) => update('parentTariffId', event.target.value)}><option value="">{copy.noInheritance}</option>{lookup.tariffs.filter((item) => item.id !== tariff?.id && item.currency === form.currency.toUpperCase()).map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>
-    <Field label={copy.validFrom} htmlFor="tariff-from" required><input id="tariff-from" type="date" value={form.validFrom} required onChange={(event) => update('validFrom', event.target.value)} /></Field>
-    <Field label={copy.validUntil} htmlFor="tariff-until"><input id="tariff-until" type="date" min={form.validFrom} value={form.validUntil} onChange={(event) => update('validUntil', event.target.value)} /></Field>
+  return <form onSubmit={submit}><FormErrors value={formErrors.context}><div className="form-grid">
+    <Field label={copy.code} htmlFor="tariff-code" name="code" required><input id="tariff-code" value={form.code} maxLength={40} disabled={Boolean(tariff)} required onChange={(event) => update('code', event.target.value)} /></Field>
+    <Field label={copy.name} htmlFor="tariff-name" name="name" required><input id="tariff-name" value={form.name} maxLength={140} required onChange={(event) => update('name', event.target.value)} /></Field>
+    <Field label={copy.currencyIso} htmlFor="tariff-currency" name="currency" required><input id="tariff-currency" value={form.currency} minLength={3} maxLength={3} required onChange={(event) => update('currency', event.target.value)} /></Field>
+    <Field label={copy.priority} htmlFor="tariff-priority" name="priority" required><input id="tariff-priority" type="number" min="0" step="1" value={form.priority} required onChange={(event) => update('priority', event.target.value)} /></Field>
+    <Field label={copy.scope} htmlFor="tariff-scope" name="scope" required><select id="tariff-scope" value={form.scope} onChange={(event) => update('scope', event.target.value as PricingScope)}>{(['GENERAL', 'CUSTOMER', 'PRODUCT_NATURE', 'PRODUCT_SUPERTYPE', 'PRODUCT_TYPE', 'PRODUCT_GROUP', 'PRODUCT'] as PricingScope[]).map((scope) => <option key={scope} value={scope}>{scopeLabel(scope, copy)}</option>)}</select></Field>
+    {form.scope !== 'GENERAL' && <Field label={form.scope === 'CUSTOMER' ? copy.customer : copy.optionalSpecificCustomer} htmlFor="tariff-customer" name="customerId" required={form.scope === 'CUSTOMER'}><select id="tariff-customer" value={form.customerId} required={form.scope === 'CUSTOMER'} onChange={(event) => update('customerId', event.target.value)}><option value="">{form.scope === 'CUSTOMER' ? copy.select : copy.allCustomers}</option>{lookup.customers.filter((item) => item.active || item.id === form.customerId).map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>}
+    {targetOptions.length > 0 && <Field label={scopeLabel(form.scope, copy)} htmlFor="tariff-target" name={targetField} required><select id="tariff-target" value={targetValue} required onChange={(event) => update(targetField, event.target.value)}><option value="">{copy.select}</option>{targetOptions.filter((item) => item.active || item.id === targetValue).map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>}
+    <Field label={copy.parentTariff} htmlFor="tariff-parent" name="parentTariffId"><select id="tariff-parent" value={form.parentTariffId} onChange={(event) => update('parentTariffId', event.target.value)}><option value="">{copy.noInheritance}</option>{lookup.tariffs.filter((item) => item.id !== tariff?.id && item.currency === form.currency.toUpperCase()).map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>
+    <Field label={copy.validFrom} htmlFor="tariff-from" name="validFrom" required><input id="tariff-from" type="date" value={form.validFrom} required onChange={(event) => update('validFrom', event.target.value)} /></Field>
+    <Field label={copy.validUntil} htmlFor="tariff-until" name="validUntil"><input id="tariff-until" type="date" min={form.validFrom} value={form.validUntil} onChange={(event) => update('validUntil', event.target.value)} /></Field>
     <NumberField id="tariff-general" label={copy.generalSurcharge} value={form.generalSurchargePercentage} onChange={(value) => update('generalSurchargePercentage', value)} min="0" max="100" />
     <NumberField id="tariff-energy" label={copy.energySurcharge} value={form.energySurchargePercentage} onChange={(value) => update('energySurchargePercentage', value)} min="0" max="100" />
     <NumberField id="tariff-minimum" label={copy.minimumBilling} value={form.minimumBillingAmount} onChange={(value) => update('minimumBillingAmount', value)} min="0" />
     <NumberField id="tariff-multiple" label={copy.unitMultiple} value={form.unitMultiple} onChange={(value) => update('unitMultiple', value)} min="0.000001" step="0.000001" />
     <NumberField id="tariff-piece" label={copy.minimumPerPiece} value={form.minimumPerPiece} onChange={(value) => update('minimumPerPiece', value)} min="0" />
-    <Field label={copy.status} htmlFor="tariff-active"><label className="switch-row" htmlFor="tariff-active"><input id="tariff-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.activeFeminine}</span></label></Field>
-  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={tariff ? copy.saveChanges : copy.createTariff} /></form>
+    <Field label={copy.status} htmlFor="tariff-active" name="active"><label className="switch-row" htmlFor="tariff-active"><input id="tariff-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.activeFeminine}</span></label></Field>
+  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={tariff ? copy.saveChanges : copy.createTariff} /></FormErrors></form>
 }
 
 function TariffItemForm({ tariffId, item, products, customers, onCancel, onSaved }: { tariffId: string; item: TariffItem | null; products: ProductLookup[]; customers: CustomerLookup[]; onCancel: () => void; onSaved: () => void }) {
@@ -1020,24 +1029,25 @@ function TariffItemForm({ tariffId, item, products, customers, onCancel, onSaved
   const [form, setForm] = useState({ productId: item?.productId ?? '', customerId: item?.customerId ?? '', price: String(item?.price ?? 0), discountPercentage: String(item?.discountPercentage ?? 0), surchargePercentage: String(item?.surchargePercentage ?? 0), priority: String(item?.priority ?? 0), validFrom: item?.validFrom ?? today(), validUntil: item?.validUntil ?? '', active: item?.active ?? true })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const formErrors = useFormErrors()
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setSaving(true); setError('')
     const payload = { productId: form.productId, customerId: optionalText(form.customerId), price: Number(form.price), discountPercentage: Number(form.discountPercentage), surchargePercentage: Number(form.surchargePercentage), priority: Number(form.priority), validFrom: form.validFrom, validUntil: form.validUntil || null, active: form.active }
     try { await apiFetch(item ? `/api/v1/tariffs/${tariffId}/items/${item.id}` : `/api/v1/tariffs/${tariffId}/items`, { method: item ? 'PUT' : 'POST', body: JSON.stringify(payload) }); onSaved() }
-    catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+    catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
   }
-  return <form onSubmit={submit}><div className="form-grid">
-    <Field label={copy.product} htmlFor="item-product" required><select id="item-product" value={form.productId} disabled={Boolean(item)} required onChange={(event) => update('productId', event.target.value)}><option value="">{copy.select}</option>{products.filter((product) => product.active || product.id === form.productId).map((product) => <option key={product.id} value={product.id}>{lookupLabel(product)}</option>)}</select></Field>
-    <Field label={copy.specificCustomer} htmlFor="item-customer"><select id="item-customer" value={form.customerId} disabled={Boolean(item)} onChange={(event) => update('customerId', event.target.value)}><option value="">{copy.allCustomers}</option>{customers.filter((customer) => customer.active || customer.id === form.customerId).map((customer) => <option key={customer.id} value={customer.id}>{lookupLabel(customer)}</option>)}</select></Field>
+  return <form onSubmit={submit}><FormErrors value={formErrors.context}><div className="form-grid">
+    <Field label={copy.product} htmlFor="item-product" name="productId" required><select id="item-product" value={form.productId} disabled={Boolean(item)} required onChange={(event) => update('productId', event.target.value)}><option value="">{copy.select}</option>{products.filter((product) => product.active || product.id === form.productId).map((product) => <option key={product.id} value={product.id}>{lookupLabel(product)}</option>)}</select></Field>
+    <Field label={copy.specificCustomer} htmlFor="item-customer" name="customerId"><select id="item-customer" value={form.customerId} disabled={Boolean(item)} onChange={(event) => update('customerId', event.target.value)}><option value="">{copy.allCustomers}</option>{customers.filter((customer) => customer.active || customer.id === form.customerId).map((customer) => <option key={customer.id} value={customer.id}>{lookupLabel(customer)}</option>)}</select></Field>
     <NumberField id="item-price" label={copy.price} value={form.price} onChange={(value) => update('price', value)} min="0" required />
     <NumberField id="item-discount" label={`${copy.discount} (%)`} value={form.discountPercentage} onChange={(value) => update('discountPercentage', value)} min="0" max="100" required />
     <NumberField id="item-surcharge" label={`${copy.surcharge} (%)`} value={form.surchargePercentage} onChange={(value) => update('surchargePercentage', value)} min="0" max="100" required />
     <NumberField id="item-priority" label={copy.priority} value={form.priority} onChange={(value) => update('priority', value)} min="0" step="1" required />
-    <Field label={copy.validFrom} htmlFor="item-from" required><input id="item-from" type="date" value={form.validFrom} required onChange={(event) => update('validFrom', event.target.value)} /></Field>
-    <Field label={copy.validUntil} htmlFor="item-until"><input id="item-until" type="date" min={form.validFrom} value={form.validUntil} onChange={(event) => update('validUntil', event.target.value)} /></Field>
-    <Field label={copy.status} htmlFor="item-active"><label className="switch-row" htmlFor="item-active"><input id="item-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.activeFeminine}</span></label></Field>
-  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={item ? copy.saveChanges : copy.createLine} /></form>
+    <Field label={copy.validFrom} htmlFor="item-from" name="validFrom" required><input id="item-from" type="date" value={form.validFrom} required onChange={(event) => update('validFrom', event.target.value)} /></Field>
+    <Field label={copy.validUntil} htmlFor="item-until" name="validUntil"><input id="item-until" type="date" min={form.validFrom} value={form.validUntil} onChange={(event) => update('validUntil', event.target.value)} /></Field>
+    <Field label={copy.status} htmlFor="item-active" name="active"><label className="switch-row" htmlFor="item-active"><input id="item-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.activeFeminine}</span></label></Field>
+  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={item ? copy.saveChanges : copy.createLine} /></FormErrors></form>
 }
 
 function PricingRuleForm({ tariffId, rule, lookup, onCancel, onSaved }: { tariffId: string; rule: PricingRule | null; lookup: PricingLookups; onCancel: () => void; onSaved: () => void }) {
@@ -1046,6 +1056,7 @@ function PricingRuleForm({ tariffId, rule, lookup, onCancel, onSaved }: { tariff
   const [form, setForm] = useState({ targetType: rule?.targetType ?? 'PRODUCT' as PricingTargetType, targetId: initialTarget, customerId: rule?.customerId ?? '', fixedPrice: valueOf(rule?.fixedPrice), discountPercentage: String(rule?.discountPercentage ?? 0), surchargePercentage: String(rule?.surchargePercentage ?? 0), priority: String(rule?.priority ?? 0), validFrom: rule?.validFrom ?? today(), validUntil: rule?.validUntil ?? '', active: rule?.active ?? true })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const formErrors = useFormErrors()
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
   const options: ActiveCatalogItem[] = form.targetType === 'PRODUCT_NATURE' ? lookup.natures
     : form.targetType === 'PRODUCT_SUPERTYPE' ? lookup.supertypes
@@ -1065,20 +1076,20 @@ function PricingRuleForm({ tariffId, rule, lookup, onCancel, onSaved }: { tariff
       priority: Number(form.priority), validFrom: form.validFrom, validUntil: form.validUntil || null, active: form.active,
     }
     try { await apiFetch(rule ? `/api/v1/tariffs/${tariffId}/rules/${rule.id}` : `/api/v1/tariffs/${tariffId}/rules`, { method: rule ? 'PUT' : 'POST', body: JSON.stringify(payload) }); onSaved() }
-    catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+    catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
   }
-  return <form onSubmit={submit}><div className="form-grid">
-    <Field label={copy.targetType} htmlFor="rule-target-type" required><select id="rule-target-type" value={form.targetType} disabled={Boolean(rule)} onChange={(event) => setForm((current) => ({ ...current, targetType: event.target.value as PricingTargetType, targetId: '' }))}>{(['PRODUCT_NATURE', 'PRODUCT_SUPERTYPE', 'PRODUCT_TYPE', 'PRODUCT_GROUP', 'PRODUCT'] as PricingTargetType[]).map((target) => <option key={target} value={target}>{scopeLabel(target, copy)}</option>)}</select></Field>
-    <Field label={scopeLabel(form.targetType, copy)} htmlFor="rule-target" required><select id="rule-target" value={form.targetId} disabled={Boolean(rule)} required onChange={(event) => update('targetId', event.target.value)}><option value="">{copy.select}</option>{options.filter((item) => item.active || item.id === form.targetId).map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>
-    <Field label={copy.specificCustomer} htmlFor="rule-customer"><select id="rule-customer" value={form.customerId} disabled={Boolean(rule)} onChange={(event) => update('customerId', event.target.value)}><option value="">{copy.allCustomers}</option>{lookup.customers.filter((customer) => customer.active || customer.id === form.customerId).map((customer) => <option key={customer.id} value={customer.id}>{lookupLabel(customer)}</option>)}</select></Field>
+  return <form onSubmit={submit}><FormErrors value={formErrors.context}><div className="form-grid">
+    <Field label={copy.targetType} htmlFor="rule-target-type" name="targetType" required><select id="rule-target-type" value={form.targetType} disabled={Boolean(rule)} onChange={(event) => setForm((current) => ({ ...current, targetType: event.target.value as PricingTargetType, targetId: '' }))}>{(['PRODUCT_NATURE', 'PRODUCT_SUPERTYPE', 'PRODUCT_TYPE', 'PRODUCT_GROUP', 'PRODUCT'] as PricingTargetType[]).map((target) => <option key={target} value={target}>{scopeLabel(target, copy)}</option>)}</select></Field>
+    <Field label={scopeLabel(form.targetType, copy)} htmlFor="rule-target" name="targetId" required><select id="rule-target" value={form.targetId} disabled={Boolean(rule)} required onChange={(event) => update('targetId', event.target.value)}><option value="">{copy.select}</option>{options.filter((item) => item.active || item.id === form.targetId).map((item) => <option key={item.id} value={item.id}>{lookupLabel(item)}</option>)}</select></Field>
+    <Field label={copy.specificCustomer} htmlFor="rule-customer" name="customerId"><select id="rule-customer" value={form.customerId} disabled={Boolean(rule)} onChange={(event) => update('customerId', event.target.value)}><option value="">{copy.allCustomers}</option>{lookup.customers.filter((customer) => customer.active || customer.id === form.customerId).map((customer) => <option key={customer.id} value={customer.id}>{lookupLabel(customer)}</option>)}</select></Field>
     <NumberField id="rule-price" label={copy.fixedPrice} value={form.fixedPrice} onChange={(value) => update('fixedPrice', value)} min="0" />
     <NumberField id="rule-discount" label={`${copy.discount} (%)`} value={form.discountPercentage} onChange={(value) => update('discountPercentage', value)} min="0" max="100" required />
     <NumberField id="rule-surcharge" label={`${copy.surcharge} (%)`} value={form.surchargePercentage} onChange={(value) => update('surchargePercentage', value)} min="0" max="100" required />
     <NumberField id="rule-priority" label={copy.priority} value={form.priority} onChange={(value) => update('priority', value)} min="0" step="1" required />
-    <Field label={copy.validFrom} htmlFor="rule-from" required><input id="rule-from" type="date" value={form.validFrom} required onChange={(event) => update('validFrom', event.target.value)} /></Field>
-    <Field label={copy.validUntil} htmlFor="rule-until"><input id="rule-until" type="date" min={form.validFrom} value={form.validUntil} onChange={(event) => update('validUntil', event.target.value)} /></Field>
-    <Field label={copy.status} htmlFor="rule-active"><label className="switch-row" htmlFor="rule-active"><input id="rule-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.activeFeminine}</span></label></Field>
-  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={rule ? copy.saveChanges : copy.createRule} /></form>
+    <Field label={copy.validFrom} htmlFor="rule-from" name="validFrom" required><input id="rule-from" type="date" value={form.validFrom} required onChange={(event) => update('validFrom', event.target.value)} /></Field>
+    <Field label={copy.validUntil} htmlFor="rule-until" name="validUntil"><input id="rule-until" type="date" min={form.validFrom} value={form.validUntil} onChange={(event) => update('validUntil', event.target.value)} /></Field>
+    <Field label={copy.status} htmlFor="rule-active" name="active"><label className="switch-row" htmlFor="rule-active"><input id="rule-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.activeFeminine}</span></label></Field>
+  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={rule ? copy.saveChanges : copy.createRule} /></FormErrors></form>
 }
 
 function NumberField({ id, label, value, onChange, min, max, step = '0.0001', required = false }: { id: string; label: string; value: string; onChange: (value: string) => void; min?: string; max?: string; step?: string; required?: boolean }) {
@@ -1094,6 +1105,7 @@ function PackagingTab() {
   const [actionError, setActionError] = useState('')
   const copy = useLocalCopy()
   const { notify } = useToast()
+  const confirm = useConfirm()
   const packagingTypes = useCollection<PackagingType>('/api/v1/packaging-types', refresh)
   const options = useCollection<ProductPackaging>('/api/v1/product-packaging', refresh)
   const products = useCollection<ProductLookup>('/api/v1/products', refresh)
@@ -1104,7 +1116,7 @@ function PackagingTab() {
   const resource = view === 'types' ? packagingTypes : options
 
   const deactivateType = async (type: PackagingType) => {
-    if (!window.confirm(copy.confirmDeactivate)) return
+    if (!(await confirm({ message: copy.confirmDeactivate, danger: true }))) return
     setActionError('')
     try {
       await apiFetch(`/api/v1/packaging-types/${type.id}`, { method: 'PUT', body: JSON.stringify(packagingTypePayload(type, false)) })
@@ -1113,7 +1125,7 @@ function PackagingTab() {
   }
 
   const deactivateOption = async (option: ProductPackaging) => {
-    if (!window.confirm(copy.confirmDeactivate)) return
+    if (!(await confirm({ message: copy.confirmDeactivate, danger: true }))) return
     setActionError('')
     try {
       await apiFetch(`/api/v1/product-packaging/${option.id}`, { method: 'PUT', body: JSON.stringify({
@@ -1134,8 +1146,8 @@ function PackagingTab() {
       <TableToolbar value={query} onChange={setQuery} placeholder={view === 'types' ? copy.searchPackagingType : copy.searchPackagingOption} />
       <ErrorBlock error={actionError || resource.error || products.error || packagingTypes.error} />
       {resource.loading ? <LoadingState /> : rows.length === 0 ? <EmptyState title={copy.noData} description={query ? copy.noResults : view === 'types' ? copy.createFirstPackagingType : copy.associatePackaging} /> : view === 'types' ?
-        <div className="table-scroll"><table><thead><tr><th>{copy.code}</th><th>{copy.packagingType}</th><th>{copy.internalDimensions}</th><th>{copy.externalDimensions}</th><th>{copy.tare}</th><th>{copy.capacity}</th><th>{copy.returnable}</th><th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead><tbody>{(rows as PackagingType[]).map((type) => <tr key={type.id}><td><span className="code-cell">{type.code}</span></td><td><strong>{type.name}</strong>{type.description && <small>{type.description}</small>}</td><td>{dimensions(type.internalLength, type.internalWidth, type.internalHeight)}</td><td>{dimensions(type.externalLength, type.externalWidth, type.externalHeight)}</td><td>{type.tareWeight ?? '—'}</td><td>{type.maximumWeight != null ? `${type.maximumWeight} ${copy.weight}` : '—'}{type.maximumVolume != null && <small>{type.maximumVolume} {copy.volume}</small>}</td><td>{type.returnable ? copy.yes : copy.no}</td><td><ActiveBadge active={type.active} /></td><td><RowActions active={type.active} editLabel={`${copy.edit} ${type.name}`} onEdit={() => setEditingType(type)} onDeactivate={() => deactivateType(type)} /></td></tr>)}</tbody></table></div> :
-        <div className="table-scroll"><table><thead><tr><th>{copy.sku}</th><th>{copy.product}</th><th>{copy.packagingType}</th><th>{copy.units}</th><th>{copy.levels}</th><th>{copy.dimensions}</th><th>{copy.grossWeight}</th><th>{copy.defaultLabel}</th><th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead><tbody>{(rows as ProductPackaging[]).map((option) => <tr key={option.id}><td>{option.code ? <span className="code-cell">{option.code}</span> : '—'}</td><td><strong>{products.items.find((product) => product.id === option.productId)?.name ?? option.productId}</strong></td><td>{packagingTypes.items.find((type) => type.id === option.packagingTypeId)?.name ?? option.packagingTypeId}</td><td>{option.unitsPerPackage}</td><td>{option.levels == null ? '—' : `${option.levels} × ${option.unitsPerLevel}`}</td><td>{dimensions(option.length, option.width, option.height)}</td><td>{option.grossWeight ?? '—'}</td><td>{option.defaultPackaging ? <StatusBadge tone="info">{copy.defaultBadge}</StatusBadge> : '—'}</td><td><ActiveBadge active={option.active} /></td><td><RowActions active={option.active} editLabel={copy.editProductPackaging} onEdit={() => setEditingOption(option)} onDeactivate={() => deactivateOption(option)} /></td></tr>)}</tbody></table></div>}
+        <div className="table-scroll"><table><TableCaption es="Tipos de envase" en="Packaging types" /><thead><tr><th>{copy.code}</th><th>{copy.packagingType}</th><th>{copy.internalDimensions}</th><th>{copy.externalDimensions}</th><th>{copy.tare}</th><th>{copy.capacity}</th><th>{copy.returnable}</th><th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead><tbody>{(rows as PackagingType[]).map((type) => <tr key={type.id}><td><span className="code-cell">{type.code}</span></td><td><strong>{type.name}</strong>{type.description && <small>{type.description}</small>}</td><td>{dimensions(type.internalLength, type.internalWidth, type.internalHeight)}</td><td>{dimensions(type.externalLength, type.externalWidth, type.externalHeight)}</td><td>{type.tareWeight ?? '—'}</td><td>{type.maximumWeight != null ? `${type.maximumWeight} ${copy.weight}` : '—'}{type.maximumVolume != null && <small>{type.maximumVolume} {copy.volume}</small>}</td><td>{type.returnable ? copy.yes : copy.no}</td><td><ActiveBadge active={type.active} /></td><td><RowActions active={type.active} editLabel={`${copy.edit} ${type.name}`} onEdit={() => setEditingType(type)} onDeactivate={() => deactivateType(type)} /></td></tr>)}</tbody></table></div> :
+        <div className="table-scroll"><table><TableCaption es="Envases por producto" en="Product packaging options" /><thead><tr><th>{copy.sku}</th><th>{copy.product}</th><th>{copy.packagingType}</th><th>{copy.units}</th><th>{copy.levels}</th><th>{copy.dimensions}</th><th>{copy.grossWeight}</th><th>{copy.defaultLabel}</th><th>{copy.status}</th><th><span className="sr-only">{copy.actions}</span></th></tr></thead><tbody>{(rows as ProductPackaging[]).map((option) => <tr key={option.id}><td>{option.code ? <span className="code-cell">{option.code}</span> : '—'}</td><td><strong>{products.items.find((product) => product.id === option.productId)?.name ?? option.productId}</strong></td><td>{packagingTypes.items.find((type) => type.id === option.packagingTypeId)?.name ?? option.packagingTypeId}</td><td>{option.unitsPerPackage}</td><td>{option.levels == null ? '—' : `${option.levels} × ${option.unitsPerLevel}`}</td><td>{dimensions(option.length, option.width, option.height)}</td><td>{option.grossWeight ?? '—'}</td><td>{option.defaultPackaging ? <StatusBadge tone="info">{copy.defaultBadge}</StatusBadge> : '—'}</td><td><ActiveBadge active={option.active} /></td><td><RowActions active={option.active} editLabel={copy.editProductPackaging} onEdit={() => setEditingOption(option)} onDeactivate={() => deactivateOption(option)} /></td></tr>)}</tbody></table></div>}
     </section>
     <Modal open={editingType !== null} title={editingType === 'new' ? copy.newPackagingType : copy.editPackagingType} description={copy.dimensionTriplets} size="large" onClose={() => setEditingType(null)}>
       {editingType && <PackagingTypeForm key={editingType === 'new' ? 'new' : editingType.id} packagingType={editingType === 'new' ? null : editingType} onCancel={() => setEditingType(null)} onSaved={() => { setEditingType(null); setRefresh((value) => value + 1); notify(copy.saved) }} />}
@@ -1171,6 +1183,7 @@ function PackagingTypeForm({ packagingType, onCancel, onSaved }: { packagingType
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const formErrors = useFormErrors()
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setSaving(true); setError('')
@@ -1182,12 +1195,12 @@ function PackagingTypeForm({ packagingType, onCancel, onSaved }: { packagingType
       returnable: form.returnable, active: form.active,
     }
     try { await apiFetch(packagingType ? `/api/v1/packaging-types/${packagingType.id}` : '/api/v1/packaging-types', { method: packagingType ? 'PUT' : 'POST', body: JSON.stringify(payload) }); onSaved() }
-    catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+    catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
   }
-  return <form onSubmit={submit}><div className="form-grid">
-    <Field label={copy.code} htmlFor="pack-type-code" required><input id="pack-type-code" value={form.code} maxLength={40} disabled={Boolean(packagingType)} required onChange={(event) => update('code', event.target.value)} /></Field>
-    <Field label={copy.name} htmlFor="pack-type-name" required><input id="pack-type-name" value={form.name} maxLength={140} required onChange={(event) => update('name', event.target.value)} /></Field>
-    <Field label={copy.descriptionField} htmlFor="pack-type-description" wide><textarea id="pack-type-description" rows={3} maxLength={4000} value={form.description} onChange={(event) => update('description', event.target.value)} /></Field>
+  return <form onSubmit={submit}><FormErrors value={formErrors.context}><div className="form-grid">
+    <Field label={copy.code} htmlFor="pack-type-code" name="code" required><input id="pack-type-code" value={form.code} maxLength={40} disabled={Boolean(packagingType)} required onChange={(event) => update('code', event.target.value)} /></Field>
+    <Field label={copy.name} htmlFor="pack-type-name" name="name" required><input id="pack-type-name" value={form.name} maxLength={140} required onChange={(event) => update('name', event.target.value)} /></Field>
+    <Field label={copy.descriptionField} htmlFor="pack-type-description" name="description" wide><textarea id="pack-type-description" rows={3} maxLength={4000} value={form.description} onChange={(event) => update('description', event.target.value)} /></Field>
     <NumberField id="pack-in-length" label={copy.internalLength} value={form.internalLength} onChange={(value) => update('internalLength', value)} min="0.0001" />
     <NumberField id="pack-in-width" label={copy.internalWidth} value={form.internalWidth} onChange={(value) => update('internalWidth', value)} min="0.0001" />
     <NumberField id="pack-in-height" label={copy.internalHeight} value={form.internalHeight} onChange={(value) => update('internalHeight', value)} min="0.0001" />
@@ -1197,9 +1210,9 @@ function PackagingTypeForm({ packagingType, onCancel, onSaved }: { packagingType
     <NumberField id="pack-tare" label={copy.tareWeight} value={form.tareWeight} onChange={(value) => update('tareWeight', value)} min="0.0001" />
     <NumberField id="pack-max-weight" label={copy.maximumWeight} value={form.maximumWeight} onChange={(value) => update('maximumWeight', value)} min="0.0001" />
     <NumberField id="pack-max-volume" label={copy.maximumVolume} value={form.maximumVolume} onChange={(value) => update('maximumVolume', value)} min="0.000001" step="0.000001" />
-    <Field label={copy.returnable} htmlFor="pack-returnable"><label className="switch-row" htmlFor="pack-returnable"><input id="pack-returnable" type="checkbox" checked={form.returnable} onChange={(event) => update('returnable', event.target.checked)} /><span>{copy.returnablePackaging}</span></label></Field>
-    <Field label={copy.status} htmlFor="pack-type-active"><label className="switch-row" htmlFor="pack-type-active"><input id="pack-type-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.active}</span></label></Field>
-  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={packagingType ? copy.saveChanges : copy.createPackagingType} /></form>
+    <Field label={copy.returnable} htmlFor="pack-returnable" name="returnable"><label className="switch-row" htmlFor="pack-returnable"><input id="pack-returnable" type="checkbox" checked={form.returnable} onChange={(event) => update('returnable', event.target.checked)} /><span>{copy.returnablePackaging}</span></label></Field>
+    <Field label={copy.status} htmlFor="pack-type-active" name="active"><label className="switch-row" htmlFor="pack-type-active"><input id="pack-type-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{copy.active}</span></label></Field>
+  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={packagingType ? copy.saveChanges : copy.createPackagingType} /></FormErrors></form>
 }
 
 function ProductPackagingForm({ option, products, packagingTypes, onCancel, onSaved }: { option: ProductPackaging | null; products: ProductLookup[]; packagingTypes: PackagingType[]; onCancel: () => void; onSaved: () => void }) {
@@ -1212,6 +1225,7 @@ function ProductPackagingForm({ option, products, packagingTypes, onCancel, onSa
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const formErrors = useFormErrors()
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setSaving(true); setError('')
@@ -1222,12 +1236,12 @@ function ProductPackagingForm({ option, products, packagingTypes, onCancel, onSa
       defaultPackaging: form.defaultPackaging, active: form.active,
     }
     try { await apiFetch(option ? `/api/v1/product-packaging/${option.id}` : '/api/v1/product-packaging', { method: option ? 'PUT' : 'POST', body: JSON.stringify(payload) }); onSaved() }
-    catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+    catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
   }
-  return <form onSubmit={submit}><div className="form-grid">
-    <Field label={copy.product} htmlFor="product-pack-product" required><select id="product-pack-product" value={form.productId} disabled={Boolean(option)} required onChange={(event) => update('productId', event.target.value)}><option value="">{copy.select}</option>{products.filter((product) => product.active || product.id === form.productId).map((product) => <option key={product.id} value={product.id}>{lookupLabel(product)}</option>)}</select></Field>
-    <Field label={copy.packagingType} htmlFor="product-pack-type" required><select id="product-pack-type" value={form.packagingTypeId} disabled={Boolean(option)} required onChange={(event) => update('packagingTypeId', event.target.value)}><option value="">{copy.select}</option>{packagingTypes.filter((type) => type.active || type.id === form.packagingTypeId).map((type) => <option key={type.id} value={type.id}>{lookupLabel(type)}</option>)}</select></Field>
-    <Field label={`${copy.code}/SKU`} htmlFor="product-pack-code"><input id="product-pack-code" value={form.code} maxLength={80} disabled={Boolean(option)} onChange={(event) => update('code', event.target.value)} /></Field>
+  return <form onSubmit={submit}><FormErrors value={formErrors.context}><div className="form-grid">
+    <Field label={copy.product} htmlFor="product-pack-product" name="productId" required><select id="product-pack-product" value={form.productId} disabled={Boolean(option)} required onChange={(event) => update('productId', event.target.value)}><option value="">{copy.select}</option>{products.filter((product) => product.active || product.id === form.productId).map((product) => <option key={product.id} value={product.id}>{lookupLabel(product)}</option>)}</select></Field>
+    <Field label={copy.packagingType} htmlFor="product-pack-type" name="packagingTypeId" required><select id="product-pack-type" value={form.packagingTypeId} disabled={Boolean(option)} required onChange={(event) => update('packagingTypeId', event.target.value)}><option value="">{copy.select}</option>{packagingTypes.filter((type) => type.active || type.id === form.packagingTypeId).map((type) => <option key={type.id} value={type.id}>{lookupLabel(type)}</option>)}</select></Field>
+    <Field label={`${copy.code}/SKU`} htmlFor="product-pack-code" name="code"><input id="product-pack-code" value={form.code} maxLength={80} disabled={Boolean(option)} onChange={(event) => update('code', event.target.value)} /></Field>
     <NumberField id="product-pack-units" label={copy.unitsPerPackage} value={form.unitsPerPackage} onChange={(value) => update('unitsPerPackage', value)} min="0.000001" step="0.000001" required />
     <NumberField id="product-pack-levels" label={copy.levels} value={form.levels} onChange={(value) => update('levels', value)} min="1" step="1" />
     <NumberField id="product-pack-level-units" label={copy.unitsPerLevel} value={form.unitsPerLevel} onChange={(value) => update('unitsPerLevel', value)} min="0.000001" step="0.000001" />
@@ -1235,7 +1249,7 @@ function ProductPackagingForm({ option, products, packagingTypes, onCancel, onSa
     <NumberField id="product-pack-width" label={copy.width} value={form.width} onChange={(value) => update('width', value)} min="0.0001" />
     <NumberField id="product-pack-height" label={copy.height} value={form.height} onChange={(value) => update('height', value)} min="0.0001" />
     <NumberField id="product-pack-gross" label={copy.grossWeight} value={form.grossWeight} onChange={(value) => update('grossWeight', value)} min="0.0001" />
-    <Field label={copy.defaultBadge} htmlFor="product-pack-default"><label className="switch-row" htmlFor="product-pack-default"><input id="product-pack-default" type="checkbox" checked={form.defaultPackaging} disabled={!form.active} onChange={(event) => update('defaultPackaging', event.target.checked)} /><span>{copy.defaultPackaging}</span></label></Field>
-    <Field label={copy.status} htmlFor="product-pack-active"><label className="switch-row" htmlFor="product-pack-active"><input id="product-pack-active" type="checkbox" checked={form.active} onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked, defaultPackaging: event.target.checked ? current.defaultPackaging : false }))} /><span>{copy.active}</span></label></Field>
-  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={option ? copy.saveChanges : copy.createPackagingOption} /></form>
+    <Field label={copy.defaultBadge} htmlFor="product-pack-default" name="defaultPackaging"><label className="switch-row" htmlFor="product-pack-default"><input id="product-pack-default" type="checkbox" checked={form.defaultPackaging} disabled={!form.active} onChange={(event) => update('defaultPackaging', event.target.checked)} /><span>{copy.defaultPackaging}</span></label></Field>
+    <Field label={copy.status} htmlFor="product-pack-active" name="active"><label className="switch-row" htmlFor="product-pack-active"><input id="product-pack-active" type="checkbox" checked={form.active} onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked, defaultPackaging: event.target.checked ? current.defaultPackaging : false }))} /><span>{copy.active}</span></label></Field>
+  </div><ErrorBlock error={error} /><FormActions onCancel={onCancel} saving={saving} submitLabel={option ? copy.saveChanges : copy.createPackagingOption} /></FormErrors></form>
 }

@@ -2,7 +2,7 @@ import { Building2, FileUp, Pencil, Plus } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
 import { ContactDetailsFields } from '../components/ContactDetailsFields'
-import { Field, FormActions } from '../components/Form'
+import { Field, FormActions, FormErrors, useFormErrors } from '../components/Form'
 import { Modal } from '../components/Modal'
 import { MasterDataImportModal } from '../components/MasterDataImportModal'
 import { PageHeader } from '../components/PageHeader'
@@ -14,6 +14,7 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { apiFetch, errorMessage } from '../lib/api'
 import { useTranslation } from '../i18n/I18nProvider'
 import type { PageResponse, Supplier, SupplierInput } from '../types/api'
+import { TableCaption } from '../components/TableCaption'
 
 export function SuppliersPage() {
   const { language, t } = useTranslation()
@@ -50,7 +51,7 @@ export function SuppliersPage() {
     <section className="panel table-panel">
       <TableToolbar value={query} onChange={setQuery} placeholder={t('suppliers.search')} />
       {error && <div className="inline-error">{error}</div>}
-      {loading ? <LoadingState /> : data && data.content.length > 0 ? <><div className="table-scroll"><table><thead><tr><th>{t('field.code')}</th><th>{t('suppliers.supplier')}</th><th>{t('field.taxId')}</th><th>{t('suppliers.contact')}</th><th>{t('field.carrier')}</th><th>{t('field.route')}</th><th>{t('field.status')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead><tbody>{data.content.map((supplier) => <tr key={supplier.id}><td><span className="code-cell">{supplier.code}</span></td><td><strong>{supplier.legalName}</strong>{supplier.tradeName && <small>{supplier.tradeName}</small>}</td><td>{supplier.taxId || '—'}</td><td>{supplier.email || supplier.phone || '—'}</td><td>{supplier.carrier || '—'}</td><td>{supplier.route || '—'}</td><td><StatusBadge tone={supplier.active ? 'success' : 'neutral'}>{supplier.active ? t('common.active') : t('common.inactive')}</StatusBadge></td><td><button className="icon-button" type="button" onClick={() => setEditing(supplier)} aria-label={t('suppliers.editAria', { name: supplier.legalName })}><Pencil size={16} /></button></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('suppliers.empty')} description={query ? t('common.noResults') : t('suppliers.emptyDescription')} action={!query && <button className="button button-secondary" type="button" onClick={() => setEditing('new')}>{t('suppliers.create')}</button>} />}
+      {loading ? <LoadingState /> : data && data.content.length > 0 ? <><div className="table-scroll"><table><TableCaption es="Proveedores" en="Suppliers" /><thead><tr><th>{t('field.code')}</th><th>{t('suppliers.supplier')}</th><th>{t('field.taxId')}</th><th>{t('suppliers.contact')}</th><th>{t('field.carrier')}</th><th>{t('field.route')}</th><th>{t('field.status')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead><tbody>{data.content.map((supplier) => <tr key={supplier.id}><td><span className="code-cell">{supplier.code}</span></td><td><strong>{supplier.legalName}</strong>{supplier.tradeName && <small>{supplier.tradeName}</small>}</td><td>{supplier.taxId || '—'}</td><td>{supplier.email || supplier.phone || '—'}</td><td>{supplier.carrier || '—'}</td><td>{supplier.route || '—'}</td><td><StatusBadge tone={supplier.active ? 'success' : 'neutral'}>{supplier.active ? t('common.active') : t('common.inactive')}</StatusBadge></td><td><button className="icon-button" type="button" onClick={() => setEditing(supplier)} aria-label={t('suppliers.editAria', { name: supplier.legalName })}><Pencil size={16} /></button></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('suppliers.empty')} description={query ? t('common.noResults') : t('suppliers.emptyDescription')} action={!query && <button className="button button-secondary" type="button" onClick={() => setEditing('new')}>{t('suppliers.create')}</button>} />}
     </section>
     <Modal open={editing !== null} title={editing === 'new' ? t('suppliers.new') : t('suppliers.edit')} description={t('suppliers.modalDescription')} onClose={() => setEditing(null)} size="large">{editing && <SupplierForm key={editing === 'new' ? 'new' : editing.id} supplier={editing === 'new' ? null : editing} onCancel={() => setEditing(null)} onSaved={saved} />}</Modal>
     <MasterDataImportModal open={importing} entityName={c('proveedores', 'suppliers')} basePath="/api/v1/suppliers" onClose={() => setImporting(false)} onImported={(count) => { setRefresh((value) => value + 1); notify(c(`${count} proveedores importados.`, `${count} suppliers imported.`)) }} />
@@ -63,26 +64,27 @@ function SupplierForm({ supplier, onCancel, onSaved }: { supplier: Supplier | nu
   const [details, setDetails] = useState(supplier?.details ?? {})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const formErrors = useFormErrors()
   const update = (name: string, value: string | boolean) => setForm((current) => ({ ...current, [name]: value }))
 
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setSaving(true); setError('')
     const payload: SupplierInput = { details, code: form.code.trim(), legalName: form.legalName.trim(), tradeName: form.tradeName.trim() || null, taxId: form.taxId.trim() || null, phone: form.phone.trim() || null, email: form.email.trim() || null, observations: form.observations.trim() || null, carrier: form.carrier.trim() || null, route: form.route.trim() || null, active: form.active }
     try { await apiFetch<Supplier>(supplier ? `/api/v1/suppliers/${supplier.id}` : '/api/v1/suppliers', { method: supplier ? 'PUT' : 'POST', body: JSON.stringify(payload) }); onSaved() }
-    catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+    catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
   }
 
-  return <form onSubmit={submit}><div className="form-grid">
-    <Field label={t('field.code')} htmlFor="supplier-code" required><input id="supplier-code" value={form.code} onChange={(event) => update('code', event.target.value)} disabled={Boolean(supplier)} maxLength={40} required /></Field>
-    <Field label={t('field.legalName')} htmlFor="supplier-name" required><input id="supplier-name" value={form.legalName} onChange={(event) => update('legalName', event.target.value)} maxLength={180} required /></Field>
-    <Field label={t('field.tradeName')} htmlFor="supplier-trade"><input id="supplier-trade" value={form.tradeName} onChange={(event) => update('tradeName', event.target.value)} maxLength={180} /></Field>
-    <Field label={t('field.taxId')} htmlFor="supplier-tax"><input id="supplier-tax" value={form.taxId} onChange={(event) => update('taxId', event.target.value)} maxLength={30} /></Field>
-    <Field label={t('field.phone')} htmlFor="supplier-phone"><input id="supplier-phone" value={form.phone} onChange={(event) => update('phone', event.target.value)} maxLength={40} /></Field>
-    <Field label={t('field.email')} htmlFor="supplier-email"><input id="supplier-email" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} maxLength={180} /></Field>
-    <Field label={t('field.carrier')} htmlFor="supplier-carrier"><input id="supplier-carrier" value={form.carrier} onChange={(event) => update('carrier', event.target.value)} maxLength={160} /></Field>
-    <Field label={t('field.route')} htmlFor="supplier-route"><input id="supplier-route" value={form.route} onChange={(event) => update('route', event.target.value)} maxLength={160} /></Field>
-    <Field label={t('field.status')} htmlFor="supplier-active"><label className="switch-row" htmlFor="supplier-active"><input id="supplier-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{t('suppliers.active')}</span></label></Field>
+  return <form onSubmit={submit}><FormErrors value={formErrors.context}><div className="form-grid">
+    <Field label={t('field.code')} htmlFor="supplier-code" name="code" required><input id="supplier-code" value={form.code} onChange={(event) => update('code', event.target.value)} disabled={Boolean(supplier)} maxLength={40} required /></Field>
+    <Field label={t('field.legalName')} htmlFor="supplier-name" name="legalName" required><input id="supplier-name" value={form.legalName} onChange={(event) => update('legalName', event.target.value)} maxLength={180} required /></Field>
+    <Field label={t('field.tradeName')} htmlFor="supplier-trade" name="tradeName"><input id="supplier-trade" value={form.tradeName} onChange={(event) => update('tradeName', event.target.value)} maxLength={180} /></Field>
+    <Field label={t('field.taxId')} htmlFor="supplier-tax" name="taxId"><input id="supplier-tax" value={form.taxId} onChange={(event) => update('taxId', event.target.value)} maxLength={30} /></Field>
+    <Field label={t('field.phone')} htmlFor="supplier-phone" name="phone"><input id="supplier-phone" value={form.phone} onChange={(event) => update('phone', event.target.value)} maxLength={40} /></Field>
+    <Field label={t('field.email')} htmlFor="supplier-email" name="email"><input id="supplier-email" type="email" value={form.email} onChange={(event) => update('email', event.target.value)} maxLength={180} /></Field>
+    <Field label={t('field.carrier')} htmlFor="supplier-carrier" name="carrier"><input id="supplier-carrier" value={form.carrier} onChange={(event) => update('carrier', event.target.value)} maxLength={160} /></Field>
+    <Field label={t('field.route')} htmlFor="supplier-route" name="route"><input id="supplier-route" value={form.route} onChange={(event) => update('route', event.target.value)} maxLength={160} /></Field>
+    <Field label={t('field.status')} htmlFor="supplier-active" name="active"><label className="switch-row" htmlFor="supplier-active"><input id="supplier-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{t('suppliers.active')}</span></label></Field>
     <ContactDetailsFields value={details} onChange={setDetails} prefix="supplier" />
-    <Field label={t('field.observations')} htmlFor="supplier-notes" wide><textarea id="supplier-notes" rows={3} value={form.observations} onChange={(event) => update('observations', event.target.value)} /></Field>
-  </div>{error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={supplier ? t('suppliers.saveChanges') : t('suppliers.create')} /></form>
+    <Field label={t('field.observations')} htmlFor="supplier-notes" name="observations" wide><textarea id="supplier-notes" rows={3} value={form.observations} onChange={(event) => update('observations', event.target.value)} /></Field>
+  </div>{error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={supplier ? t('suppliers.saveChanges') : t('suppliers.create')} /></FormErrors></form>
 }

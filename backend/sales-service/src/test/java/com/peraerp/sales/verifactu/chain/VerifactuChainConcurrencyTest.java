@@ -49,7 +49,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * desarrollo aunque comparta base.</p>
  */
 @SpringBootTest(properties = {
-        "spring.datasource.url=${PERA_TEST_DB_URL:jdbc:postgresql://localhost:55432/pera_sales}",
+        "spring.datasource.url=${PERA_TEST_DB_URL:jdbc:postgresql://localhost:15432/pera_sales}",
         "spring.datasource.username=${PERA_TEST_DB_USER:pera}",
         "spring.datasource.password=${PERA_TEST_DB_PASSWORD:pera_dev_password}",
         "pera.jwt.secret=pera-local-development-secret-2026-minimum-32-bytes",
@@ -59,7 +59,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class VerifactuChainConcurrencyTest {
 
     private static final String URL = System.getenv().getOrDefault(
-            "PERA_TEST_DB_URL", "jdbc:postgresql://localhost:55432/pera_sales");
+            "PERA_TEST_DB_URL", "jdbc:postgresql://localhost:15432/pera_sales");
     private static final String USER = System.getenv().getOrDefault("PERA_TEST_DB_USER", "pera");
     private static final String PASSWORD = System.getenv().getOrDefault(
             "PERA_TEST_DB_PASSWORD", "pera_dev_password");

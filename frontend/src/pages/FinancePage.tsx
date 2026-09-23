@@ -1,7 +1,7 @@
 import { CalendarClock, Landmark, Plus, ReceiptText, Trash2, WalletCards } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
-import { Field, FormActions } from '../components/Form'
+import { Field, FormActions, FormErrors, useFormErrors } from '../components/Form'
 import { Modal } from '../components/Modal'
 import { PageHeader } from '../components/PageHeader'
 import { StatusBadge } from '../components/StatusBadge'
@@ -87,6 +87,7 @@ function PaymentMethodForm({ onCancel, onSaved }: { onCancel: () => void; onSave
   const [rules, setRules] = useState([{ dueDays: '0', percentage: '100' }])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const formErrors = useFormErrors()
   const total = rules.reduce((sum, rule) => sum + Number(rule.percentage || 0), 0)
   const updateRule = (index: number, field: 'dueDays' | 'percentage', value: string) => setRules((current) => current.map((rule, ruleIndex) => ruleIndex === index ? { ...rule, [field]: value } : rule))
 
@@ -96,13 +97,13 @@ function PaymentMethodForm({ onCancel, onSaved }: { onCancel: () => void; onSave
     setSaving(true); setError('')
     const payload: PaymentMethodInput = { code: code.trim(), name: name.trim(), rules: rules.map((rule) => ({ dueDays: Number(rule.dueDays), percentage: Number(rule.percentage) })) }
     try { await apiFetch<PaymentMethod>('/api/v1/payment-methods', { method: 'POST', body: JSON.stringify(payload) }); onSaved() }
-    catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+    catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
   }
 
-  return <form onSubmit={submit}><div className="form-grid"><Field label={t('field.code')} htmlFor="payment-code" required><input id="payment-code" value={code} onChange={(event) => setCode(event.target.value)} maxLength={40} required /></Field><Field label={t('field.name')} htmlFor="payment-name" required><input id="payment-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={160} required /></Field></div>
+  return <form onSubmit={submit}><FormErrors value={formErrors.context}><div className="form-grid"><Field label={t('field.code')} htmlFor="payment-code" name="code" required><input id="payment-code" value={code} onChange={(event) => setCode(event.target.value)} maxLength={40} required /></Field><Field label={t('field.name')} htmlFor="payment-name" name="name" required><input id="payment-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={160} required /></Field></div>
     <div className="document-lines-heading"><div><span className="eyebrow">{t('finance.distribution')}</span><h3>{t('finance.installments')}</h3></div><button className="button button-secondary button-small" type="button" onClick={() => setRules((current) => [...current, { dueDays: '30', percentage: '0' }])}><Plus size={15} />{t('finance.addInstallment')}</button></div>
-    <div className="payment-rule-editor">{rules.map((rule, index) => <div key={index}><span className="rule-number">{index + 1}</span><Field label={t('finance.daysFromIssue')} htmlFor={`rule-days-${index}`}><input id={`rule-days-${index}`} type="number" min="0" value={rule.dueDays} onChange={(event) => updateRule(index, 'dueDays', event.target.value)} /></Field><Field label={t('finance.percentage')} htmlFor={`rule-percentage-${index}`}><div className="suffix-input"><input id={`rule-percentage-${index}`} type="number" min="0.0001" max="100" step="0.0001" value={rule.percentage} onChange={(event) => updateRule(index, 'percentage', event.target.value)} /><span>%</span></div></Field><button className="icon-button" type="button" disabled={rules.length === 1} onClick={() => setRules((current) => current.filter((_, ruleIndex) => ruleIndex !== index))} aria-label={t('finance.deleteInstallment', { number: index + 1 })}><Trash2 size={16} /></button></div>)}</div>
+    <div className="payment-rule-editor">{rules.map((rule, index) => <div key={index}><span className="rule-number">{index + 1}</span><Field label={t('finance.daysFromIssue')} htmlFor={`rule-days-${index}`} name={`rules[${index}].dueDays`}><input id={`rule-days-${index}`} type="number" min="0" value={rule.dueDays} onChange={(event) => updateRule(index, 'dueDays', event.target.value)} /></Field><Field label={t('finance.percentage')} htmlFor={`rule-percentage-${index}`} name={`rules[${index}].percentage`}><div className="suffix-input"><input id={`rule-percentage-${index}`} type="number" min="0.0001" max="100" step="0.0001" value={rule.percentage} onChange={(event) => updateRule(index, 'percentage', event.target.value)} /><span>%</span></div></Field><button className="icon-button" type="button" disabled={rules.length === 1} onClick={() => setRules((current) => current.filter((_, ruleIndex) => ruleIndex !== index))} aria-label={t('finance.deleteInstallment', { number: index + 1 })}><Trash2 size={16} /></button></div>)}</div>
     <div className={`percentage-total ${Math.abs(total - 100) < 0.0001 ? 'valid' : 'invalid'}`}><span>{t('finance.totalAssigned')}</span><strong>{formatNumber(total, locale, 4)} %</strong></div>
     {error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={t('finance.createMethod')} />
-  </form>
+  </FormErrors></form>
 }

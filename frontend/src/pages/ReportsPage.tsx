@@ -12,6 +12,7 @@ import { PearBrandMark } from '../components/PearBrandMark'
 import { useTranslation } from '../i18n/I18nProvider'
 import { apiFetch, errorMessage } from '../lib/api'
 import { formatCurrency, formatDate, formatDateTime, formatNumber } from '../lib/format'
+import { TableCaption } from '../components/TableCaption'
 import type {
   CommercialDocument, Customer, DueDate, PageResponse, Product, Supplier,
 } from '../types/api'
@@ -336,7 +337,7 @@ function ReportPreview({ snapshot, settings, language, locale, onPrint, onRefres
     </header>
     <div className="report-document-title"><span>{label(module.label, language)}</span><h2 id="report-preview-title">{snapshot.titleCustomized ? snapshot.title : label(module.label, language)}</h2><p><strong>{c.filters}:</strong> {filterDescription(snapshot.filters, module, language)}</p></div>
     {totals.length > 0 && <div className="report-total-grid" aria-label={c.totals}>{totals.map((total) => <div key={`${total.currency}-${total.key}`}><span>{label(total.field.label, language)} · {total.currency}</span><strong>{formatCurrency(total.value, total.currency, locale)}</strong></div>)}</div>}
-    {snapshot.rows.length === 0 ? <EmptyState title={c.noRows} description={c.noRowsHint} /> : <div className="table-scroll report-table-scroll"><table className="report-table"><thead><tr>{fields.map((item) => <th key={item.key} className={numericField(item) ? 'align-right' : undefined}>{label(item.label, language)}</th>)}</tr></thead><tbody>{snapshot.rows.map((row) => <tr key={row.id}>{fields.map((item) => <td key={item.key} className={numericField(item) ? 'align-right' : undefined}>{formatReportValue(row[item.key] ?? null, item, row.currency || settings.baseCurrency, language, locale)}</td>)}</tr>)}</tbody></table></div>}
+    {snapshot.rows.length === 0 ? <EmptyState title={c.noRows} description={c.noRowsHint} /> : <div className="table-scroll report-table-scroll"><table className="report-table"><TableCaption es="Resultados del informe" en="Report results" /><thead><tr>{fields.map((item) => <th key={item.key} className={numericField(item) ? 'align-right' : undefined}>{label(item.label, language)}</th>)}</tr></thead><tbody>{snapshot.rows.map((row) => <tr key={row.id}>{fields.map((item) => <td key={item.key} className={numericField(item) ? 'align-right' : undefined}>{formatReportValue(row[item.key] ?? null, item, row.currency || settings.baseCurrency, language, locale)}</td>)}</tr>)}</tbody></table></div>}
     <footer className="report-document-footer"><span>{settings.displayName}</span><span>{snapshot.rows.length} {c.rows}</span></footer>
   </section>
 }

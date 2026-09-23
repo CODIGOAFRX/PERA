@@ -30,7 +30,7 @@ cp infra/.env.example infra/.env
 docker compose --env-file infra/.env -f infra/docker-compose.yml up --build
 ```
 
-La aplicación queda en `http://localhost:5173`. Los cinco usuarios de demostración comparten la contraseña `ChangeMe123!`:
+La aplicación queda en `http://localhost:5173`. Los cinco usuarios de demostración comparten la contraseña inicial definida en `PERA_BOOTSTRAP_ADMIN_PASSWORD` (en local la fija `scripts/start-local.ps1`; con Docker, `infra/.env`). Cámbiala desde **Usuarios** tras el primer acceso:
 
 | Usuario | Perfil | Acceso principal |
 |---|---|---|

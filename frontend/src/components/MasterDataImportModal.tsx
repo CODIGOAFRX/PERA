@@ -1,6 +1,7 @@
 import { Download, FileSpreadsheet, Upload } from 'lucide-react'
 import { useEffect, useId, useState, type FormEvent } from 'react'
 import { apiDownload, apiFetch, errorMessage } from '../lib/api'
+import { saveBlob } from '../lib/download'
 import { useTranslation } from '../i18n/I18nProvider'
 import { Modal } from './Modal'
 
@@ -45,12 +46,7 @@ export function MasterDataImportModal({ open, entityName, basePath, onClose, onI
     setError('')
     try {
       const { blob, filename } = await apiDownload(`${basePath}/import-template`)
-      const url = URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = filename
-      anchor.click()
-      URL.revokeObjectURL(url)
+      saveBlob(blob, filename)
     } catch (cause) {
       setError(errorMessage(cause))
     } finally {

@@ -56,7 +56,7 @@ public class QuoteController {
 
     @PostMapping("/{id}/convert")
     @ResponseStatus(HttpStatus.CREATED)
-    DocumentResponse convert(@PathVariable UUID id) { return service.convertAccepted(id); }
+    DocumentResponse convert(@PathVariable UUID id, @RequestParam(defaultValue = "false") boolean riskAcknowledged) { return service.convertAccepted(id, riskAcknowledged); }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

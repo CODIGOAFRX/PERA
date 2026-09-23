@@ -14,7 +14,13 @@ public class SecurityConfig {
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchange->exchange
                         .pathMatchers("/api/v1/auth/login", "/public/v1/licenses/**", "/actuator/health/**").permitAll()
+                        // Operational endpoints (metrics, config) are for internal scraping, never for end users.
+                        .pathMatchers("/actuator/**").denyAll()
                         .anyExchange().authenticated())
+                .headers(headers->headers
+                        .contentTypeOptions(Customizer.withDefaults())
+                        .frameOptions(frame->frame.mode(org.springframework.security.web.server.header.XFrameOptionsServerHttpHeadersWriter.Mode.DENY))
+                        .referrerPolicy(referrer->referrer.policy(org.springframework.security.web.server.header.ReferrerPolicyServerHttpHeadersWriter.ReferrerPolicy.NO_REFERRER)))
                 .oauth2ResourceServer(server->server.jwt(Customizer.withDefaults())).build();
     }
     @Bean ReactiveJwtDecoder reactiveJwtDecoder(@Value("${pera.jwt.secret}") String secret){

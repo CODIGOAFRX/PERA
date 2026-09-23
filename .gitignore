@@ -14,12 +14,22 @@
 
 # Runtime and local configuration
 .env
+.env.*
+!.env.example
 *.local.yml
 *.local.yaml
 logs/
 *.log
 .runtime/
 /AGENTS.md
+
+# Certificates, private keys and keystores must never be versioned
+*.p12
+*.pfx
+*.pem
+*.key
+*.jks
+*.keystore
 
 # Operating systems
 .DS_Store

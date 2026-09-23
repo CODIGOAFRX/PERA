@@ -33,6 +33,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/verifactu-settings/**").hasAuthority("verifactu:read")
                         .requestMatchers("/api/v1/verifactu-settings/**").hasAuthority("verifactu:write")
                         .requestMatchers(HttpMethod.GET, "/api/v1/verifactu-records/**").hasAuthority("verifactu:read")
+                        .requestMatchers("/api/v1/verifactu-records/**").hasAuthority("verifactu:write")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(server -> server.jwt(jwt ->
                         jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))).build();

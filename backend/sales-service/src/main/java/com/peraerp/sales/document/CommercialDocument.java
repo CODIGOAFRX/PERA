@@ -130,8 +130,8 @@ public class CommercialDocument extends CompanyScopedEntity {
     public void recalculate(DocumentAmountsCalculator calculator) {
         requireModifiable();
         lines.forEach(line -> line.recalculate(calculator));
-        netAmount = lines.stream().map(DocumentLine::getNetAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        taxAmount = lines.stream().map(DocumentLine::getTaxAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        netAmount = MonetaryRounding.round(lines.stream().map(DocumentLine::getNetAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
+        taxAmount = MonetaryRounding.round(lines.stream().map(DocumentLine::getTaxAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
         totalAmount = netAmount.add(taxAmount);
         recalculateBaseAmounts();
     }
@@ -144,9 +144,12 @@ public class CommercialDocument extends CompanyScopedEntity {
         recalculateBaseAmounts();
     }
     private void recalculateBaseAmounts() {
-        baseNetAmount = netAmount.multiply(exchangeRate).setScale(4, java.math.RoundingMode.HALF_UP);
-        baseTaxAmount = taxAmount.multiply(exchangeRate).setScale(4, java.math.RoundingMode.HALF_UP);
-        baseTotalAmount = totalAmount.multiply(exchangeRate).setScale(4, java.math.RoundingMode.HALF_UP);
+        // Convert the precise line sums before rounding, as the fiscal breakdown does.
+        baseNetAmount = MonetaryRounding.round(lines.stream().map(DocumentLine::getNetAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add).multiply(exchangeRate));
+        baseTaxAmount = MonetaryRounding.round(lines.stream().map(DocumentLine::getTaxAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add).multiply(exchangeRate));
+        baseTotalAmount = baseNetAmount.add(baseTaxAmount);
     }
 
     /**

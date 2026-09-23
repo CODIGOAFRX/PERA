@@ -55,5 +55,5 @@ pera:
     maximum-cache-duration: ${PERA_LICENSE_MAXIMUM_CACHE_DURATION:PT5M}
     request-timeout: ${PERA_LICENSE_REQUEST_TIMEOUT:PT2S}
 management:
-  endpoints.web.exposure.include: health,info,prometheus,gateway
+  endpoints.web.exposure.include: health,info,prometheus
   endpoint.health.probes.enabled: true

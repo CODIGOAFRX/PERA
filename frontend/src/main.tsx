@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AuthProvider } from './auth/AuthContext'
+import { ConfirmProvider } from './components/ConfirmDialog'
 import { ToastProvider } from './components/Toast'
 import { I18nProvider } from './i18n/I18nProvider'
 import { RouterProvider } from './routing/Router'
@@ -13,7 +14,9 @@ createRoot(document.getElementById('root')!).render(
       <RouterProvider>
         <AuthProvider>
           <ToastProvider>
-            <App />
+            <ConfirmProvider>
+              <App />
+            </ConfirmProvider>
           </ToastProvider>
         </AuthProvider>
       </RouterProvider>

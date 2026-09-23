@@ -9,18 +9,28 @@ vi.mock('../auth/AuthContext', () => ({ useAuth: () => ({ login: loginMock }) })
 describe('LoginPage', () => {
   beforeEach(() => loginMock.mockReset())
 
-  it('submits the prepared local credentials', async () => {
+  const fillCredentials = () => {
+    fireEvent.change(document.getElementById('username')!, { target: { value: 'usuario.prueba' } })
+    fireEvent.change(document.getElementById('password')!, { target: { value: 'clave-de-prueba' } })
+  }
+
+  it('starts empty and submits the credentials typed by the user', async () => {
     loginMock.mockResolvedValueOnce({ accessToken: 'token', companySelectionRequired: false, companies: [], expiresInSeconds: 3600, tokenType: 'Bearer' })
     render(<I18nProvider><LoginPage /></I18nProvider>)
 
+    // No default account or password may ship in the login form.
+    expect(document.getElementById('username')).toHaveValue('')
+    expect(document.getElementById('password')).toHaveValue('')
+    fillCredentials()
     fireEvent.click(screen.getByRole('button', { name: /entrar/i }))
 
-    await waitFor(() => expect(loginMock).toHaveBeenCalledWith('admin', 'ChangeMe123!', undefined))
+    await waitFor(() => expect(loginMock).toHaveBeenCalledWith('usuario.prueba', 'clave-de-prueba', undefined))
   })
 
   it('shows company choices returned by the backend', async () => {
     loginMock.mockResolvedValueOnce({ accessToken: null, companySelectionRequired: true, companies: [{ id: '1', code: 'DEMO', name: 'PERA Demo' }], expiresInSeconds: 0, tokenType: null })
     render(<I18nProvider><LoginPage /></I18nProvider>)
+    fillCredentials()
     fireEvent.click(screen.getByRole('button', { name: /entrar/i }))
 
     expect(await screen.findByText('Elige una empresa')).toBeInTheDocument()

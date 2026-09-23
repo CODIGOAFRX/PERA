@@ -8,7 +8,7 @@ export function LanguageSelector({ compact = false }: { compact?: boolean }) {
     <label className={`language-selector ${compact ? 'language-selector-compact' : ''}`}>
       <Languages size={16} aria-hidden="true" />
       {!compact && <span>{t('language.label')}</span>}
-      <select aria-label={t('language.label')} value={language} onChange={(event) => setLanguage(event.target.value as Language)}>
+      <select aria-label={compact ? t('language.label') : undefined} value={language} onChange={(event) => setLanguage(event.target.value as Language)}>
         <option value="es">{t('language.es')}</option>
         <option value="en">{t('language.en')}</option>
       </select>

@@ -5,11 +5,14 @@ import { Field } from '../components/Form'
 import { LoadingState } from '../components/DataState'
 import { useTranslation } from '../i18n/I18nProvider'
 import { apiFetch, errorMessage } from '../lib/api'
+import { FiscalConnections } from '../components/FiscalConnections'
+import { useConfirm } from '../components/ConfirmDialog'
 
 type Connection = { configured: boolean; encryptionReady: boolean; host: string; port: number; username: string; senderEmail: string; senderName: string; security: string; enabled: boolean; autoInvoices: boolean; verifiedAt: string | null; passwordStored: boolean }
 export function ConnectionsPage() {
   const { language } = useTranslation()
   const c = (es: string, en: string) => language === 'es' ? es : en
+  const confirm = useConfirm()
   const [form, setForm] = useState<Connection | null>(null)
   const [provider, setProvider] = useState<'smtp' | 'gmail'>('smtp')
   const [password, setPassword] = useState('')
@@ -90,7 +93,8 @@ export function ConnectionsPage() {
         <button className="button button-primary" type="submit" disabled={busy || !form.verifiedAt}>{c('Guardar preferencias', 'Save preferences')}</button>
       </div></section>
       {notice && <p role="status" className="connection-success">{notice}</p>}
-      {form.configured && <button type="button" className="button button-ghost" disabled={busy} onClick={() => void action('disconnect')}><Unplug size={16} />{c('Desconectar correo', 'Disconnect email')}</button>}
+      {form.configured && <button type="button" className="button button-ghost" disabled={busy} onClick={async () => { if (await confirm({ message: c('Se eliminará la contraseña guardada y dejarán de enviarse correos desde PERA. ¿Desconectar?', 'The stored password will be removed and PERA will stop sending email. Disconnect?'), confirmLabel: c('Desconectar', 'Disconnect'), danger: true })) void action('disconnect') }}><Unplug size={16} />{c('Desconectar correo', 'Disconnect email')}</button>}
     </form>}
+    <FiscalConnections />
   </div>
 }

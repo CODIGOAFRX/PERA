@@ -67,9 +67,9 @@ class QuoteServiceTest {
 
         quote.confirm();
         quote.acceptQuote(java.time.Instant.now(), LocalDate.of(2026, 8, 11));
-        when(documentService.convert(quote.getId())).thenReturn(DocumentResponse.from(quote));
+        when(documentService.convert(quote.getId(), false)).thenReturn(DocumentResponse.from(quote));
         service.convertAccepted(quote.getId());
-        verify(documentService).convert(quote.getId());
+        verify(documentService).convert(quote.getId(), false);
     }
 
     @Test

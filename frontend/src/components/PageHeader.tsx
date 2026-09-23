@@ -13,7 +13,7 @@ export function PageHeader({ eyebrow, title, description, icon: Icon, actions }:
   return (
     <header className="page-header">
       <div className="page-title-wrap">
-        {Icon && <span className="page-icon"><Icon size={20} /></span>}
+        {Icon && <span className="page-icon" aria-hidden="true"><Icon size={20} /></span>}
         <div>
           {eyebrow && <span className="eyebrow">{eyebrow}</span>}
           <h1>{title}</h1>

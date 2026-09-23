@@ -28,7 +28,7 @@ public class MailSecretCipher {
             Cipher cipher = cipher(Cipher.ENCRYPT_MODE, company, nonce);
             byte[] encrypted = cipher.doFinal(secret.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(ByteBuffer.allocate(12 + encrypted.length).put(nonce).put(encrypted).array());
-        } catch (Exception e) { throw new BusinessRuleException("No se pudo proteger la credencial SMTP."); }
+        } catch (Exception e) { throw new BusinessRuleException("No se pudo cifrar la credencial."); }
     }
     public String decrypt(UUID company, String value) {
         if (!ready()) throw new BusinessRuleException("La clave de cifrado del correo no está configurada.");
@@ -37,7 +37,7 @@ public class MailSecretCipher {
             byte[] nonce = new byte[12]; buffer.get(nonce);
             byte[] encrypted = new byte[buffer.remaining()]; buffer.get(encrypted);
             return new String(cipher(Cipher.DECRYPT_MODE, company, nonce).doFinal(encrypted), StandardCharsets.UTF_8);
-        } catch (Exception e) { throw new BusinessRuleException("No se pudo abrir la credencial SMTP. Revisa la clave del servidor."); }
+        } catch (Exception e) { throw new BusinessRuleException("No se pudo descifrar la credencial guardada. Revisa la clave de cifrado del servidor."); }
     }
     private Cipher cipher(int mode, UUID company, byte[] nonce) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");

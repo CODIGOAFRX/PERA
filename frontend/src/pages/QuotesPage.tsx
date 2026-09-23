@@ -2,23 +2,27 @@ import { DocumentEmail } from '../components/DocumentEmail'
 import { ArrowRight, CheckCircle2, FileCheck2, Plus, Send, Trash2, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
-import { Field, FormActions } from '../components/Form'
+import { Field, FieldControl, FormActions, FormErrors, useFormErrors } from '../components/Form'
 import { Modal } from '../components/Modal'
 import { PageHeader } from '../components/PageHeader'
 import { Pagination } from '../components/Pagination'
 import { StatusBadge, type BadgeTone } from '../components/StatusBadge'
 import { TableToolbar } from '../components/TableToolbar'
+import { useConfirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { useTranslation } from '../i18n/I18nProvider'
 import { apiFetch, errorMessage } from '../lib/api'
 import { calculateDocumentPreview } from '../lib/document'
 import { formatCurrency, formatDate, formatNumber } from '../lib/format'
+import { localIsoDate } from '../lib/date'
+import { withCreditRiskConfirmation } from '../lib/creditRisk'
 import type { CommercialDocument, CreateQuoteInput, CurrencyDefinition, Customer, PageResponse, PaymentMethod, Product, QuoteStatus } from '../types/api'
+import { TableCaption } from '../components/TableCaption'
 
 const quoteStatuses: QuoteStatus[] = ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'CONVERTED']
 
 export function QuotesPage() {
-  const { locale, t } = useTranslation()
+  const { language, locale, t } = useTranslation()
   const [data, setData] = useState<PageResponse<CommercialDocument> | null>(null)
   const [page, setPage] = useState(0)
   const [status, setStatus] = useState<QuoteStatus | ''>('')
@@ -30,6 +34,7 @@ export function QuotesPage() {
   const [deleting, setDeleting] = useState(false)
   const [refresh, setRefresh] = useState(0)
   const { notify } = useToast()
+  const confirm = useConfirm()
 
   useEffect(() => setPage(0), [status])
   useEffect(() => setSelectedIds(new Set()), [page, status, refresh])
@@ -45,17 +50,25 @@ export function QuotesPage() {
     return () => { active = false }
   }, [page, status, refresh])
 
+  const [acting, setActing] = useState(false)
   const runAction = async (action: 'send' | 'accept' | 'reject' | 'convert', quote: CommercialDocument, reason?: string) => {
+    // A double click must not send, accept or convert the same quote twice.
+    if (acting) return
+    setActing(true)
     try {
-      await apiFetch(`/api/v1/quotes/${quote.id}/${action}`, {
-        method: 'POST',
-        ...(action === 'reject' ? { body: JSON.stringify({ reason }) } : {}),
-      })
+      const init = { method: 'POST', ...(action === 'reject' ? { body: JSON.stringify({ reason }) } : {}) }
+      // Converting creates a delivery note, which the server checks against the customer's credit.
+      const done = action === 'convert'
+        ? await withCreditRiskConfirmation((acknowledged) => apiFetch(`/api/v1/quotes/${quote.id}/convert${acknowledged ? '?riskAcknowledged=true' : ''}`, init), confirm, locale, language)
+        : await apiFetch(`/api/v1/quotes/${quote.id}/${action}`, init)
+      if (done === null) return
       notify(t(`quotes.action.${action}.success`))
       setSelected(null)
       setRefresh((value) => value + 1)
     } catch (cause) {
       notify(errorMessage(cause), 'error')
+    } finally {
+      setActing(false)
     }
   }
 
@@ -68,7 +81,7 @@ export function QuotesPage() {
   })
   const toggleAllDrafts = (checked: boolean) => setSelectedIds(checked ? new Set(draftIds) : new Set())
   const deleteSelected = async () => {
-    if (selectedIds.size === 0 || !window.confirm(t('quotes.deleteConfirmation', { count: selectedIds.size }))) return
+    if (selectedIds.size === 0 || !(await confirm({ message: t('quotes.deleteConfirmation', { count: selectedIds.size }), danger: true }))) return
     setDeleting(true)
     try {
       await Promise.all([...selectedIds].map((id) => apiFetch(`/api/v1/quotes/${id}`, { method: 'DELETE' })))
@@ -96,7 +109,7 @@ export function QuotesPage() {
       </TableToolbar>
       {error && <div className="inline-error">{error}</div>}
       {loading ? <LoadingState /> : data && data.content.length > 0 ? <>
-        <div className="table-scroll"><table><thead><tr><th className="selection-cell"><input className="selection-checkbox" type="checkbox" aria-label={t('quotes.selectAllDrafts')} checked={allDraftsSelected} disabled={draftIds.length === 0} onChange={(event) => toggleAllDrafts(event.target.checked)} /></th><th>{t('sales.number')}</th><th>{t('sales.customer')}</th><th>{t('sales.issueDate')}</th><th>{t('quotes.validUntil')}</th><th>{t('sales.status')}</th><th className="align-right">{t('sales.total')}</th></tr></thead>
+        <div className="table-scroll"><table><TableCaption es="Presupuestos" en="Quotes" /><thead><tr><th className="selection-cell"><input className="selection-checkbox" type="checkbox" aria-label={t('quotes.selectAllDrafts')} checked={allDraftsSelected} disabled={draftIds.length === 0} onChange={(event) => toggleAllDrafts(event.target.checked)} /></th><th>{t('sales.number')}</th><th>{t('sales.customer')}</th><th>{t('sales.issueDate')}</th><th>{t('quotes.validUntil')}</th><th>{t('sales.status')}</th><th className="align-right">{t('sales.total')}</th></tr></thead>
           <tbody>{data.content.map((quote) => <tr key={quote.id} className="clickable-row" onClick={() => setSelected(quote)}>
             <td className="selection-cell" onClick={(event) => event.stopPropagation()}>{(quote.quoteStatus ?? 'DRAFT') === 'DRAFT' ? <input className="selection-checkbox" type="checkbox" aria-label={t('quotes.selectQuote', { number: quote.number })} checked={selectedIds.has(quote.id)} onChange={(event) => toggleSelection(quote.id, event.target.checked)} /> : <span className="selection-unavailable" aria-hidden="true">—</span>}</td>
             <td><strong className="document-number">{quote.number}</strong></td>
@@ -114,7 +127,7 @@ export function QuotesPage() {
       <CreateQuoteForm onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); setRefresh((value) => value + 1); notify(t('quotes.created')) }} />
     </Modal>
     <Modal open={selected !== null} title={selected?.number ?? t('quotes.quote')} description={selected?.customerName ?? ''} onClose={() => setSelected(null)} size="large">
-      {selected && <QuoteDetail quote={selected} onQueued={() => { void apiFetch<CommercialDocument>(`/api/v1/quotes/${selected.id}`).then(setSelected).catch(cause => notify(errorMessage(cause), 'error')); setRefresh(v => v + 1) }} onAction={runAction} />}
+      {selected && <QuoteDetail quote={selected} onQueued={() => { void apiFetch<CommercialDocument>(`/api/v1/quotes/${selected.id}`).then(setSelected).catch(cause => notify(errorMessage(cause), 'error')); setRefresh(v => v + 1) }} onAction={runAction} busy={acting} />}
     </Modal>
   </div>
 }
@@ -128,8 +141,9 @@ function CreateQuoteForm({ onCancel, onSaved }: { onCancel: () => void; onSaved:
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const today = new Date().toISOString().slice(0, 10)
-  const defaultValidity = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10)
+  const formErrors = useFormErrors()
+  const today = localIsoDate()
+  const defaultValidity = localIsoDate(new Date(), 30)
   const [form, setForm] = useState({ customerId: '', issueDate: today, validUntil: defaultValidity, paymentMethodId: '', currency: 'EUR', notes: '', sendOnCreate: false })
   const [lines, setLines] = useState([emptyLine()])
 
@@ -183,50 +197,50 @@ function CreateQuoteForm({ onCancel, onSaved }: { onCancel: () => void; onSaved:
         unitPriceOverridden: line.unitPriceOverridden, taxPercentageOverridden: line.taxPercentageOverridden })),
     }
     try { await apiFetch('/api/v1/quotes', { method: 'POST', body: JSON.stringify(payload) }); onSaved() }
-    catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+    catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
   }
 
   if (loading) return <LoadingState label={t('sales.loadingOptions')} />
-  return <form onSubmit={submit}>
+  return <form onSubmit={submit}><FormErrors value={formErrors.context}>
     <div className="form-grid document-header-form">
-      <Field label={t('sales.customer')} htmlFor="quote-customer" required><select id="quote-customer" value={form.customerId} onChange={(event) => setForm({ ...form, customerId: event.target.value })} required><option value="">{t('sales.selectCustomer')}</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.code} · {customer.legalName}</option>)}</select></Field>
-      <Field label={t('sales.issueDate')} htmlFor="quote-date" required><input id="quote-date" type="date" value={form.issueDate} onChange={(event) => setForm({ ...form, issueDate: event.target.value })} required /></Field>
-      <Field label={t('quotes.validUntil')} htmlFor="quote-valid" required><input id="quote-valid" type="date" min={form.issueDate} value={form.validUntil} onChange={(event) => setForm({ ...form, validUntil: event.target.value })} required /></Field>
-      <Field label={t('quotes.currency')} htmlFor="quote-currency" required><select id="quote-currency" value={form.currency} onChange={(event) => setForm({ ...form, currency: event.target.value })}>{currencies.length ? currencies.map((currency) => <option key={currency.code} value={currency.code}>{currency.code} · {currency.name}</option>) : <option value="EUR">EUR</option>}</select></Field>
-      <Field label={t('sales.paymentMethod')} htmlFor="quote-payment"><select id="quote-payment" value={form.paymentMethodId} onChange={(event) => setForm({ ...form, paymentMethodId: event.target.value })}><option value="">{t('sales.noPaymentMethod')}</option>{paymentMethods.map((method) => <option key={method.id} value={method.id}>{method.code} · {method.name}</option>)}</select></Field>
-      <Field label={t('sales.initialStatus')} htmlFor="quote-send"><label className="switch-row" htmlFor="quote-send"><input id="quote-send" type="checkbox" checked={form.sendOnCreate} onChange={(event) => setForm({ ...form, sendOnCreate: event.target.checked })} /><span>{t('quotes.sendOnCreate')}</span></label></Field>
+      <Field label={t('sales.customer')} htmlFor="quote-customer" name="customerId" required><select id="quote-customer" value={form.customerId} onChange={(event) => setForm({ ...form, customerId: event.target.value })} required><option value="">{t('sales.selectCustomer')}</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.code} · {customer.legalName}</option>)}</select></Field>
+      <Field label={t('sales.issueDate')} htmlFor="quote-date" name="issueDate" required><input id="quote-date" type="date" value={form.issueDate} onChange={(event) => setForm({ ...form, issueDate: event.target.value })} required /></Field>
+      <Field label={t('quotes.validUntil')} htmlFor="quote-valid" name="validUntil" required><input id="quote-valid" type="date" min={form.issueDate} value={form.validUntil} onChange={(event) => setForm({ ...form, validUntil: event.target.value })} required /></Field>
+      <Field label={t('quotes.currency')} htmlFor="quote-currency" name="currency" required><select id="quote-currency" value={form.currency} onChange={(event) => setForm({ ...form, currency: event.target.value })}>{currencies.length ? currencies.map((currency) => <option key={currency.code} value={currency.code}>{currency.code} · {currency.name}</option>) : <option value="EUR">EUR</option>}</select></Field>
+      <Field label={t('sales.paymentMethod')} htmlFor="quote-payment" name="paymentMethodId"><select id="quote-payment" value={form.paymentMethodId} onChange={(event) => setForm({ ...form, paymentMethodId: event.target.value })}><option value="">{t('sales.noPaymentMethod')}</option>{paymentMethods.map((method) => <option key={method.id} value={method.id}>{method.code} · {method.name}</option>)}</select></Field>
+      <Field label={t('sales.initialStatus')} htmlFor="quote-send" name="sendOnCreate"><label className="switch-row" htmlFor="quote-send"><input id="quote-send" type="checkbox" checked={form.sendOnCreate} onChange={(event) => setForm({ ...form, sendOnCreate: event.target.checked })} /><span>{t('quotes.sendOnCreate')}</span></label></Field>
     </div>
     <div className="document-lines-heading"><div><span className="eyebrow">{t('sales.detail')}</span><h3>{t('sales.documentLines')}</h3></div><button className="button button-secondary button-small" type="button" onClick={() => setLines((current) => [...current, emptyLine()])}><Plus size={15} />{t('sales.addLine')}</button></div>
     <div className="line-editor">{lines.map((line, index) => <div className="line-editor-row" key={index}>
-      <div className="line-product"><label htmlFor={`quote-product-${index}`}>{t('sales.product')}</label><select id={`quote-product-${index}`} value={line.productId} onChange={(event) => chooseProduct(index, event.target.value)}><option value="">{t('sales.freeLine')}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.code} · {product.name}</option>)}</select></div>
-      <div className="line-description"><label htmlFor={`quote-description-${index}`}>{t('sales.lineDescription')}</label><input id={`quote-description-${index}`} value={line.description} onChange={(event) => updateLine(index, 'description', event.target.value)} required /></div>
-      <div><label htmlFor={`quote-quantity-${index}`}>{t('sales.quantity')}</label><input id={`quote-quantity-${index}`} type="number" min="0.000001" step="0.000001" value={line.quantity} onChange={(event) => updateLine(index, 'quantity', event.target.value)} required /></div>
-      <div><label htmlFor={`quote-price-${index}`}>{t('sales.price')}</label><input id={`quote-price-${index}`} type="number" min="0" step="0.0001" value={line.unitPrice} onChange={(event) => updateLine(index, 'unitPrice', event.target.value)} required /></div>
-      <div><label htmlFor={`quote-discount-${index}`}>{t('sales.discount')}</label><input id={`quote-discount-${index}`} type="number" min="0" max="100" step="0.01" value={line.discountPercentage} onChange={(event) => updateLine(index, 'discountPercentage', event.target.value)} /></div>
-      <div><label htmlFor={`quote-tax-${index}`}>{t('sales.tax')}</label><input id={`quote-tax-${index}`} type="number" min="0" max="100" step="0.01" value={line.taxPercentage} onChange={(event) => updateLine(index, 'taxPercentage', event.target.value)} /></div>
+      <div className="line-product"><label htmlFor={`quote-product-${index}`}>{t('sales.product')}</label><FieldControl htmlFor={`quote-product-${index}`} name={`lines[${index}].productId`}><select id={`quote-product-${index}`} value={line.productId} onChange={(event) => chooseProduct(index, event.target.value)}><option value="">{t('sales.freeLine')}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.code} · {product.name}</option>)}</select></FieldControl></div>
+      <div className="line-description"><label htmlFor={`quote-description-${index}`}>{t('sales.lineDescription')}</label><FieldControl htmlFor={`quote-description-${index}`} name={`lines[${index}].description`}><input id={`quote-description-${index}`} value={line.description} onChange={(event) => updateLine(index, 'description', event.target.value)} required /></FieldControl></div>
+      <div><label htmlFor={`quote-quantity-${index}`}>{t('sales.quantity')}</label><FieldControl htmlFor={`quote-quantity-${index}`} name={`lines[${index}].quantity`}><input id={`quote-quantity-${index}`} type="number" min="0.000001" step="0.000001" value={line.quantity} onChange={(event) => updateLine(index, 'quantity', event.target.value)} required /></FieldControl></div>
+      <div><label htmlFor={`quote-price-${index}`}>{t('sales.price')}</label><FieldControl htmlFor={`quote-price-${index}`} name={`lines[${index}].unitPrice`}><input id={`quote-price-${index}`} type="number" min="0" step="0.0001" value={line.unitPrice} onChange={(event) => updateLine(index, 'unitPrice', event.target.value)} required /></FieldControl></div>
+      <div><label htmlFor={`quote-discount-${index}`}>{t('sales.discount')}</label><FieldControl htmlFor={`quote-discount-${index}`} name={`lines[${index}].discountPercentage`}><input id={`quote-discount-${index}`} type="number" min="0" max="100" step="0.01" value={line.discountPercentage} onChange={(event) => updateLine(index, 'discountPercentage', event.target.value)} /></FieldControl></div>
+      <div><label htmlFor={`quote-tax-${index}`}>{t('sales.tax')}</label><FieldControl htmlFor={`quote-tax-${index}`} name={`lines[${index}].taxPercentage`}><input id={`quote-tax-${index}`} type="number" min="0" max="100" step="0.01" value={line.taxPercentage} onChange={(event) => updateLine(index, 'taxPercentage', event.target.value)} /></FieldControl></div>
       <button className="icon-button line-remove" type="button" disabled={lines.length === 1} onClick={() => setLines((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={t('sales.deleteLine', { number: index + 1 })}><Trash2 size={16} /></button>
     </div>)}</div>
-    <div className="document-footer-form"><Field label={t('sales.notes')} htmlFor="quote-notes"><textarea id="quote-notes" rows={3} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></Field><div className="totals-card"><span><small>{t('sales.net')}</small><strong>{formatCurrency(totals.net, form.currency, locale)}</strong></span><span><small>{t('catalog.tax')}</small><strong>{formatCurrency(totals.tax, form.currency, locale)}</strong></span><span className="grand-total"><small>{t('sales.total')}</small><strong>{formatCurrency(totals.total, form.currency, locale)}</strong></span></div></div>
+    <div className="document-footer-form"><Field label={t('sales.notes')} htmlFor="quote-notes" name="notes"><textarea id="quote-notes" rows={3} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></Field><div className="totals-card"><span><small>{t('sales.net')}</small><strong>{formatCurrency(totals.net, form.currency, locale)}</strong></span><span><small>{t('catalog.tax')}</small><strong>{formatCurrency(totals.tax, form.currency, locale)}</strong></span><span className="grand-total"><small>{t('sales.total')}</small><strong>{formatCurrency(totals.total, form.currency, locale)}</strong></span></div></div>
     {error && <div className="form-error" role="alert">{error}</div>}
     <FormActions onCancel={onCancel} saving={saving} submitLabel={t('quotes.create')} />
-  </form>
+  </FormErrors></form>
 }
 
-function QuoteDetail({ quote, onAction, onQueued }: { quote: CommercialDocument; onQueued: () => void; onAction: (action: 'send' | 'accept' | 'reject' | 'convert', quote: CommercialDocument, reason?: string) => void }) {
+function QuoteDetail({ quote, onAction, onQueued, busy = false }: { quote: CommercialDocument; onQueued: () => void; busy?: boolean; onAction: (action: 'send' | 'accept' | 'reject' | 'convert', quote: CommercialDocument, reason?: string) => void }) {
   const { locale, t } = useTranslation()
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
   const status = quote.quoteStatus ?? 'DRAFT'
   return <div className="document-detail">
     <div className="detail-summary"><div><small>{t('sales.customer')}</small><strong>{quote.customerName}</strong><span>{quote.customerCode}</span></div><div><small>{t('sales.issue')}</small><strong>{formatDate(quote.issueDate, locale)}</strong><span>{t('quotes.validThrough', { date: formatDate(quote.quoteValidUntil, locale) })}</span></div><div><small>{t('sales.status')}</small><StatusBadge tone={quoteTone(status)}>{t(`quote.status.${status}`)}</StatusBadge></div><div><small>{t('sales.total')}</small><strong className="detail-total">{formatCurrency(quote.totalAmount, quote.currency, locale)}</strong><span>{quote.currency}</span></div></div>
-    <div className="table-scroll detail-lines"><table><thead><tr><th>#</th><th>{t('sales.lineDescription')}</th><th className="align-right">{t('sales.quantity')}</th><th className="align-right">{t('sales.price')}</th><th className="align-right">{t('sales.discount')}</th><th className="align-right">{t('sales.total')}</th></tr></thead><tbody>{quote.lines.map((line) => <tr key={line.id || line.order}><td>{line.order}</td><td><strong>{line.description}</strong>{line.productCode && <small>{line.productCode}</small>}</td><td className="align-right">{formatNumber(line.quantity, locale, 6)}</td><td className="align-right">{formatCurrency(line.unitPrice, quote.currency, locale)}</td><td className="align-right">{formatNumber(line.discountPercentage, locale, 4)} %</td><td className="align-right"><strong>{formatCurrency(line.totalAmount, quote.currency, locale)}</strong></td></tr>)}</tbody></table></div>
+    <div className="table-scroll detail-lines"><table><TableCaption es="Líneas del presupuesto" en="Quote lines" /><thead><tr><th>#</th><th>{t('sales.lineDescription')}</th><th className="align-right">{t('sales.quantity')}</th><th className="align-right">{t('sales.price')}</th><th className="align-right">{t('sales.discount')}</th><th className="align-right">{t('sales.total')}</th></tr></thead><tbody>{quote.lines.map((line) => <tr key={line.id || line.order}><td>{line.order}</td><td><strong>{line.description}</strong>{line.productCode && <small>{line.productCode}</small>}</td><td className="align-right">{formatNumber(line.quantity, locale, 6)}</td><td className="align-right">{formatCurrency(line.unitPrice, quote.currency, locale)}</td><td className="align-right">{formatNumber(line.discountPercentage, locale, 4)} %</td><td className="align-right"><strong>{formatCurrency(line.totalAmount, quote.currency, locale)}</strong></td></tr>)}</tbody></table></div>
     <div className="detail-totals"><span>{t('sales.net')} <strong>{formatCurrency(quote.netAmount, quote.currency, locale)}</strong></span><span>{t('catalog.tax')} <strong>{formatCurrency(quote.taxAmount, quote.currency, locale)}</strong></span><span>{t('sales.total')} <strong>{formatCurrency(quote.totalAmount, quote.currency, locale)}</strong></span></div>
     <DocumentEmail id={quote.id} onQueued={onQueued} quote disabled={status === 'EXPIRED' || status === 'REJECTED'} />
     {rejecting && <div className="quote-rejection"><Field label={t('quotes.rejectionReason')} htmlFor="quote-reason" required><textarea id="quote-reason" rows={2} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} /></Field></div>}
     <div className="modal-action-strip">
-      {status === 'DRAFT' && <button className="button button-primary" type="button" onClick={() => onAction('send', quote)}><Send size={17} />{t('quotes.send')}</button>}
-      {status === 'SENT' && <><button className="button button-secondary" type="button" onClick={() => setRejecting((value) => !value)}><XCircle size={17} />{t('quotes.reject')}</button>{rejecting && <button className="button button-danger" type="button" disabled={!reason.trim()} onClick={() => onAction('reject', quote, reason.trim())}>{t('quotes.confirmReject')}</button>}<button className="button button-primary" type="button" onClick={() => onAction('accept', quote)}><CheckCircle2 size={17} />{t('quotes.accept')}</button></>}
-      {status === 'ACCEPTED' && <button className="button button-primary" type="button" onClick={() => onAction('convert', quote)}>{t('quotes.convert')}<ArrowRight size={17} /></button>}
+      {status === 'DRAFT' && <button className="button button-primary" type="button" disabled={busy} onClick={() => onAction('send', quote)}><Send size={17} />{t('quotes.send')}</button>}
+      {status === 'SENT' && <><button className="button button-secondary" type="button" onClick={() => setRejecting((value) => !value)}><XCircle size={17} />{t('quotes.reject')}</button>{rejecting && <button className="button button-danger" type="button" disabled={busy || !reason.trim()} onClick={() => onAction('reject', quote, reason.trim())}>{t('quotes.confirmReject')}</button>}<button className="button button-primary" type="button" disabled={busy} onClick={() => onAction('accept', quote)}><CheckCircle2 size={17} />{t('quotes.accept')}</button></>}
+      {status === 'ACCEPTED' && <button className="button button-primary" type="button" disabled={busy} onClick={() => onAction('convert', quote)}>{t('quotes.convert')}<ArrowRight size={17} /></button>}
     </div>
   </div>
 }

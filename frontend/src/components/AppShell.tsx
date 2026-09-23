@@ -45,6 +45,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth)), [sidebarWidth])
 
   useEffect(() => {
+    if (!mobileOpen) return
+    const onKeyDown = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') setMobileOpen(false) }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [mobileOpen])
+
+  useEffect(() => {
     if (!identity?.permissions.includes('accounting:read')) { setAccountingPending(0); return }
     let active = true
     const refreshAccounting = () => apiFetch<{ pending: number }>('/api/v1/accounting/inbox/count')
@@ -87,12 +94,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className={`${resizing ? 'app-shell resizing' : 'app-shell'} ${compact ? 'sidebar-compact' : ''}`} style={shellStyle}>
-      <aside className={`sidebar ${sidebarWidth === 0 ? 'sidebar-hidden' : ''} ${mobileOpen ? 'sidebar-open' : ''}`}>
+      <a className="skip-link" href="#main-content" onClick={(event) => { event.preventDefault(); document.getElementById('main-content')?.focus() }}>{t('nav.skipToContent')}</a>
+      <aside id="app-sidebar" className={`sidebar ${sidebarWidth === 0 ? 'sidebar-hidden' : ''} ${mobileOpen ? 'sidebar-open' : ''}`}>
         <div className="brand">
           <PearBrandMark />
           <span className="brand-wordmark"><strong>PERA</strong><small>ERP</small></span>
-          <button type="button" className="icon-button sidebar-collapse" onClick={() => setSidebarWidth(0)} aria-label={t('nav.collapseSidebar')} title={t('nav.collapseSidebar')}><PanelLeftClose size={18} /></button>
-          <button type="button" className="icon-button sidebar-close" onClick={() => setMobileOpen(false)} aria-label={t('nav.closeMenu')}><X size={20} /></button>
+          <button type="button" className="icon-button sidebar-collapse" onClick={() => setSidebarWidth(0)} aria-label={t('nav.collapseSidebar')} title={t('nav.collapseSidebar')}><PanelLeftClose size={18} aria-hidden="true" /></button>
+          <button type="button" className="icon-button sidebar-close" onClick={() => setMobileOpen(false)} aria-label={t('nav.closeMenu')}><X size={20} aria-hidden="true" /></button>
         </div>
         <div className="company-chip">
           <span className="company-avatar">{company?.code?.slice(0, 2) || 'PE'}</span>
@@ -103,8 +111,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="nav-label">{t(group.labelKey)}</span>
             {group.routes.map((route) => {
               const Icon = route.navigation.icon
-              return <Link key={route.id} to={route.path} title={compact ? t(route.navigation.labelKey) : undefined} onClick={() => setMobileOpen(false)} className={isRouteActive(route, path) ? 'nav-link active' : 'nav-link'}>
-                <Icon size={19} strokeWidth={1.8} /><span>{t(route.navigation.labelKey)}</span>
+              return <Link key={route.id} to={route.path} title={compact ? t(route.navigation.labelKey) : undefined} onClick={() => setMobileOpen(false)} className={isRouteActive(route, path) ? 'nav-link active' : 'nav-link'} aria-current={isRouteActive(route, path) ? 'page' : undefined}>
+                <Icon size={19} strokeWidth={1.8} aria-hidden="true" /><span>{t(route.navigation.labelKey)}</span>
                 {route.id === 'accounting' && accountingPending > 0 && <b className="nav-notification" aria-label={language === 'es' ? `${accountingPending} pendientes` : `${accountingPending} pending`}>{accountingPending > 99 ? '99+' : accountingPending}</b>}
               </Link>
             })}
@@ -117,19 +125,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <LanguageSelector compact={compact} />
           <div className="sidebar-version"><Leaf size={16} /><span>PERA ERP <small>v0.2</small></span></div>
-          <button type="button" className="nav-link logout-link" onClick={logout} title={compact ? t('nav.logout') : undefined}><LogOut size={18} /><span>{t('nav.logout')}</span></button>
+          <button type="button" className="nav-link logout-link" onClick={logout} title={compact ? t('nav.logout') : undefined}><LogOut size={18} aria-hidden="true" /><span>{t('nav.logout')}</span></button>
         </div>
         <button type="button" className="sidebar-resizer" role="separator" aria-label={t('nav.resizeSidebar')} aria-orientation="vertical" aria-valuemin={MIN_VISIBLE_WIDTH} aria-valuemax={MAX_WIDTH} aria-valuenow={sidebarWidth || MIN_VISIBLE_WIDTH} onPointerDown={startResize} onPointerMove={resize} onPointerUp={stopResize} onPointerCancel={stopResize} onDoubleClick={() => setSidebarWidth(DEFAULT_WIDTH)} onKeyDown={resizeWithKeyboard} />
       </aside>
-      {sidebarWidth === 0 && <button type="button" className="sidebar-reveal" onClick={() => setSidebarWidth(DEFAULT_WIDTH)} aria-label={t('nav.expandSidebar')} title={t('nav.expandSidebar')}><PanelLeftOpen size={19} /></button>}
+      {sidebarWidth === 0 && <button type="button" className="sidebar-reveal" onClick={() => setSidebarWidth(DEFAULT_WIDTH)} aria-label={t('nav.expandSidebar')} title={t('nav.expandSidebar')}><PanelLeftOpen size={19} aria-hidden="true" /></button>}
       {mobileOpen && <button className="sidebar-scrim" type="button" aria-label={t('nav.closeMenu')} onClick={() => setMobileOpen(false)} />}
       <div className="content-shell">
         <header className="mobile-header">
-          <button type="button" className="icon-button" onClick={() => setMobileOpen(true)} aria-label={t('nav.openMenu')}><Menu size={21} /></button>
+          <button type="button" className="icon-button" onClick={() => setMobileOpen(true)} aria-label={t('nav.openMenu')} aria-expanded={mobileOpen} aria-controls="app-sidebar"><Menu size={21} aria-hidden="true" /></button>
           <div className="brand compact"><PearBrandMark /><span><strong>PERA</strong><small>ERP</small></span></div>
           <span className="mobile-company">{company?.code || 'DEMO'}</span>
         </header>
-        <main className="app-main">{children}</main>
+        <main id="main-content" className="app-main" tabIndex={-1}>{children}</main>
       </div>
     </div>
   )

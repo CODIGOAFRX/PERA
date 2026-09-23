@@ -12,12 +12,12 @@ export function Pagination({ page, totalPages, totalElements, onChange }: Pagina
   const { t } = useTranslation()
   if (totalPages <= 1) return <div className="pagination-summary">{t('common.records', { count: totalElements })}</div>
   return (
-    <div className="pagination">
-      <span>{t('common.pagination', { count: totalElements, page: page + 1, totalPages })}</span>
+    <nav className="pagination" aria-label={t('common.paginationLabel')}>
+      <span aria-live="polite">{t('common.pagination', { count: totalElements, page: page + 1, totalPages })}</span>
       <div>
-        <button type="button" className="icon-button" disabled={page === 0} onClick={() => onChange(page - 1)} aria-label={t('common.previousPage')}><ChevronLeft size={18} /></button>
-        <button type="button" className="icon-button" disabled={page + 1 >= totalPages} onClick={() => onChange(page + 1)} aria-label={t('common.nextPage')}><ChevronRight size={18} /></button>
+        <button type="button" className="icon-button" disabled={page === 0} onClick={() => onChange(page - 1)} aria-label={t('common.previousPage')}><ChevronLeft size={18} aria-hidden="true" /></button>
+        <button type="button" className="icon-button" disabled={page + 1 >= totalPages} onClick={() => onChange(page + 1)} aria-label={t('common.nextPage')}><ChevronRight size={18} aria-hidden="true" /></button>
       </div>
-    </div>
+    </nav>
   )
 }

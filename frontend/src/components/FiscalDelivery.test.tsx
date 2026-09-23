@@ -1,0 +1,61 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { ReactElement } from 'react'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { FiscalDelivery } from './FiscalDelivery'
+import { I18nProvider } from '../i18n/I18nProvider'
+const { api } = vi.hoisted(() => ({ api: vi.fn() }))
+vi.mock('../lib/api', () => ({ apiFetch: api, errorMessage: (e: Error) => e.message }))
+const view = (ui: ReactElement) => render(<I18nProvider>{ui}</I18nProvider>)
+beforeEach(() => { api.mockReset(); localStorage.clear(); vi.spyOn(window, 'confirm').mockReturnValue(true) })
+afterEach(() => vi.restoreAllMocks())
+it('requires a valid sandbox contact and sends only after the user confirms', async () => {
+  api.mockResolvedValueOnce({ state: 'NOT_SENT' }).mockResolvedValueOnce({ state: 'SUBMITTED', remoteId: '123', message: 'Enviado a pruebas' })
+  view(<FiscalDelivery provider="B2B" sourceId="doc1" />)
+  const button = await screen.findByRole('button', { name: 'Enviar a pruebas' })
+  expect(button).toBeDisabled()
+  fireEvent.change(screen.getByLabelText(/ID del contacto/), { target: { value: '42' } })
+  expect(api).toHaveBeenCalledTimes(1)
+  fireEvent.click(button)
+  await screen.findByText('Enviado a pruebas')
+  expect(window.confirm).toHaveBeenCalledOnce()
+  expect(api.mock.calls[1]).toEqual(['/api/v1/documents/doc1/b2b', { method: 'POST', body: JSON.stringify({ contactId: 42 }) }])
+  expect(screen.queryByRole('button', { name: 'Enviar a pruebas' })).not.toBeInTheDocument()
+})
+it('does not send when the user cancels the confirmation', async () => {
+  vi.mocked(window.confirm).mockReturnValue(false)
+  api.mockResolvedValueOnce({ state: 'NOT_SENT' })
+  view(<FiscalDelivery provider="AEAT" sourceId="record1" />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Enviar a pruebas' }))
+  expect(api).toHaveBeenCalledTimes(1)
+})
+it('does not offer another send when the provider result is unknown and only rereads the local status', async () => {
+  api.mockResolvedValue({ state: 'UNKNOWN', remoteId: '123', message: 'Revisa el proveedor' })
+  view(<FiscalDelivery provider="AEAT" sourceId="record1" />)
+  await screen.findByText(/Resultado sin confirmar/)
+  expect(screen.queryByRole('button', { name: 'Enviar a pruebas' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Ver estado guardado' }))
+  expect(api.mock.calls[1]).toEqual(['/api/v1/verifactu-records/record1/delivery', { method: 'GET' }])
+})
+it('shows server validation failures without claiming successful delivery', async () => {
+  api.mockResolvedValueOnce({ state: 'NOT_SENT' }).mockRejectedValueOnce(new Error('Configura el certificado'))
+  view(<FiscalDelivery provider="AEAT" sourceId="record1" />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Enviar a pruebas' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Configura el certificado')
+  expect(screen.getByText('Sin enviar')).toBeInTheDocument()
+})
+it('hides B2Brouter when the connection is not active and offers the setup link only to administrators', async () => {
+  api.mockResolvedValue({ state: 'NOT_SENT', remoteId: null, message: '', updatedAt: null, connectionActive: false })
+  const { container } = view(<FiscalDelivery provider="B2B" sourceId="doc1" />)
+  await waitFor(() => expect(api).toHaveBeenCalled())
+  await waitFor(() => expect(container).toBeEmptyDOMElement())
+  view(<FiscalDelivery provider="B2B" sourceId="doc2" configureLink={<a href="/conexiones">Configurar en Conexiones</a>} />)
+  expect(await screen.findByText(/B2Brouter no está activada/)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Configurar en Conexiones' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Enviar a pruebas' })).not.toBeInTheDocument()
+})
+it('does not offer an AEAT submission while the test connection is disabled', async () => {
+  api.mockResolvedValue({ state: 'NOT_SENT', remoteId: null, message: '', updatedAt: null, connectionActive: false })
+  view(<FiscalDelivery provider="AEAT" sourceId="rec1" />)
+  expect(await screen.findByText(/AEAT de pruebas no está activada/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Enviar a pruebas' })).not.toBeInTheDocument()
+})

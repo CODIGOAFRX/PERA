@@ -15,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
@@ -31,18 +32,24 @@ public class DocumentService {
     private final DocumentCurrencyService currencyService;
     private final SalesMasterDataService masterDataService;
     private final VerifactuIssuanceService verifactuIssuance;
+    private final CreditRiskService creditRisk;
 
     public DocumentService(CommercialDocumentRepository repository, DocumentNumberGenerator numberGenerator,
                            DocumentAmountsCalculator calculator, CurrentCompanyProvider companyProvider,
                            DomainEventRecorder events, DocumentCurrencyService currencyService,
-                           SalesMasterDataService masterDataService, VerifactuIssuanceService verifactuIssuance) {
+                           SalesMasterDataService masterDataService, VerifactuIssuanceService verifactuIssuance,
+                           CreditRiskService creditRisk) {
         this.repository=repository; this.numberGenerator=numberGenerator; this.calculator=calculator;
         this.companyProvider=companyProvider; this.events=events; this.currencyService=currencyService;
-        this.masterDataService=masterDataService; this.verifactuIssuance=verifactuIssuance;
+        this.masterDataService=masterDataService; this.verifactuIssuance=verifactuIssuance; this.creditRisk=creditRisk;
     }
 
     @Transactional
-    public DocumentResponse create(CreateDocumentRequest request) {
+    public DocumentResponse create(CreateDocumentRequest request) { return create(request, false); }
+
+    /** {@code riskAcknowledged}: the user has seen and accepted the customer's credit risk warning. */
+    @Transactional
+    public DocumentResponse create(CreateDocumentRequest request, boolean riskAcknowledged) {
         UUID companyId = companyProvider.requireCompanyId();
         CustomerSnapshot customer = masterDataService.requireActiveCustomer(request.customerId());
         String currency = request.currency() == null ? "EUR" : request.currency().trim().toUpperCase(Locale.ROOT);
@@ -63,6 +70,10 @@ public class DocumentService {
         DocumentCurrencySnapshot currencySnapshot = currencyService.resolve(document.getCurrency(), request.issueDate());
         document.applyCurrencySnapshot(currencySnapshot.baseCurrency(), currencySnapshot.exchangeRate(),
                 currencySnapshot.rateDate(), currencySnapshot.source());
+        // A draft commits nothing yet: its risk is checked when it is confirmed.
+        if (request.confirm() && CreditRiskService.CHECKED_TYPES.contains(request.type())) {
+            creditRisk.enforce(creditRisk.assess(companyId, customer, document.getBaseTotalAmount()), riskAcknowledged);
+        }
         if (request.type().isInvoice()) {
             applyFiscalClassification(document, request, companyId);
         }
@@ -77,6 +88,17 @@ public class DocumentService {
         return DocumentResponse.from(document);
     }
 
+    /** Preview for the document form; the amount is in the document currency. */
+    @Transactional(readOnly = true)
+    public CreditRiskService.Assessment previewCreditRisk(UUID customerId, BigDecimal amount, String currency, LocalDate date) {
+        UUID companyId = companyProvider.requireCompanyId();
+        CustomerSnapshot customer = masterDataService.requireActiveCustomer(customerId);
+        String code = currency == null || currency.isBlank() ? "EUR" : currency.trim().toUpperCase(Locale.ROOT);
+        DocumentCurrencySnapshot rate = currencyService.resolve(code, date == null ? LocalDate.now() : date);
+        BigDecimal base = MonetaryRounding.round((amount == null ? BigDecimal.ZERO : amount).multiply(rate.exchangeRate()));
+        return creditRisk.assess(companyId, customer, base);
+    }
+
     @Transactional(readOnly = true)
     public DocumentResponse findById(UUID id) { return DocumentResponse.from(requireDocument(id)); }
 
@@ -89,8 +111,40 @@ public class DocumentService {
                 .map(DocumentResponse::from);
     }
 
+    /**
+     * Confirms a draft saved without "confirm on save". An invoice is issued at this point and gets its
+     * Veri*Factu record, exactly as when it is confirmed on creation. Quotes are sent from the quotes flow.
+     */
     @Transactional
-    public DocumentResponse convert(UUID sourceId) {
+    public DocumentResponse confirmDraft(UUID id, boolean riskAcknowledged) {
+        UUID companyId = companyProvider.requireCompanyId();
+        CommercialDocument document = requireDocument(id);
+        if (document.getStatus() != DocumentStatus.DRAFT) {
+            throw new BusinessRuleException("Solo se pueden confirmar documentos en borrador.");
+        }
+        if (document.getType() == DocumentType.QUOTE) {
+            throw new BusinessRuleException("Los presupuestos se envían desde Presupuestos.");
+        }
+        if (CreditRiskService.CHECKED_TYPES.contains(document.getType())) {
+            CustomerSnapshot customer = masterDataService.requireActiveCustomer(document.getCustomerId());
+            creditRisk.enforce(creditRisk.assess(companyId, customer, document.getBaseTotalAmount()), riskAcknowledged);
+        }
+        document.confirm();
+        document = repository.save(document);
+        if (document.isIssued()) {
+            verifactuIssuance.recordIssuance(document);
+        }
+        events.record("CommercialDocument", document.getId(), "DocumentConfirmed",
+                Map.of("documentId", document.getId(), "number", document.getDocumentNumber(), "type", document.getType(),
+                        "total", document.getTotalAmount(), "companyId", companyId));
+        return DocumentResponse.from(document);
+    }
+
+    @Transactional
+    public DocumentResponse convert(UUID sourceId) { return convert(sourceId, false); }
+
+    @Transactional
+    public DocumentResponse convert(UUID sourceId, boolean riskAcknowledged) {
         UUID companyId = companyProvider.requireCompanyId();
         CommercialDocument source = requireDocument(sourceId);
         if (source.getType() == DocumentType.QUOTE) {
@@ -98,6 +152,9 @@ public class DocumentService {
         }
         if (source.getStatus() != DocumentStatus.CONFIRMED) {
             throw new BusinessRuleException("Solo se pueden convertir documentos confirmados.");
+        }
+        if (source.getType() == DocumentType.QUOTE && source.getQuoteStatus() != QuoteStatus.ACCEPTED) {
+            throw new BusinessRuleException("El presupuesto debe estar aceptado antes de convertirlo.");
         }
         DocumentType targetType = switch (source.getType()) {
             case QUOTE -> DocumentType.DELIVERY_NOTE;
@@ -118,6 +175,11 @@ public class DocumentService {
                 source.getCustomerTaxIdentificationTypeSnapshot(), source.getCustomerTaxCountrySnapshot());
         target.applyCurrencySnapshot(source.getBaseCurrency(), source.getExchangeRate(), source.getExchangeRateDate(),
                 source.getExchangeRateSource());
+        // A quote becomes a new commitment; a delivery note was already checked when it was created.
+        if (source.getType() == DocumentType.QUOTE) {
+            CustomerSnapshot customer = masterDataService.requireActiveCustomer(source.getCustomerId());
+            creditRisk.enforce(creditRisk.assess(companyId, customer, target.getBaseTotalAmount()), riskAcknowledged);
+        }
         target.confirm();
         source.markConverted();
         target = repository.save(target);
@@ -166,6 +228,9 @@ public class DocumentService {
                             "La factura que se pretende rectificar no existe en la empresa activa."));
             if (!rectified.getType().isInvoice()) {
                 throw new BusinessRuleException("Solo se pueden rectificar facturas.");
+            }
+            if (!rectified.isIssued()) {
+                throw new BusinessRuleException("Solo se pueden rectificar facturas expedidas, no borradores.");
             }
         }
         document.classify(kind, request.rectificationType(),

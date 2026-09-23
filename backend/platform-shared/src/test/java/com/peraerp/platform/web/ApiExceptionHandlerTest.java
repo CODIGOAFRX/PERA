@@ -7,6 +7,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,5 +64,32 @@ class ApiExceptionHandlerTest {
         assertThat(detail.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(detail.getDetail()).doesNotContain("parser detail");
         assertThat(detail.getType().toString()).endsWith("/malformed-request");
+    }
+
+    @Test
+    void mapsFrameworkClientErrorsInsteadOfReportingInternalErrors() {
+        assertThat(handler.handleUnexpected(new ResponseStatusException(HttpStatus.NOT_FOUND)).getStatus())
+                .isEqualTo(HttpStatus.NOT_FOUND.value());
+        assertThat(handler.handleUnexpected(new HttpRequestMethodNotSupportedException("PATCH")).getStatus())
+                .isEqualTo(HttpStatus.METHOD_NOT_ALLOWED.value());
+        ProblemDetail unauthorized = handler.handleUnexpected(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "clave secreta"));
+        assertThat(unauthorized.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
+        assertThat(unauthorized.getDetail()).doesNotContain("clave secreta");
+        assertThat(handler.handleUnexpected(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE)).getStatus())
+                .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
+    }
+
+    @Test
+    void mapsAccessDeniedToForbidden() {
+        assertThat(handler.handleAccessDenied(new AccessDeniedException("x")).getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+    }
+
+    @Test
+    void mapsConcurrencyAndIntegrityConflictsWithoutLeakingSql() {
+        ProblemDetail lock = handler.handleConcurrentModification(new ObjectOptimisticLockingFailureException(Object.class, 1L));
+        assertThat(lock.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        ProblemDetail integrity = handler.handleDataIntegrity(new DataIntegrityViolationException("duplicate key value (code)=(SECRET)"));
+        assertThat(integrity.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(integrity.getDetail()).doesNotContain("SECRET");
     }
 }

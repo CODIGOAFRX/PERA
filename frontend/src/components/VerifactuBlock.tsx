@@ -1,7 +1,10 @@
 import { ShieldCheck } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import QRCode from 'qrcode'
 import { apiFetch, apiFetchText, errorMessage } from '../lib/api'
+import { saveBlob } from '../lib/download'
+import { formatDateTime } from '../lib/format'
+import { FiscalDelivery } from './FiscalDelivery'
 import { useTranslation } from '../i18n/I18nProvider'
 import { StatusBadge, type BadgeTone } from './StatusBadge'
 import type { VerifactuRecord, VerifactuState } from '../types/api'
@@ -13,24 +16,27 @@ import type { VerifactuRecord, VerifactuState } from '../types/api'
  * parámetros y el formato de fecha e importe son especificación y no deben reconstruirse en el
  * navegador, donde acabarían divergiendo del registro remitido.
  */
-export function VerifactuBlock({ documentId }: { documentId: string }) {
-  const { language } = useTranslation()
+export function VerifactuBlock({ documentId, configureLink }: { documentId: string; configureLink?: ReactNode }) {
+  const { language, locale } = useTranslation()
   const c = (es: string, en: string) => (language === 'es' ? es : en)
   const [record, setRecord] = useState<VerifactuRecord | null>(null)
   const [qr, setQr] = useState('')
   const [loaded, setLoaded] = useState(false)
+  const [revision, setRevision] = useState(0)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     let active = true
     apiFetch<VerifactuRecord[]>(`/api/v1/verifactu-records?documentId=${documentId}`)
       .then((records) => {
         if (!active) return
+        setLoadError('')
         setRecord(records.find((item) => item.recordType === 'ALTA') ?? null)
       })
-      .catch(() => { if (active) setRecord(null) })
+      .catch((cause) => { if (active) { setRecord(null); setLoadError(errorMessage(cause)) } })
       .finally(() => { if (active) setLoaded(true) })
     return () => { active = false }
-  }, [documentId])
+  }, [documentId, revision])
 
   useEffect(() => {
     let active = true
@@ -42,6 +48,8 @@ export function VerifactuBlock({ documentId }: { documentId: string }) {
     return () => { active = false }
   }, [record?.qrPayload])
 
+  // Un fallo de red no equivale a «sin registro»: se avisa para que no parezca que la factura no consta.
+  if (loaded && loadError) return <p className="inline-error" role="alert">{c('No se pudo cargar el registro Veri*Factu: ', 'The Veri*Factu record could not be loaded: ')}{loadError} <button type="button" className="button button-ghost" onClick={() => setRevision((n) => n + 1)}>{c('Reintentar', 'Retry')}</button></p>
   if (!loaded || !record) return null
 
   return (
@@ -55,7 +63,7 @@ export function VerifactuBlock({ documentId }: { documentId: string }) {
         <dl>
           <div><dt>{c('Registro', 'Record')}</dt><dd>{c('N.º', 'No.')} {record.sequenceNumber}</dd></div>
           <div><dt>{c('Emisor', 'Issuer')}</dt><dd>{record.issuerTaxId}</dd></div>
-          <div><dt>{c('Generado', 'Generated')}</dt><dd>{new Date(record.generatedAt).toLocaleString(language === 'es' ? 'es-ES' : 'en-GB')}</dd></div>
+          <div><dt>{c('Generado', 'Generated')}</dt><dd>{formatDateTime(record.generatedAt, locale)}</dd></div>
           <div><dt>{c('Huella', 'Fingerprint')}</dt><dd><code>{record.fingerprint}</code></dd></div>
           <div><dt>{c('Encadenado con', 'Chained to')}</dt><dd><code>{record.previousFingerprint ?? c('Primer registro de la cadena', 'First record of the chain')}</code></dd></div>
           {record.aeatCsv && <div><dt>CSV</dt><dd><code>{record.aeatCsv}</code></dd></div>}
@@ -68,6 +76,7 @@ export function VerifactuBlock({ documentId }: { documentId: string }) {
         </figure>
       )}
       <RecordXml recordId={record.id} invoiceNumber={record.invoiceNumber} />
+      <FiscalDelivery sourceId={record.id} provider="AEAT" configureLink={configureLink} onSent={() => setRevision(n => n + 1)} />
     </div>
   )
 }
@@ -95,14 +104,7 @@ function RecordXml({ recordId, invoiceNumber }: { recordId: string; invoiceNumbe
       .finally(() => setLoading(false))
   }
 
-  const download = () => {
-    const url = URL.createObjectURL(new Blob([xml], { type: 'application/xml' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `registro-${invoiceNumber}.xml`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
+  const download = () => saveBlob(new Blob([xml], { type: 'application/xml' }), `registro-${invoiceNumber}.xml`)
 
   return (
     <details className="verifactu-xml" onToggle={(event) => { if (event.currentTarget.open) load() }}>

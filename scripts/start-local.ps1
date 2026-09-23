@@ -9,9 +9,30 @@ $runtimeRoot = Join-Path $repoRoot '.runtime'
 $logRoot = Join-Path $runtimeRoot 'logs'
 $postgresData = Join-Path $runtimeRoot 'postgres'
 $postgresLog = Join-Path $runtimeRoot 'postgres.log'
-$postgresPort = 55432
-$jwtSecret = 'pera-local-development-secret-2026-minimum-32-bytes'
-$internalServiceKey = 'pera-local-internal-service-key-change-me'
+$postgresPort = 15432
+
+# Secretos locales aleatorios por instalación, guardados en .runtime (fuera de Git) para que
+# sobrevivan a los reinicios. Si la variable de entorno ya existe, se respeta.
+function Get-LocalSecret {
+    param([string]$FileName, [string]$EnvironmentValue)
+
+    if ($EnvironmentValue) {
+        return $EnvironmentValue
+    }
+    $secretPath = Join-Path $runtimeRoot $FileName
+    if (-not (Test-Path -LiteralPath $secretPath)) {
+        New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
+        $secretBytes = New-Object byte[] 48
+        $secretRng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+        $secretRng.GetBytes($secretBytes)
+        $secretRng.Dispose()
+        [System.IO.File]::WriteAllText($secretPath, [Convert]::ToBase64String($secretBytes))
+    }
+    return [System.IO.File]::ReadAllText($secretPath).Trim()
+}
+
+$jwtSecret = Get-LocalSecret 'jwt-secret.key' $env:PERA_JWT_SECRET
+$internalServiceKey = Get-LocalSecret 'internal-service.key' $env:PERA_INTERNAL_SERVICE_KEY
 
 # NIF del productor del software ante la AEAT. En desarrollo se usa el NIF de ejemplo que la propia
 # AEAT emplea en su documentacion. En produccion es el NIF real de quien comercializa PERA y debe
@@ -538,7 +559,5 @@ if ($pending.Count -gt 0) {
 
 Write-Host ''
 Write-Host 'PERA ERP esta listo en http://localhost:5173' -ForegroundColor Green
-Write-Host 'Usuario: admin'
-Write-Host 'Contrasena: ChangeMe123!'
-Write-Host 'Perfiles demo: admin, administracion, economia, logistica y catalogo'
+Write-Host 'Inicia sesion con tu usuario. Si aun usas la contrasena inicial de desarrollo, cambiala en Usuarios.'
 Write-Host 'Para detenerlo: .\scripts\stop-local.ps1'

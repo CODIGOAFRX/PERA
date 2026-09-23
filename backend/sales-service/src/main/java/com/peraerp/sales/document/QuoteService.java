@@ -85,13 +85,16 @@ public class QuoteService {
     }
 
     @Transactional
-    public DocumentResponse convertAccepted(UUID id) {
+    public DocumentResponse convertAccepted(UUID id) { return convertAccepted(id, false); }
+
+    @Transactional
+    public DocumentResponse convertAccepted(UUID id, boolean riskAcknowledged) {
         CommercialDocument quote = requireQuote(id);
         quote.expireQuoteIfDue(LocalDate.now());
         if (quote.getQuoteStatus() != QuoteStatus.ACCEPTED) {
             throw new BusinessRuleException("El presupuesto debe estar aceptado antes de convertirlo.");
         }
-        return documentService.convert(id);
+        return documentService.convert(id, riskAcknowledged);
     }
 
     @Transactional

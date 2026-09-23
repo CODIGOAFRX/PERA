@@ -11,7 +11,7 @@ export function ContactDetailsFields({ value, onChange, prefix }: { value: Conta
     ['iban', 'Cuenta bancaria · IBAN (opcional)', 'Bank account · IBAN (optional)', 42],
     ['bankAccountHolder', 'Titular de la cuenta (opcional)', 'Account holder (optional)', 180],
   ]
-  return <>{fields.map(([key, es, en, maxLength]) => <Field key={key} label={language === 'es' ? es : en} htmlFor={`${prefix}-${key}`}>
+  return <>{fields.map(([key, es, en, maxLength]) => <Field key={key} label={language === 'es' ? es : en} htmlFor={`${prefix}-${key}`} name={`details.${key}`}>
     <input id={`${prefix}-${key}`} value={value[key] ?? ''} maxLength={maxLength} spellCheck={false}
       onChange={event => onChange({ ...value, [key]: key === 'iban' || key === 'countryCode' ? event.target.value.toUpperCase() : event.target.value })} />
   </Field>)}</>

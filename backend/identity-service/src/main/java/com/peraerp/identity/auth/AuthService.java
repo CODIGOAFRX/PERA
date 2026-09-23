@@ -7,12 +7,14 @@ import com.peraerp.identity.company.CompanyRepository;
 import com.peraerp.identity.config.JwtProperties;
 import com.peraerp.identity.user.AppUser;
 import com.peraerp.identity.user.AppUserRepository;
+import com.peraerp.identity.user.PasswordPolicy;
 import com.peraerp.platform.domain.AuthenticationFailedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class AuthService {
@@ -23,6 +25,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
+    private volatile String timingEqualizerHash;
 
     public AuthService(AppUserRepository userRepository, UserCompanyRepository membershipRepository,
                        CompanyRepository companyRepository, PasswordEncoder passwordEncoder,
@@ -39,8 +42,13 @@ public class AuthService {
     public LoginResponse login(LoginRequest request) {
         AppUser user = userRepository.findByUsernameIgnoreCase(request.username())
                 .filter(AppUser::isActive)
-                .orElseThrow(() -> new AuthenticationFailedException("Usuario o contraseña incorrectos."));
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+                .orElse(null);
+        // Hash even for unknown users so response time does not reveal which usernames exist.
+        // Passwords over BCrypt's 72-byte limit can never have been stored; still hash to keep timing uniform.
+        boolean fits = PasswordPolicy.fitsBcrypt(request.password());
+        boolean passwordMatches = passwordEncoder.matches(fits ? request.password() : "",
+                user == null ? timingEqualizerHash() : user.getPasswordHash()) && fits;
+        if (user == null || !passwordMatches) {
             throw new AuthenticationFailedException("Usuario o contraseña incorrectos.");
         }
 
@@ -67,6 +75,15 @@ public class AuthService {
         String token = jwtService.issue(user, selected);
         return new LoginResponse(token, "Bearer", jwtProperties.ttl().toSeconds(), false,
                 List.of(new CompanyOption(company.getId(), company.getCode(), company.getName())));
+    }
+
+    private String timingEqualizerHash() {
+        String hash = timingEqualizerHash;
+        if (hash == null) {
+            hash = passwordEncoder.encode(UUID.randomUUID().toString());
+            timingEqualizerHash = hash;
+        }
+        return hash;
     }
 
     private List<CompanyOption> companyOptions(List<UserCompany> memberships) {

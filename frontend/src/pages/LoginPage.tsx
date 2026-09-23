@@ -10,8 +10,8 @@ import type { CompanyOption } from '../types/api'
 export function LoginPage() {
   const { login } = useAuth()
   const { t } = useTranslation()
-  const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('ChangeMe123!')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [companies, setCompanies] = useState<CompanyOption[]>([])
   const [loading, setLoading] = useState(false)

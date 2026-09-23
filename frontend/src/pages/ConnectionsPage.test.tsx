@@ -4,6 +4,7 @@ import { ConnectionsPage } from './ConnectionsPage'
 import { I18nProvider } from '../i18n/I18nProvider'
 const { api } = vi.hoisted(() => ({ api: vi.fn() }))
 vi.mock('../lib/api', () => ({ apiFetch: api, errorMessage: (e: Error) => e.message }))
+vi.mock('../components/FiscalConnections', () => ({ FiscalConnections: () => null }))
 beforeEach(() => { api.mockReset(); localStorage.clear() })
 it('requires saving changed credentials before testing or enabling sends', async () => {
   api.mockResolvedValue({ configured: true, encryptionReady: true, host: 'smtp.example.test', port: 587, username: 'user', senderName: 'Demo', senderEmail: 'sender@example.test', security: 'STARTTLS', enabled: false, autoInvoices: false, verifiedAt: '2026-09-22', passwordStored: true })

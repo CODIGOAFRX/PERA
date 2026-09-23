@@ -50,7 +50,7 @@ public class VerifactuInvoicePayloadFactory {
 
     public RecordPayloadFactory forInvoice(CommercialDocument invoice, VerifactuSettings settings) {
         List<TaxBreakdownEntry> breakdown = breakdownAggregator.aggregate(invoice.getLines(),
-                settings.getDefaultRegimeKey(), defaultQualification(settings));
+                settings.getDefaultRegimeKey(), defaultQualification(settings), invoice.getExchangeRate());
 
         return context -> xmlWriter.write(new RegistroAltaContent(
                 settings.getIssuerTaxId(),

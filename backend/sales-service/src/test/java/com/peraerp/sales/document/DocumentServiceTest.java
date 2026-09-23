@@ -45,7 +45,7 @@ class DocumentServiceTest {
     @BeforeEach
     void setUp() {
         service = new DocumentService(documents, numberGenerator, new DocumentAmountsCalculator(), companyProvider,
-                events, currencyService, masterDataService, verifactuIssuance);
+                events, currencyService, masterDataService, verifactuIssuance, new CreditRiskService(documents, companyProvider));
         when(companyProvider.requireCompanyId()).thenReturn(companyId);
         lenient().when(masterDataService.requireActiveCustomer(any())).thenAnswer(invocation ->
                 new CustomerSnapshot(invocation.getArgument(0), "C001", "Cliente Demo", true));
@@ -86,6 +86,7 @@ class DocumentServiceTest {
         source.applyCustomerContactSnapshot("client@example.test", "Calle Mayor 1, Madrid");
         source.recalculate(new DocumentAmountsCalculator());
         source.confirm();
+        source.acceptQuote(java.time.Instant.now(), LocalDate.now());
         when(documents.findByIdAndCompanyId(sourceId, companyId)).thenReturn(Optional.of(source));
         when(numberGenerator.next(eq(companyId), eq(DocumentType.DELIVERY_NOTE), any(LocalDate.class), eq(null)))
                 .thenReturn("ALB-2026-000001");
@@ -124,6 +125,90 @@ class DocumentServiceTest {
                 .isInstanceOf(BusinessRuleException.class);
         assertThatThrownBy(() -> service.updatePaymentStatus(invoiceId, PaymentStatus.NOT_APPLICABLE))
                 .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    void convertsTheReportedDeliveryNoteWithRoundedInvoiceTotals() {
+        UUID sourceId = UUID.randomUUID();
+        CommercialDocument source = document(sourceId, DocumentType.DELIVERY_NOTE);
+        source.addLine(new DocumentLine(null, "P1", "Creatina", new BigDecimal("2"),
+                new BigDecimal("27.95"), BigDecimal.ZERO, new BigDecimal("21")));
+        source.recalculate(new DocumentAmountsCalculator());
+        // Existing delivery notes retain the original four-decimal amounts in storage.
+        ReflectionTestUtils.setField(source, "taxAmount", new BigDecimal("11.7390"));
+        ReflectionTestUtils.setField(source, "totalAmount", new BigDecimal("67.6390"));
+        source.confirm();
+        when(documents.findByIdAndCompanyId(sourceId, companyId)).thenReturn(Optional.of(source));
+        when(numberGenerator.next(eq(companyId), eq(DocumentType.INVOICE), any(), eq(null))).thenReturn("FAC-TEST");
+        when(documents.save(any(CommercialDocument.class))).thenAnswer(invocation -> withId(invocation.getArgument(0)));
+
+        DocumentResponse result = service.convert(sourceId);
+
+        assertThat(result.taxAmount()).isEqualByComparingTo("11.74");
+        assertThat(result.totalAmount()).isEqualByComparingTo("67.64");
+        assertThat(source.getTaxAmount()).isEqualByComparingTo("11.7390");
+        verify(verifactuIssuance).recordIssuance(any(CommercialDocument.class));
+    }
+
+    @Test
+    void genericConversionCannotBypassQuoteAcceptance() {
+        UUID sourceId = UUID.randomUUID();
+        CommercialDocument source = document(sourceId, DocumentType.QUOTE);
+        source.configureQuoteValidity(LocalDate.now().plusDays(30));
+        source.confirm();
+        when(documents.findByIdAndCompanyId(sourceId, companyId)).thenReturn(Optional.of(source));
+        assertThatThrownBy(() -> service.convert(sourceId)).isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("aceptado");
+        org.mockito.Mockito.verifyNoInteractions(numberGenerator, events, verifactuIssuance);
+    }
+
+    @Test
+    void draftInvoicesCannotBeRectified() {
+        UUID originalId = UUID.randomUUID();
+        CommercialDocument original = document(originalId, DocumentType.INVOICE);
+        when(documents.findByIdAndCompanyId(originalId, companyId)).thenReturn(Optional.of(original));
+        var basic = request(DocumentType.RECTIFYING_INVOICE, true);
+        when(currencyService.resolve("EUR", basic.issueDate())).thenReturn(
+                new DocumentCurrencySnapshot("EUR", BigDecimal.ONE, basic.issueDate(), "IDENTITY"));
+        var request = new CreateDocumentRequest(basic.type(), basic.customerId(), basic.customerCode(),
+                basic.customerName(), basic.issueDate(), basic.dueDate(), basic.currency(), basic.paymentMethodId(),
+                basic.notes(), true, basic.lines(), null,
+                com.peraerp.sales.verifactu.domain.InvoiceKind.R1,
+                com.peraerp.sales.verifactu.domain.RectificationType.DIFFERENCES, originalId);
+        assertThatThrownBy(() -> service.create(request)).isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("borradores");
+        org.mockito.Mockito.verify(documents, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void issuesADraftInvoiceAndRegistersItInVerifactu() {
+        UUID id = UUID.randomUUID();
+        CommercialDocument draft = document(id, DocumentType.INVOICE);
+        when(documents.findByIdAndCompanyId(id, companyId)).thenReturn(Optional.of(draft));
+        when(documents.save(any(CommercialDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        DocumentResponse response = service.confirmDraft(id, false);
+
+        assertThat(response.status()).isEqualTo(DocumentStatus.CONFIRMED);
+        assertThat(draft.isIssued()).isTrue();
+        verify(verifactuIssuance).recordIssuance(draft);
+        verify(events).record(eq("CommercialDocument"), eq(id), eq("DocumentConfirmed"), any());
+    }
+
+    @Test
+    void onlyDraftsOtherThanQuotesCanBeConfirmedHere() {
+        UUID invoiceId = UUID.randomUUID();
+        CommercialDocument issued = document(invoiceId, DocumentType.INVOICE);
+        issued.confirm();
+        when(documents.findByIdAndCompanyId(invoiceId, companyId)).thenReturn(Optional.of(issued));
+        assertThatThrownBy(() -> service.confirmDraft(invoiceId, false)).isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("borrador");
+
+        UUID quoteId = UUID.randomUUID();
+        when(documents.findByIdAndCompanyId(quoteId, companyId)).thenReturn(Optional.of(document(quoteId, DocumentType.QUOTE)));
+        assertThatThrownBy(() -> service.confirmDraft(quoteId, false)).isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Presupuestos");
+        org.mockito.Mockito.verifyNoInteractions(verifactuIssuance);
     }
 
     private CreateDocumentRequest request(DocumentType type, boolean confirm) {

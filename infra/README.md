@@ -12,6 +12,6 @@ La aplicación queda disponible en `http://localhost:5173`. El Nginx del fronten
 Credenciales iniciales del entorno local:
 
 - Usuario: `admin`
-- Contraseña: valor de `PERA_BOOTSTRAP_ADMIN_PASSWORD` (`ChangeMe123!` en el ejemplo)
+- Contraseña: valor de `PERA_BOOTSTRAP_ADMIN_PASSWORD` en `infra/.env`. Usa una propia en lugar del valor de `.env.example` y cámbiala desde **Usuarios** tras el primer acceso.
 
 El script de creación de bases solo se ejecuta cuando el volumen está vacío. Para reinicializar datos de desarrollo se debe retirar explícitamente el volumen con `docker compose down -v`; no se debe usar ese comando en entornos con datos que deban conservarse.

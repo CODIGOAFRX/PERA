@@ -144,7 +144,15 @@ public class InvoicePdfService {
             sums[1] = sums[1].add(zeroIfNull(line.getTaxAmount()));
         }
         List<InvoicePdfContent.TaxRow> rows = new ArrayList<>();
-        byRate.forEach((rate, sums) -> rows.add(new InvoicePdfContent.TaxRow(rate, sums[0], sums[1])));
+        List<BigDecimal> bases = com.peraerp.sales.document.MonetaryRounding.distribute(
+                byRate.values().stream().map(sums -> sums[0]).toList());
+        List<BigDecimal> taxes = com.peraerp.sales.document.MonetaryRounding.distribute(
+                byRate.values().stream().map(sums -> sums[1]).toList());
+        int index = 0;
+        for (BigDecimal rate : byRate.keySet()) {
+            rows.add(new InvoicePdfContent.TaxRow(rate, bases.get(index), taxes.get(index)));
+            index++;
+        }
         return rows;
     }
 

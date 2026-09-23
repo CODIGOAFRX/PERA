@@ -40,7 +40,14 @@ button, a { -webkit-tap-highlight-color: transparent; }
 button { color: inherit; }
 a { color: inherit; text-decoration: none; }
 h1, h2, h3, p { margin-top: 0; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(47, 189, 97, 0.24); outline-offset: 2px; }
+/* Visible focus with at least 3:1 contrast against light surfaces (WCAG 2.4.7 / 1.4.11). */
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible, summary:focus-visible { outline: 2px solid var(--focus-ring, #2f6b3f); outline-offset: 2px; }
+.skip-link { position: fixed; left: 12px; top: -60px; z-index: 200; padding: 10px 16px; border-radius: 8px; background: #1d3327; color: #fff; font-weight: 700; font-size: 13px; transition: top 120ms ease; }
+.skip-link:focus, .skip-link:focus-visible { top: 12px; outline: 2px solid #fff; outline-offset: -4px; }
+.app-main:focus { outline: none; }
+.modal-panel:focus { outline: none; }
+.form-field .field-error { color: #9b3a3a; font-weight: 600; }
+.field-invalid input, .field-invalid select, .field-invalid textarea, input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #b24a4a; }
 .sr-only, .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* Buttons and inputs */
@@ -887,7 +894,7 @@ tr.document-row-converted td::after { content: ""; position: absolute; z-index: 
   background: #f7f8f3;
   --ink: #252923;
   --muted: #68715f;
-  --subtle: #929888;
+  --subtle: #6b7162;
   --line: #e7e9e0;
   --line-strong: #d8ddcf;
   --canvas: #f7f8f3;
@@ -899,6 +906,8 @@ tr.document-row-converted td::after { content: ""; position: absolute; z-index: 
   --pear-600: #294b38;
   --pear-700: #243e2f;
   --pear-800: #1d3327;
+  --danger: #a33f3f;
+  --focus-ring: #2f6b3f;
   --radius-sm: 5px;
   --radius: 7px;
   --radius-lg: 9px;
@@ -912,7 +921,7 @@ tr.document-row-converted td::after { content: ""; position: absolute; z-index: 
   letter-spacing: -.035em;
 }
 .page-header h1 { font-size: clamp(28px, 3vw, 36px); line-height: 1.15; }
-.eyebrow, .nav-label { color: #737c66; font-weight: 600; letter-spacing: .16em; font-size: 9px; }
+.eyebrow, .nav-label { color: #636b57; font-weight: 600; letter-spacing: .16em; font-size: 9px; }
 .sidebar { background: #fcfcf9; }
 .brand strong { font-size: 24px; letter-spacing: -.025em; }
 .brand-mark { background: #edf2e7; color: #399041; box-shadow: none; border-radius: 7px; }
@@ -935,7 +944,7 @@ tr.document-row-converted td::after { content: ""; position: absolute; z-index: 
 th { background: #fafbf7; color: #747c6b; font-weight: 500; }
 .status-badge { font-weight: 500; }
 .modal { border-radius: 9px; }
-input:focus, select:focus, textarea:focus { border-color: #849c70; box-shadow: 0 0 0 3px rgba(101,128,77,.13); }
+input:focus, select:focus, textarea:focus { border-color: #51964b; box-shadow: 0 0 0 3px rgba(81,150,75,.28); }
 .connection-panel { padding: 28px; }
 .connection-heading { display: flex; align-items: center; gap: 15px; }
 .connection-heading h2 { margin: 0 0 5px; font-size: 26px; }
@@ -972,3 +981,36 @@ input:focus, select:focus, textarea:focus { border-color: #849c70; box-shadow: 0
 .document-pdf-preview { margin-top: 28px; border-top: 1px solid var(--border); padding-top: 16px; }
 .document-pdf-preview object { display: block; width: 100%; height: 850px; border: 1px solid var(--border); background: #f4f4ef; }
 @media (max-width: 640px) { .document-print-center { padding: 18px; } .document-pdf-preview object { height: 540px; } .document-print-filters > * { width: 100%; } }
+
+/* Conexiones fiscales de pruebas (AEAT / B2Brouter) y remisión desde el detalle de factura */
+.fiscal-connection .connection-heading > div { flex: 1; }
+.fiscal-connection-intro { color: var(--muted); font-size: 13px; line-height: 1.65; margin: 16px 0 0; }
+.fiscal-connection-intro a { color: var(--pear-700); text-decoration: underline; text-underline-offset: 3px; }
+.fiscal-connection-fields { border: 0; padding: 0; margin: 20px 0 0; display: grid; gap: 14px; min-width: 0; }
+.fiscal-connection .connection-success { display: flex; align-items: center; gap: 6px; }
+.fiscal-delivery { display: grid; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.fiscal-delivery-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.fiscal-delivery-heading h3 { margin: 0; font-size: 15px; }
+.fiscal-delivery p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.fiscal-delivery-actions { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.fiscal-delivery-actions label { display: grid; gap: 5px; font-size: 12.5px; flex: 1 1 220px; }
+
+/* Confirmation dialog */
+.confirm-dialog { padding: var(--modal-padding); }
+.confirm-message { display: flex; align-items: flex-start; gap: 10px; margin: 4px 0 0; line-height: 1.5; color: var(--ink); }
+.confirm-icon { flex: none; color: var(--danger); margin-top: 1px; }
+
+/* Stored certificate summary */
+.certificate-summary { margin-top: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--canvas); padding: 12px 14px; }
+.certificate-summary dl { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 18px; }
+.certificate-summary dt { color: var(--muted); font-size: 11.5px; }
+.certificate-summary dd { margin: 2px 0 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.certificate-warning { display: flex; align-items: flex-start; gap: 6px; margin: 10px 0 0; color: #7d5b1f; font-size: 12.5px; line-height: 1.5; }
+.certificate-warning svg { flex: none; margin-top: 2px; }
+.fiscal-delivery-inactive { margin: 12px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.fiscal-delivery-inactive a { color: var(--pear-700); text-decoration: underline; text-underline-offset: 3px; }
+.line-editor-row .field-error { display: block; margin-top: 3px; font-size: 11px; line-height: 1.35; }
+
+/* Customer credit risk notice in the document form */
+.credit-risk-notice { display: grid; gap: 4px; margin-top: 14px; padding: 10px 12px; border: 1px solid #ecdcb8; border-radius: 9px; background: var(--warning-soft); color: #6f5119; font-size: 12.5px; line-height: 1.5; }
+.credit-risk-notice.credit-risk-blocking { border-color: #efd1d1; background: var(--danger-soft); color: #8d4242; }
