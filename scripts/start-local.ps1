@@ -86,7 +86,7 @@ function Assert-PortAvailable([int]$Port) {
 # ---------------------------------------------------------------------------
 # JAVA / JDK
 #
-# PERA necesita Java 17 o superior.
+# PERA necesita Java 21 o superior: backend/pom.xml compila con <release>21</release>.
 #
 # No usamos directamente "java" porque Windows puede tener un Java antiguo
 # (por ejemplo Java 8 de Oracle) antes que el JDK moderno en el PATH.
@@ -190,7 +190,7 @@ function Resolve-CompatibleJava {
 
         $major = Get-JavaMajorVersion $candidate
 
-        if ($major -ge 17) {
+        if ($major -ge 21) {
             $compatible += [PSCustomObject]@{
                 Path  = $candidate
                 Major = $major
@@ -200,9 +200,9 @@ function Resolve-CompatibleJava {
 
     if ($compatible.Count -eq 0) {
         throw @"
-No se ha encontrado un JDK Java 17 o superior.
+No se ha encontrado un JDK Java 21 o superior.
 
-PERA necesita JDK 17+ para compilar y ejecutar el backend.
+PERA necesita JDK 21+ para compilar y ejecutar el backend.
 
 Se recomienda instalar:
 
@@ -216,19 +216,15 @@ Despues vuelve a ejecutar:
 
     # Preferencia:
     # 1. Java 21 LTS
-    # 2. Java 17 LTS
-    # 3. Cualquier otro Java >= 17
+    # 2. El Java >= 21 mas antiguo disponible
     $selected = $compatible |
         Sort-Object `
             @{ Expression = {
                     if ($_.Major -eq 21) {
                         0
                     }
-                    elseif ($_.Major -eq 17) {
-                        1
-                    }
                     else {
-                        2
+                        1
                     }
                 }
             },

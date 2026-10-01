@@ -1,4 +1,4 @@
-# 12 — Veri*Factu en PERA: análisis y plan de implementación
+# 13 — Veri*Factu en PERA: análisis y plan de implementación
 
 > Estado: propuesta de trabajo. Ninguna línea de este documento sustituye a la fuente
 > normativa. Antes de codificar cada bloque hay que abrir el PDF oficial correspondiente
