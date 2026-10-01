@@ -16,6 +16,7 @@
 - 18 · [AEAT y B2Brouter: integración de pruebas](18-integraciones-pruebas.md)
 - 19 · [Mapa de migración desde DimproCristalWin](19-mapa-migracion-dimprocristalwin.md)
 - 20 · [Compras e inventario básico](20-compras-inventario.md)
+- 21 · [Cartera y caja](21-cartera-y-caja.md)
 
 Notas de sesión: [traspaso de contexto del 23-09-2026](TRASPASO-CONTEXTO-2026-09-23.md).
 

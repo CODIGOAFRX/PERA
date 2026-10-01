@@ -156,6 +156,7 @@ function auditResourceLabel(resource: string, language: string): string {
     VERIFACTU_RECORDS: ['Registro VeriFactu', 'VeriFactu record'], SHIPMENT: ['Expedición', 'Shipment'], SHIPMENTS: ['Expedición', 'Shipment'],
     PAYMENT_METHOD: ['Forma de pago', 'Payment method'], PAYMENT_METHODS: ['Forma de pago', 'Payment method'],
     DUE_DATE: ['Vencimiento', 'Due date'], DUE_DATES: ['Vencimiento', 'Due date'],
+    RECEIPT: ['Recibo de cobro', 'Receipt'], REMITTANCE: ['Remesa', 'Remittance'], CASH_REGISTER: ['Caja', 'Cash register'], CASH_SESSION: ['Sesión de caja', 'Cash session'],
     PRODUCT_NATURES: ['Naturaleza de producto', 'Product nature'], PRODUCT_SUPERTYPES: ['Supertipo de producto', 'Product supertype'],
     PRODUCT_TYPES: ['Tipo de producto', 'Product type'], PRODUCT_GROUPS: ['Grupo de productos', 'Product group'],
     TAX_CODES: ['Código fiscal', 'Tax code'], TARIFFS: ['Tarifa', 'Tariff'], PACKAGING_TYPES: ['Tipo de embalaje', 'Packaging type'],

@@ -4,4 +4,5 @@ import java.util.*;
 public interface DocumentDueDateRepository extends JpaRepository<DocumentDueDate,UUID>{
     boolean existsByCompanyIdAndDocumentId(UUID companyId,UUID documentId);
     List<DocumentDueDate> findAllByCompanyIdAndDocumentIdOrderByInstallmentNumber(UUID companyId,UUID documentId);
+    java.util.Optional<DocumentDueDate> findByIdAndCompanyId(UUID id,UUID companyId);
 }

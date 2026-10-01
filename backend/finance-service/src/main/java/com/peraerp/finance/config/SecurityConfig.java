@@ -21,8 +21,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/currency-conversions/**").hasAuthority("currencies:read")
                 .requestMatchers("/api/v1/currencies/**", "/api/v1/exchange-rates/**")
                     .hasAuthority("currencies:write")
-                .requestMatchers(HttpMethod.GET, "/api/v1/payment-methods/**", "/api/v1/due-dates/**").hasAuthority("finance:read")
-                .requestMatchers("/api/v1/payment-methods/**", "/api/v1/due-dates/**").hasAuthority("finance:write")
+                .requestMatchers(HttpMethod.GET, "/api/v1/payment-methods/**", "/api/v1/due-dates/**",
+                        "/api/v1/receipts/**", "/api/v1/remittances/**", "/api/v1/cash-registers/**",
+                        "/api/v1/cash-sessions/**").hasAuthority("finance:read")
+                .requestMatchers("/api/v1/payment-methods/**", "/api/v1/due-dates/**",
+                        "/api/v1/receipts/**", "/api/v1/remittances/**", "/api/v1/cash-registers/**",
+                        "/api/v1/cash-sessions/**").hasAuthority("finance:write")
                 .requestMatchers(HttpMethod.GET, "/api/v1/accounting/**").hasAuthority("accounting:read")
                 .requestMatchers("/api/v1/accounting/**").hasAuthority("accounting:write")
                 .anyRequest().authenticated()).oauth2ResourceServer(s -> s.jwt(jwt ->

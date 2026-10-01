@@ -10,10 +10,13 @@ import { apiFetch, errorMessage } from '../lib/api'
 import { formatCurrency, formatDate, formatNumber } from '../lib/format'
 import { paymentStatusKey } from '../i18n/businessLabels'
 import { useTranslation } from '../i18n/I18nProvider'
-import type { CommercialDocument, DueDate, PageResponse, PaymentMethod, PaymentMethodInput } from '../types/api'
+import type { CommercialDocument, DueDate, PageResponse, PaymentMethod, PaymentMethodInput, Receipt } from '../types/api'
+import { Link } from '../routing/Router'
 
 export function FinancePage() {
-  const { locale, t } = useTranslation()
+  const { language, locale, t } = useTranslation()
+  const c = (es: string, en: string) => language === 'es' ? es : en
+  const [receipts, setReceipts] = useState<Receipt[]>([])
   const [methods, setMethods] = useState<PaymentMethod[]>([])
   const [invoices, setInvoices] = useState<CommercialDocument[]>([])
   const [selected, setSelected] = useState<CommercialDocument | null>(null)
@@ -35,8 +38,11 @@ export function FinancePage() {
   }, [refresh])
 
   const selectInvoice = async (invoice: CommercialDocument) => {
-    setSelected(invoice); setLoadingDue(true); setDueDates([])
-    try { setDueDates(await apiFetch<DueDate[]>(`/api/v1/due-dates?documentId=${invoice.id}`)) }
+    setSelected(invoice); setLoadingDue(true); setDueDates([]); setReceipts([])
+    try {
+      setDueDates(await apiFetch<DueDate[]>(`/api/v1/due-dates?documentId=${invoice.id}`))
+      setReceipts(await apiFetch<Receipt[]>(`/api/v1/receipts/by-document/${invoice.id}`))
+    }
     catch (cause) { notify(errorMessage(cause), 'error') } finally { setLoadingDue(false) }
   }
 
@@ -46,7 +52,16 @@ export function FinancePage() {
     try {
       const generated = await apiFetch<DueDate[]>('/api/v1/due-dates/generate', { method: 'POST', body: JSON.stringify({ documentId: selected.id, paymentMethodId: selected.paymentMethodId, issueDate: selected.issueDate, totalAmount: selected.totalAmount }) })
       setDueDates(generated); notify(t('finance.dueDatesCreated'))
+      await issueReceipts(selected)
     } catch (cause) { notify(errorMessage(cause), 'error') } finally { setLoadingDue(false) }
+  }
+
+  // Cada vencimiento necesita su recibo para poder cobrarse o remesarse desde Cartera.
+  const issueReceipts = async (invoice: CommercialDocument) => {
+    try {
+      const issued = await apiFetch<Receipt[]>('/api/v1/receipts/issue', { method: 'POST', body: JSON.stringify({ documentId: invoice.id, documentNumber: invoice.number, customerId: invoice.customerId, customerCode: invoice.customerCode, customerName: invoice.customerName, currencyCode: invoice.currency }) })
+      setReceipts((current) => [...current, ...issued]); notify(c(`${issued.length} recibos emitidos.`, `${issued.length} receipts issued.`))
+    } catch (cause) { notify(errorMessage(cause), 'error') }
   }
 
   const invoiceTotals = Object.entries(invoices.reduce<Record<string, number>>((totals, invoice) => {
@@ -73,7 +88,7 @@ export function FinancePage() {
       </div>
       <div className="panel due-date-panel">
         <div className="panel-heading"><div><span className="eyebrow">{t('finance.planning')}</span><h2>{t('finance.dueDates')}</h2></div>{selected && <span className="code-cell">{selected.number}</span>}</div>
-        {!selected ? <EmptyState title={t('finance.selectInvoice')} description={t('finance.selectInvoiceDescription')} /> : loadingDue ? <LoadingState label={t('finance.loadingDueDates')} /> : dueDates.length > 0 ? <div className="due-date-list">{dueDates.map((dueDate) => <div key={dueDate.id || dueDate.installment}><span className="due-icon"><CalendarClock size={18} /></span><span><strong>{t('finance.installment', { number: dueDate.installment })}</strong><small>{formatDate(dueDate.dueDate, locale)}</small></span><StatusBadge tone={dueDate.status === 'PAID' ? 'success' : 'warning'}>{dueDate.status === 'PAID' ? t('finance.paid') : t('finance.pending')}</StatusBadge><strong>{formatCurrency(dueDate.amount, selected.currency, locale)}</strong></div>)}<div className="due-total"><span>{t('finance.plannedTotal')}</span><strong>{formatCurrency(dueDates.reduce((total, dueDate) => total + Number(dueDate.amount), 0), selected.currency, locale)}</strong></div></div> : <div className="generate-due"><span className="empty-icon"><CalendarClock size={22} /></span><h3>{t('finance.noDueDates')}</h3>{selected.paymentMethodId ? <><p>{t('finance.generateDescription')}</p><button className="button button-primary" type="button" onClick={generateDueDates}>{t('finance.generate')}</button></> : <p>{t('finance.noPaymentAssigned')}</p>}</div>}
+        {!selected ? <EmptyState title={t('finance.selectInvoice')} description={t('finance.selectInvoiceDescription')} /> : loadingDue ? <LoadingState label={t('finance.loadingDueDates')} /> : dueDates.length > 0 ? <div className="due-date-list">{dueDates.map((dueDate) => <div key={dueDate.id || dueDate.installment}><span className="due-icon"><CalendarClock size={18} /></span><span><strong>{t('finance.installment', { number: dueDate.installment })}</strong><small>{formatDate(dueDate.dueDate, locale)}</small></span><StatusBadge tone={dueDate.status === 'PAID' ? 'success' : 'warning'}>{dueDate.status === 'PAID' ? t('finance.paid') : t('finance.pending')}</StatusBadge><strong>{formatCurrency(dueDate.amount, selected.currency, locale)}</strong></div>)}<div className="due-total"><span>{t('finance.plannedTotal')}</span><strong>{formatCurrency(dueDates.reduce((total, dueDate) => total + Number(dueDate.amount), 0), selected.currency, locale)}</strong></div><div className="due-receipts">{receipts.some((receipt) => receipt.status !== 'CANCELLED') ? <span>{c(`${receipts.filter((receipt) => receipt.status !== 'CANCELLED').length} recibos emitidos.`, `${receipts.filter((receipt) => receipt.status !== 'CANCELLED').length} receipts issued.`)} <Link to="/cartera">{c('Cobrar en Cartera', 'Collect in Collections')}</Link></span> : <button className="button button-secondary button-small" type="button" onClick={() => void issueReceipts(selected)}>{c('Emitir recibos de cobro', 'Issue receipts')}</button>}</div></div> : <div className="generate-due"><span className="empty-icon"><CalendarClock size={22} /></span><h3>{t('finance.noDueDates')}</h3>{selected.paymentMethodId ? <><p>{t('finance.generateDescription')}</p><button className="button button-primary" type="button" onClick={generateDueDates}>{t('finance.generate')}</button></> : <p>{t('finance.noPaymentAssigned')}</p>}</div>}
       </div>
     </section>
     <Modal open={creating} title={t('finance.newPaymentMethod')} description={t('finance.methodDescription')} onClose={() => setCreating(false)}><PaymentMethodForm onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); setRefresh((value) => value + 1); notify(t('finance.methodCreated')) }} /></Modal>

@@ -137,7 +137,7 @@ function roleDescription(code: string, language: 'es' | 'en') {
   const descriptions: Record<string, [string, string]> = {
     OWNER: ['Acceso total y control de propietarios.', 'Full access and owner-level control.'],
     ADMIN: ['Acceso total y gestión de usuarios.', 'Full access and user management.'],
-    ECONOMY: ['Clientes, presupuestos, ventas y finanzas.', 'Customers, quotes, sales and finance.'],
+    ECONOMY: ['Clientes, presupuestos, ventas, finanzas, cartera y caja.', 'Customers, quotes, sales, finance, collections and cash.'],
     LOGISTICS: ['Proveedores, compras, almacén, rutas, expediciones y procesos.', 'Suppliers, purchases, inventory, routes, shipments and workflows.'],
     CATALOG: ['Productos, precios, impuestos y embalajes.', 'Products, pricing, taxes and packaging.'],
   }

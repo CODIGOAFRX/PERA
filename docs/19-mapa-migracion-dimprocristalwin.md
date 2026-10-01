@@ -35,7 +35,7 @@ El legado tiene unos 375 formularios y varias decenas de carpetas de informes. E
 | Bancos y agencias | Parcial | IBAN opcional en terceros; no hay maestro de bancos ni cuentas de la empresa. |
 | Tipo de documentos y estados | Cubierto | Tipos y estados fijos en `sales-service`. No son configurables por el usuario. |
 | Series de documentos | Cubierto | Numeraciones configurables, `/configuracion`. |
-| Diario de caja, claves y cuentas contables | Parcial | Plan de cuentas y libro diario en `/contabilidad`. Caja (`finance/cash`) solo tiene modelo de datos, sin API ni pantalla. |
+| Diario de caja, claves y cuentas contables | Cubierto | Plan de cuentas y libro diario en `/contabilidad`. Cajas, sesiones, diario y arqueo en `/cartera` ([doc 21](21-cartera-y-caja.md)). Sin claves de apunte configurables. |
 | Monedas | Cubierto | Monedas y tipos de cambio, `/configuracion`. |
 | Calendario de facturación | Pendiente | |
 | Costos (elementos, recursos, tareas, escalas) | Pendiente | No hay escandallo ni costes. |
@@ -90,7 +90,7 @@ El legado tiene unos 375 formularios y varias decenas de carpetas de informes. E
 ## Capacidades del legado que no aparecen en el menú
 
 - **IGIC.** El legado mantiene una rama separada para Canarias, con el impuesto por artículo o por documento según una propiedad de empresa. PERA tiene un catálogo fiscal genérico por país; falta comprobar que cubre IGIC y recargo de equivalencia sin duplicar el producto en dos ramas.
-- **Cartera.** Recibos, vencimientos y remesas viven en un programa aparte (DimproCartera). PERA tiene vencimientos con API y pantalla; recibos y remesas solo tienen modelo de datos.
+- **Cartera.** Recibos, vencimientos y remesas viven en un programa aparte (DimproCartera). PERA los cubre en `/cartera` ([doc 21](21-cartera-y-caja.md)), todavía sin fichero para el banco ni pagos a proveedores.
 - **Informes por cliente.** Cada cliente del legado tiene sus propios formatos de factura, con y sin logo. PERA genera un único PDF de factura con el logo de la empresa; no hay plantillas configurables.
 - **Factura electrónica.** El legado genera Factura-e. PERA tiene Veri*Factu y B2Brouter en pruebas, no Factura-e.
 - **Propiedades de empresa.** El legado activa comportamientos por empresa con propiedades numeradas. En PERA esas variaciones deben modelarse como parámetros de empresa con nombre, no como interruptores numerados.
@@ -98,7 +98,7 @@ El legado tiene unos 375 formularios y varias decenas de carpetas de informes. E
 ## Orden de trabajo propuesto
 
 1. **Compras e inventario básico.** Hecho en su alcance básico ([doc 20](20-compras-inventario.md)), incluida la salida de almacén al confirmar el albarán de venta.
-2. **Cartera completa.** Recibos, remesas y caja: exponer la API y las pantallas sobre el modelo que ya existe.
+2. **Cartera completa.** Hecho ([doc 21](21-cartera-y-caja.md)): recibos, remesas sin fichero bancario y caja. El modelo que existía era solo un esqueleto y hubo que diseñarlo.
 3. **Facturación automática y cierre de ejercicio.** Operativa mensual que hoy se hace en el legado.
 4. **Comerciales y comisiones, grupos de cliente.**
 5. **Reclamaciones y agenda.** Módulos transversales e independientes.

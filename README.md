@@ -10,7 +10,7 @@ PERA es un monorepo de microservicios de granularidad gruesa. La plataforma actu
 - `identity-service`: empresas, usuarios, permisos, parámetros de empresa y almacenamiento seguro de logos.
 - `master-data-service`: clientes, proveedores, productos, importación CSV/Excel, jerarquías, impuestos, tarifas, reglas de precio y embalajes.
 - `sales-service`: numeraciones configurables, presupuestos, pedidos, albaranes, facturas, snapshots y conversiones.
-- `finance-service`: formas de pago, vencimientos, monedas, tipos de cambio, conversiones reproducibles y contabilidad inicial con plan de cuentas, bandeja de facturas y libro diario.
+- `finance-service`: formas de pago, vencimientos, recibos de cobro, remesas y caja, monedas, tipos de cambio, conversiones reproducibles y contabilidad inicial con plan de cuentas, bandeja de facturas y libro diario.
 - `operations-service`: workflows configurables, transportistas, vehículos, rutas, fletes, expediciones y archivos enviados; compras (pedido, albarán de entrada y factura de proveedor) e inventario por almacén con diario de movimientos.
 - `activity-service`: historial central, exportación CSV y alertas personalizadas.
 - `licensing-service`: emisión, activación, validación periódica, suspensión y revocación de licencias.
@@ -36,7 +36,7 @@ La aplicación queda en `http://localhost:5173`. Los cinco usuarios de demostrac
 |---|---|---|
 | `admin` | Propietario | Todo, incluida la protección del perfil propietario |
 | `administracion` | Administrador | Todo y gestión de usuarios no propietarios |
-| `economia` | Economía | Clientes, presupuestos, ventas y finanzas |
+| `economia` | Economía | Clientes, presupuestos, ventas, finanzas, cartera y caja |
 | `logistica` | Logística | Proveedores, compras, almacén, logística y procesos |
 | `catalogo` | Catálogo | Productos, precios, impuestos y embalajes |
 

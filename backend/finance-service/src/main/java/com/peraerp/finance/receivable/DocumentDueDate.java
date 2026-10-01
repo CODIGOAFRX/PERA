@@ -15,5 +15,9 @@ public class DocumentDueDate extends CompanyScopedEntity{
     protected DocumentDueDate(){}
     public DocumentDueDate(UUID companyId,UUID documentId,int installmentNumber,LocalDate dueDate,BigDecimal amount){super(companyId);this.documentId=documentId;this.installmentNumber=installmentNumber;this.dueDate=dueDate;this.amount=amount;}
     public UUID getDocumentId(){return documentId;} public int getInstallmentNumber(){return installmentNumber;} public LocalDate getDueDate(){return dueDate;}
+    /** El recibo de este vencimiento se ha cobrado entero. */
+    public void settle(){this.paidAmount=amount;this.status=DueDateStatus.PAID;}
+    /** El cobro se ha devuelto: el vencimiento vuelve a estar pendiente. */
+    public void reopen(){this.paidAmount=BigDecimal.ZERO;this.status=DueDateStatus.PENDING;}
     public BigDecimal getAmount(){return amount;} public BigDecimal getPaidAmount(){return paidAmount;} public DueDateStatus getStatus(){return status;}
 }

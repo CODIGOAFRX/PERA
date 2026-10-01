@@ -88,6 +88,10 @@ class GatewayAuditEventFactory {
             case "sales-deliveries" -> "SALES_DELIVERY";
             case "payment-methods" -> "PAYMENT_METHOD";
             case "due-dates" -> "DUE_DATE";
+            case "receipts" -> "RECEIPT";
+            case "remittances" -> "REMITTANCE";
+            case "cash-registers" -> "CASH_REGISTER";
+            case "cash-sessions" -> "CASH_SESSION";
             case "accounting" -> "ACCOUNTING";
             default -> segment.replace('-', '_').toUpperCase(Locale.ROOT);
         };

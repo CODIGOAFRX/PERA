@@ -584,3 +584,87 @@ export interface PurchaseDocumentInput {
     taxPercentage: number
   }>
 }
+
+export type ReceiptStatus = 'PENDING' | 'REMITTED' | 'COLLECTED' | 'RETURNED' | 'CANCELLED'
+export type CollectionMethod = 'CASH' | 'BANK_TRANSFER' | 'CARD' | 'DIRECT_DEBIT' | 'CHEQUE' | 'OTHER'
+
+/** Recibo de cobro de un vencimiento de factura. */
+export interface Receipt {
+  id: string
+  receiptNumber: string
+  customerId: string
+  customerCode: string | null
+  customerName: string
+  documentId: string
+  documentNumber: string
+  installment: number
+  amount: number
+  currencyCode: string
+  dueDate: string
+  status: ReceiptStatus
+  collectionDate: string | null
+  collectionMethod: CollectionMethod | null
+  returnDate: string | null
+  returnReason: string | null
+  remittanceId: string | null
+  notes: string | null
+}
+
+/** `invoiceUpdated` es falso cuando la cartera se actualizó pero la factura en Ventas no. */
+export interface ReceiptOperation {
+  receipts: Receipt[]
+  invoiceUpdated: boolean
+}
+
+export type RemittanceStatus = 'DRAFT' | 'SENT' | 'SETTLED' | 'PARTIALLY_RETURNED' | 'CANCELLED'
+
+export interface Remittance {
+  id: string
+  remittanceNumber: string
+  bankAccount: string
+  currencyCode: string
+  creationDate: string
+  sentDate: string | null
+  settlementDate: string | null
+  status: RemittanceStatus
+  totalAmount: number
+  notes: string | null
+  receipts: Receipt[]
+  invoiceUpdated: boolean | null
+}
+
+export interface CashRegister {
+  id: string
+  code: string
+  name: string
+  ownerName: string | null
+  active: boolean
+  openSessionId: string | null
+}
+
+export type CashMovementType = 'OPENING' | 'SALE_COLLECTION' | 'INCOME' | 'EXPENSE' | 'WITHDRAWAL' | 'CLOSING_ADJUSTMENT'
+
+export interface CashMovement {
+  id: string
+  occurredAt: string
+  type: CashMovementType
+  amount: number
+  signedAmount: number
+  receiptId: string | null
+  concept: string
+}
+
+export interface CashSession {
+  id: string
+  cashRegisterId: string
+  status: 'OPEN' | 'CLOSED'
+  openedAt: string
+  closedAt: string | null
+  openingAmount: number
+  balance: number
+  expectedClosingAmount: number | null
+  actualClosingAmount: number | null
+  difference: number | null
+  closingNote: string | null
+  movements: CashMovement[]
+}

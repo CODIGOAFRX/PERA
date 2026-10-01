@@ -1015,3 +1015,4 @@ input:focus, select:focus, textarea:focus { border-color: #51964b; box-shadow: 0
 .credit-risk-notice { display: grid; gap: 4px; margin-top: 14px; padding: 10px 12px; border: 1px solid #ecdcb8; border-radius: 9px; background: var(--warning-soft); color: #6f5119; font-size: 12.5px; line-height: 1.5; }
 .credit-risk-notice.credit-risk-blocking { border-color: #efd1d1; background: var(--danger-soft); color: #8d4242; }
 .detail-notes { margin: 14px 0 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fafbfa; color: var(--muted); font-size: 11.5px; white-space: pre-wrap; }
+.due-receipts { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 10px 16px 14px; color: var(--muted); font-size: 11.5px; }
