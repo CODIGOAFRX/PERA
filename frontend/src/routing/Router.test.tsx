@@ -31,7 +31,7 @@ describe('RouterProvider', () => {
   it('keeps the current routes unique in the canonical registry', () => {
     const paths = appRoutes.map((route) => route.path)
     expect(new Set(paths).size).toBe(paths.length)
-    expect(paths).toEqual(['/', '/impresion', '/clientes', '/proveedores', '/catalogo', '/maestros', '/presupuestos', '/ventas', '/finanzas', '/contabilidad', '/operaciones', '/historial', '/conexiones', '/configuracion', '/usuarios'])
+    expect(paths).toEqual(['/', '/impresion', '/clientes', '/proveedores', '/catalogo', '/maestros', '/presupuestos', '/ventas', '/compras', '/almacen', '/finanzas', '/contabilidad', '/operaciones', '/historial', '/conexiones', '/configuracion', '/usuarios'])
   })
 
   it('keeps economic and logistics workspaces separated by role', () => {
@@ -47,5 +47,10 @@ describe('RouterProvider', () => {
     expect(isRouteAllowed(accounting, ['LOGISTICS'])).toBe(false)
     expect(isRouteAllowed(operations, ['LOGISTICS'])).toBe(true)
     expect(isRouteAllowed(operations, ['ECONOMY'])).toBe(false)
+    for (const id of ['purchases', 'inventory']) {
+      const route = appRoutes.find((item) => item.id === id)!
+      expect(isRouteAllowed(route, ['LOGISTICS'])).toBe(true)
+      expect(isRouteAllowed(route, ['ECONOMY'])).toBe(false)
+    }
   })
 })

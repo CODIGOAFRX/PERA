@@ -162,6 +162,8 @@ function auditResourceLabel(resource: string, language: string): string {
     PRODUCT_PACKAGING: ['Embalaje de artículo', 'Product packaging'], NUMBERING_SCHEMES: ['Numeración', 'Numbering scheme'],
     CURRENCIES: ['Moneda', 'Currency'], EXCHANGE_RATES: ['Tipo de cambio', 'Exchange rate'],
     ACCOUNTING: ['Contabilidad', 'Accounting'],
+    PURCHASE_DOCUMENT: ['Documento de compra', 'Purchase document'], WAREHOUSE: ['Almacén', 'Warehouse'],
+    STOCK_MOVEMENT: ['Movimiento de almacén', 'Stock movement'],
   }
   const label = labels[resource] ?? [resource.replaceAll('_', ' ').toLowerCase(), resource.replaceAll('_', ' ').toLowerCase()]
   return label[language === 'es' ? 0 : 1]

@@ -11,7 +11,7 @@ PERA es un monorepo de microservicios de granularidad gruesa. La plataforma actu
 - `master-data-service`: clientes, proveedores, productos, importación CSV/Excel, jerarquías, impuestos, tarifas, reglas de precio y embalajes.
 - `sales-service`: numeraciones configurables, presupuestos, pedidos, albaranes, facturas, snapshots y conversiones.
 - `finance-service`: formas de pago, vencimientos, monedas, tipos de cambio, conversiones reproducibles y contabilidad inicial con plan de cuentas, bandeja de facturas y libro diario.
-- `operations-service`: workflows configurables, transportistas, vehículos, rutas, fletes, expediciones y archivos enviados.
+- `operations-service`: workflows configurables, transportistas, vehículos, rutas, fletes, expediciones y archivos enviados; compras (pedido, albarán de entrada y factura de proveedor) e inventario por almacén con diario de movimientos.
 - `activity-service`: historial central, exportación CSV y alertas personalizadas.
 - `licensing-service`: emisión, activación, validación periódica, suspensión y revocación de licencias.
 - React con dashboard económico comparativo, contabilidad visual, importadores de maestros, centro de informes imprimibles, rutas protegidas por perfil, administración de usuarios, barra lateral ajustable, selector persistente ES/EN y formatos por idioma/moneda.
@@ -37,7 +37,7 @@ La aplicación queda en `http://localhost:5173`. Los cinco usuarios de demostrac
 | `admin` | Propietario | Todo, incluida la protección del perfil propietario |
 | `administracion` | Administrador | Todo y gestión de usuarios no propietarios |
 | `economia` | Economía | Clientes, presupuestos, ventas y finanzas |
-| `logistica` | Logística | Proveedores, logística y procesos |
+| `logistica` | Logística | Proveedores, compras, almacén, logística y procesos |
 | `catalogo` | Catálogo | Productos, precios, impuestos y embalajes |
 
 ### Windows sin Docker
@@ -79,7 +79,7 @@ El script devuelve las cuatro variables que deben guardarse en un gestor de secr
 
 ## Validación
 
-La verificación de cierre ejecuta el reactor Maven completo, las pruebas Vitest, el build de Vite, validación de Docker Compose, migraciones sobre PostgreSQL real y un recorrido HTTP a través del gateway. El contexto canónico, los comandos y las limitaciones actuales están en [`AGENTS.md`](AGENTS.md).
+La verificación de cierre ejecuta el reactor Maven completo, las pruebas Vitest, el build de Vite, validación de Docker Compose, migraciones sobre PostgreSQL real y un recorrido HTTP a través del gateway. La regla de cierre, los comandos y las limitaciones actuales están en [`docs/11-ampliacion-plataforma.md`](docs/11-ampliacion-plataforma.md).
 
 ## Documentación
 

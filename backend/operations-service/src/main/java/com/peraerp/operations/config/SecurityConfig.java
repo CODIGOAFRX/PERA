@@ -50,6 +50,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/carriers/**", "/api/v1/vehicles/**",
                                 "/api/v1/delivery-routes/**", "/api/v1/shipments/**")
                         .hasAnyAuthority("logistics:write", "logistics:manage")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/warehouses/**", "/api/v1/stock-levels/**",
+                                "/api/v1/stock-movements/**")
+                        .hasAuthority("inventory:read")
+                        .requestMatchers("/api/v1/warehouses/**", "/api/v1/stock-levels/**",
+                                "/api/v1/stock-movements/**")
+                        .hasAuthority("inventory:write")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/purchase-documents/**")
+                        .hasAuthority("purchases:read")
+                        .requestMatchers("/api/v1/purchase-documents/**").hasAuthority("purchases:write")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(server -> server.jwt(jwt ->
                         jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))

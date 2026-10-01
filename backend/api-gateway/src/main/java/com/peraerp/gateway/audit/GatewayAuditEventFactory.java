@@ -82,6 +82,9 @@ class GatewayAuditEventFactory {
             case "company-settings" -> "COMPANY_SETTINGS";
             case "verifactu-settings", "verifactu-records" -> "VERIFACTU";
             case "shipments" -> "SHIPMENT";
+            case "purchase-documents" -> "PURCHASE_DOCUMENT";
+            case "warehouses" -> "WAREHOUSE";
+            case "stock-movements" -> "STOCK_MOVEMENT";
             case "payment-methods" -> "PAYMENT_METHOD";
             case "due-dates" -> "DUE_DATE";
             case "accounting" -> "ACCOUNTING";

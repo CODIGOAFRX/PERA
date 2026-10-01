@@ -138,7 +138,7 @@ function roleDescription(code: string, language: 'es' | 'en') {
     OWNER: ['Acceso total y control de propietarios.', 'Full access and owner-level control.'],
     ADMIN: ['Acceso total y gestión de usuarios.', 'Full access and user management.'],
     ECONOMY: ['Clientes, presupuestos, ventas y finanzas.', 'Customers, quotes, sales and finance.'],
-    LOGISTICS: ['Proveedores, rutas, expediciones y procesos.', 'Suppliers, routes, shipments and workflows.'],
+    LOGISTICS: ['Proveedores, compras, almacén, rutas, expediciones y procesos.', 'Suppliers, purchases, inventory, routes, shipments and workflows.'],
     CATALOG: ['Productos, precios, impuestos y embalajes.', 'Products, pricing, taxes and packaging.'],
   }
   return descriptions[code]?.[language === 'es' ? 0 : 1] ?? code

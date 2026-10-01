@@ -451,3 +451,117 @@ export interface AlertRuleInput {
   deliveryChannel: AlertDeliveryChannel
   active: boolean
 }
+
+/** Página plana que devuelve operations-service (compras, inventario, logística). */
+export interface FlatPage<T> {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+export interface Warehouse {
+  id: string
+  code: string
+  name: string
+  location: string | null
+  defaultWarehouse: boolean
+  active: boolean
+}
+
+export interface StockLevel {
+  id: string
+  warehouseId: string
+  productId: string
+  productCode: string
+  productName: string
+  unitOfMeasure: string
+  quantity: number
+  updatedAt: string
+}
+
+export type StockMovementType = 'PURCHASE_RECEIPT' | 'PURCHASE_REVERSAL' | 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'TRANSFER_IN' | 'TRANSFER_OUT'
+
+export interface StockMovement {
+  id: string
+  warehouseId: string
+  productId: string
+  productCode: string
+  productName: string
+  unitOfMeasure: string
+  type: StockMovementType
+  quantity: number
+  balanceAfter: number
+  unitCost: number | null
+  costCurrencyCode: string | null
+  occurredAt: string
+  sourceType: 'MANUAL' | 'TRANSFER' | 'PURCHASE_DOCUMENT'
+  sourceId: string | null
+  sourceNumber: string | null
+  note: string | null
+}
+
+export type PurchaseDocumentType = 'PURCHASE_ORDER' | 'GOODS_RECEIPT' | 'SUPPLIER_INVOICE'
+
+export interface PurchaseLine {
+  id: string
+  sequence: number
+  productId: string | null
+  productCode: string | null
+  description: string
+  unitOfMeasure: string
+  quantity: number
+  unitPrice: number
+  discountPercentage: number
+  taxPercentage: number
+  netAmount: number
+}
+
+export interface PurchaseDocument {
+  id: string
+  type: PurchaseDocumentType
+  number: string
+  status: DocumentStatus
+  supplierId: string
+  supplierCode: string
+  supplierName: string
+  supplierTaxId: string | null
+  supplierReference: string | null
+  issueDate: string
+  expectedDate: string | null
+  warehouseId: string | null
+  currencyCode: string
+  sourceDocumentId: string | null
+  stockReceivedUpstream: boolean
+  stockPosted: boolean
+  netAmount: number
+  taxAmount: number
+  totalAmount: number
+  notes: string | null
+  lines: PurchaseLine[]
+}
+
+export interface PurchaseDocumentInput {
+  type: PurchaseDocumentType
+  supplierId: string
+  supplierCode: string
+  supplierName: string
+  supplierTaxId?: string | null
+  supplierReference?: string | null
+  issueDate: string
+  expectedDate?: string | null
+  warehouseId?: string | null
+  currencyCode: string
+  notes?: string | null
+  lines: Array<{
+    productId?: string | null
+    productCode?: string | null
+    description: string
+    unitOfMeasure: string
+    quantity: number
+    unitPrice: number
+    discountPercentage: number
+    taxPercentage: number
+  }>
+}

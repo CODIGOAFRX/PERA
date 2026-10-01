@@ -1,4 +1,4 @@
-import { BookOpenCheck, Boxes, Building2, Cable, FileCheck2, FileText, History as HistoryIcon, LayoutDashboard, Printer, ReceiptText, Settings, SlidersHorizontal, Truck, UserCog, Users, type LucideIcon } from 'lucide-react'
+import { BookOpenCheck, Boxes, Building2, Cable, FileCheck2, FileText, History as HistoryIcon, LayoutDashboard, PackageSearch, Printer, ReceiptText, Settings, ShoppingCart, SlidersHorizontal, Truck, UserCog, Users, type LucideIcon } from 'lucide-react'
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 import type { UserRoleCode } from '../auth/AuthContext'
 import type { TranslationKey } from '../i18n/catalogs'
@@ -12,10 +12,12 @@ const CustomersPage = lazy(() => import('../pages/CustomersPage').then((module) 
 const DashboardPage = lazy(() => import('../pages/DashboardPage').then((module) => ({ default: module.DashboardPage })))
 const FinancePage = lazy(() => import('../pages/FinancePage').then((module) => ({ default: module.FinancePage })))
 const AccountingPage = lazy(() => import('../pages/AccountingPage').then((module) => ({ default: module.AccountingPage })))
+const InventoryPage = lazy(() => import('../pages/InventoryPage').then((module) => ({ default: module.InventoryPage })))
 const HistoryPage = lazy(() => import('../pages/HistoryPage').then((module) => ({ default: module.HistoryPage })))
 const OperationsPage = lazy(() => import('../pages/OperationsPage').then((module) => ({ default: module.OperationsPage })))
 const SalesPage = lazy(() => import('../pages/SalesPage').then((module) => ({ default: module.SalesPage })))
 const SettingsPage = lazy(() => import('../pages/SettingsPage').then((module) => ({ default: module.SettingsPage })))
+const PurchasesPage = lazy(() => import('../pages/PurchasesPage').then((module) => ({ default: module.PurchasesPage })))
 const QuotesPage = lazy(() => import('../pages/QuotesPage').then((module) => ({ default: module.QuotesPage })))
 const ReportsPage = lazy(() => import('../pages/ReportsPage').then((module) => ({ default: module.ReportsPage })))
 const SuppliersPage = lazy(() => import('../pages/SuppliersPage').then((module) => ({ default: module.SuppliersPage })))
@@ -45,6 +47,8 @@ export const appRoutes: AppRoute[] = [
   { id: 'catalogConfiguration', path: '/maestros', component: CatalogConfigurationPage, allowedRoles: ['OWNER', 'ADMIN', 'CATALOG'], navigation: { labelKey: 'nav.catalogConfiguration', group: 'masterData', groupLabelKey: 'nav.group.masterData', icon: SlidersHorizontal } },
   { id: 'quotes', path: '/presupuestos', component: QuotesPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.quotes', group: 'operations', groupLabelKey: 'nav.group.operations', icon: FileCheck2 } },
   { id: 'sales', path: '/ventas', component: SalesPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.sales', group: 'operations', groupLabelKey: 'nav.group.operations', icon: FileText } },
+  { id: 'purchases', path: '/compras', component: PurchasesPage, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS'], navigation: { labelKey: 'nav.purchases', group: 'operations', groupLabelKey: 'nav.group.operations', icon: ShoppingCart } },
+  { id: 'inventory', path: '/almacen', component: InventoryPage, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS'], navigation: { labelKey: 'nav.inventory', group: 'operations', groupLabelKey: 'nav.group.operations', icon: PackageSearch } },
   { id: 'finance', path: '/finanzas', component: FinancePage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.finance', group: 'operations', groupLabelKey: 'nav.group.operations', icon: ReceiptText } },
   { id: 'accounting', path: '/contabilidad', component: AccountingPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.accounting', group: 'operations', groupLabelKey: 'nav.group.operations', icon: BookOpenCheck } },
   { id: 'operations', path: '/operaciones', component: OperationsPage, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS'], navigation: { labelKey: 'nav.operations', group: 'operations', groupLabelKey: 'nav.group.operations', icon: Truck } },

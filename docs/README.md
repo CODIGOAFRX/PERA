@@ -1,18 +1,23 @@
 # Documentación de PERA ERP
 
-1. [Visión general](01-vision-general.md)
-2. [Requisitos funcionales](02-requisitos-funcionales.md)
-3. [Arquitectura](03-arquitectura.md)
-4. [Modelo de datos](04-modelo-datos.md)
-5. [API REST](05-api-rest.md)
-6. [Decisiones técnicas](06-decisiones-tecnicas.md)
-7. [Roadmap y preguntas abiertas](07-roadmap-y-preguntas.md)
-8. [Auditoría de generalización a ERP horizontal](08-generalizacion-erp-horizontal.md)
-9. [Inventario de clases auditadas](09-inventario-clases.md)
-10. [Frontend MVP](10-frontend-mvp.md)
-11. [Ampliación funcional de la plataforma](11-ampliacion-plataforma.md)
+- 01 · [Visión general](01-vision-general.md)
+- 02 · [Requisitos funcionales](02-requisitos-funcionales.md)
+- 03 · [Arquitectura](03-arquitectura.md)
+- 04 · [Modelo de datos](04-modelo-datos.md)
+- 05 · [API REST](05-api-rest.md)
+- 06 · [Decisiones técnicas](06-decisiones-tecnicas.md)
+- 07 · [Roadmap y preguntas abiertas](07-roadmap-y-preguntas.md)
+- 08 · [Auditoría de generalización a ERP horizontal](08-generalizacion-erp-horizontal.md)
+- 09 · [Inventario de clases auditadas](09-inventario-clases.md)
+- 10 · [Frontend MVP](10-frontend-mvp.md)
+- 11 · [Ampliación funcional de la plataforma](11-ampliacion-plataforma.md)
+- 12 · [Conexiones de correo y datos de terceros](12-conexiones-correo.md)
+- 13 · [Veri*Factu](13-verifactu.md)
+- 18 · [AEAT y B2Brouter: integración de pruebas](18-integraciones-pruebas.md)
+- 19 · [Mapa de migración desde DimproCristalWin](19-mapa-migracion-dimprocristalwin.md)
+- 20 · [Compras e inventario básico](20-compras-inventario.md)
 
-12. [Conexiones de correo y datos de terceros](12-conexiones-correo.md)
+Notas de sesión: [traspaso de contexto del 23-09-2026](TRASPASO-CONTEXTO-2026-09-23.md).
 
 La carpeta `reference/` contiene material de descubrimiento. Ese material ayuda a entender el ERP legado, pero no sustituye requisitos validados con usuarios ni constituye una orden de copiar código, datos o estructuras privadas.
 
