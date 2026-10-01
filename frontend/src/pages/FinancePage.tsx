@@ -60,7 +60,7 @@ export function FinancePage() {
   const issueReceipts = async (invoice: CommercialDocument) => {
     try {
       const issued = await apiFetch<Receipt[]>('/api/v1/receipts/issue', { method: 'POST', body: JSON.stringify({ documentId: invoice.id, documentNumber: invoice.number, customerId: invoice.customerId, customerCode: invoice.customerCode, customerName: invoice.customerName, currencyCode: invoice.currency }) })
-      setReceipts((current) => [...current, ...issued]); notify(c(`${issued.length} recibos emitidos.`, `${issued.length} receipts issued.`))
+      setReceipts((current) => [...current, ...issued]); notify(issued.length === 1 ? c('1 recibo emitido.', '1 receipt issued.') : c(`${issued.length} recibos emitidos.`, `${issued.length} receipts issued.`))
     } catch (cause) { notify(errorMessage(cause), 'error') }
   }
 

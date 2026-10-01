@@ -94,7 +94,7 @@ export function CashTab() {
       {selected && <div className="document-detail">
         <div className="detail-summary">
           <div><small>{c('Fondo inicial', 'Opening float')}</small><strong>{money(selected.openingAmount)}</strong><span>{formatDateTime(selected.openedAt, locale)}</span></div>
-          <div><small>{selected.status === 'OPEN' ? c('Efectivo en caja', 'Cash in register') : c('Esperado al cierre', 'Expected at close')}</small><strong className="detail-total">{money(selected.expectedClosingAmount ?? selected.balance)}</strong><span>{c(`${selected.movements.length} apuntes`, `${selected.movements.length} entries`)}</span></div>
+          <div><small>{selected.status === 'OPEN' ? c('Efectivo en caja', 'Cash in register') : c('Esperado al cierre', 'Expected at close')}</small><strong className="detail-total">{money(selected.expectedClosingAmount ?? selected.balance)}</strong><span>{selected.movements.length === 1 ? c('1 apunte', '1 entry') : c(`${selected.movements.length} apuntes`, `${selected.movements.length} entries`)}</span></div>
           <div><small>{c('Contado', 'Counted')}</small><strong>{selected.actualClosingAmount === null ? '—' : money(selected.actualClosingAmount)}</strong><span>{selected.closingNote ?? ''}</span></div>
           <div><small>{c('Diferencia', 'Difference')}</small><strong>{selected.difference === null ? '—' : money(selected.difference)}</strong><span>{selected.status === 'OPEN' ? c('Sesión abierta', 'Open session') : formatDateTime(selected.closedAt, locale)}</span></div>
         </div>

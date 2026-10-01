@@ -86,7 +86,7 @@ it('creates a remittance with the selected pending receipts', async () => {
   expect(await screen.findByText('Selecciona al menos un recibo.')).toBeInTheDocument()
 
   fireEvent.click(screen.getByLabelText('Incluir REC-2026-000002'))
-  expect(screen.getByText(/1 seleccionados/)).toBeInTheDocument()
+  expect(screen.getByText(/1 seleccionado ·/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Crear remesa' }))
 
   expect(await screen.findByText('Remesa guardada.')).toBeInTheDocument()
