@@ -108,7 +108,7 @@ public class StockService {
     public StockMovement post(UUID companyId, StockPosting posting) {
         Warehouse warehouse = warehouseRepository.findByIdAndCompanyId(posting.warehouseId(), companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Almacén", posting.warehouseId()));
-        if (!warehouse.isActive()) {
+        if (!warehouse.isActive() && !posting.type().isReversal()) {
             throw new BusinessRuleException("El almacén " + warehouse.getCode() + " está inactivo.");
         }
         String productCode = posting.productCode().trim();

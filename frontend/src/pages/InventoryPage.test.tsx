@@ -11,12 +11,14 @@ const flat = <T,>(content: T[]) => ({ content, page: 0, size: 15, totalElements:
 const warehouses = [{ id: 'w1', code: 'MAIN', name: 'Principal', location: null, defaultWarehouse: true, active: true }, { id: 'w2', code: 'SEC', name: 'Secundario', location: 'Nave 2', defaultWarehouse: false, active: true }]
 const level = { id: 'lv1', warehouseId: 'w1', productId: 'p1', productCode: 'P-1', productName: 'Tornillo M6', unitOfMeasure: 'UNIT', quantity: 5.5, updatedAt: '2026-10-01T10:00:00Z' }
 const movement = { id: 'm1', warehouseId: 'w1', productId: 'p1', productCode: 'P-1', productName: 'Tornillo M6', unitOfMeasure: 'UNIT', type: 'PURCHASE_RECEIPT', quantity: 2, balanceAfter: 2, unitCost: 27.95, costCurrencyCode: 'EUR', occurredAt: '2026-10-01T09:00:00Z', sourceType: 'PURCHASE_DOCUMENT', sourceId: 'd1', sourceNumber: 'AC-2026-000001', note: null }
+const delivery = { id: 'sd1', sourceDocumentId: 'doc-9', sourceType: 'DELIVERY_NOTE', sourceNumber: 'ALB-2026-000009', sourceDate: '2026-10-01', sourceStatus: 'CONFIRMED', customerCode: 'C001', customerName: 'Cliente Demo', status: 'PENDING', warehouseId: null, problem: 'Faltan existencias en MAIN: P-1 (disponibles 2, necesarias 5).', postedAt: null, lines: [{ sequence: 1, productId: 'p1', productCode: 'P-1', description: 'Tornillo M6', quantity: 5 }] }
 
 beforeEach(() => {
   api.mockReset(); localStorage.clear()
   api.mockImplementation((path: string) => {
     if (path.startsWith('/api/v1/stock-levels')) return Promise.resolve(flat([level]))
     if (path.startsWith('/api/v1/stock-movements?')) return Promise.resolve(flat([movement]))
+    if (path.startsWith('/api/v1/sales-deliveries?')) return Promise.resolve(flat([delivery]))
     if (path.startsWith('/api/v1/warehouses')) return Promise.resolve(flat(warehouses))
     return Promise.resolve(undefined)
   })
@@ -74,4 +76,21 @@ it('creates a warehouse from the warehouses tab', async () => {
   expect(await screen.findByText('Almacén guardado.')).toBeInTheDocument()
   const [[, init]] = calls('POST', '/api/v1/warehouses')
   expect(JSON.parse(String(init?.body))).toEqual({ code: 'TALLER', name: 'Taller', location: null, defaultWarehouse: false, active: true })
+})
+
+it('shows why a sale has not left the warehouse and issues it from the chosen warehouse', async () => {
+  view()
+  fireEvent.click(await screen.findByRole('button', { name: 'Salidas de venta' }))
+  const table = await screen.findByRole('table', { name: 'Salidas de venta' })
+  expect(table).toHaveTextContent('ALB-2026-000009')
+  expect(table).toHaveTextContent('Pendiente de salida')
+  expect(table).toHaveTextContent('disponibles 2, necesarias 5')
+
+  fireEvent.click(screen.getByRole('button', { name: 'Dar salida a ALB-2026-000009' }))
+  fireEvent.change(await screen.findByLabelText(/^Almacén de salida/), { target: { value: 'w2' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Dar salida' }))
+
+  expect(await screen.findByText('Salida anotada en el diario.')).toBeInTheDocument()
+  const [[, init]] = calls('POST', '/api/v1/sales-deliveries/sd1/post')
+  expect(JSON.parse(String(init?.body))).toEqual({ warehouseId: 'w2' })
 })

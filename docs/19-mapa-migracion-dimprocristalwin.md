@@ -22,7 +22,7 @@ El legado tiene unos 375 formularios y varias decenas de carpetas de informes. E
 | Tarifas, grupos de tarifas, tarifas especiales y su desglose | Cubierto | Tarifas, reglas y precios por cliente en `master-data-service`, `/maestros`. |
 | Grupo descuento | Parcial | Las reglas de tarifa cubren descuentos; no hay un maestro de grupos de descuento como tal. |
 | Artículos, familias, tipos, agrupación | Cubierto | Jerarquía naturaleza → supertipo → tipo → grupo, `/catalogo` y `/maestros`. |
-| Almacén y diario de almacén | Parcial | Almacenes, existencias, diario, ajustes y traspasos en `/almacen` ([doc 20](20-compras-inventario.md)). Las ventas aún no descuentan existencias y no hay valoración. |
+| Almacén y diario de almacén | Parcial | Almacenes, existencias, diario, ajustes y traspasos en `/almacen` ([doc 20](20-compras-inventario.md)). El albarán de venta descuenta existencias. Sin valoración de inventario. |
 | Clientes, grupos y tipos de cliente | Parcial | Clientes en `/clientes`. Sin grupos ni tipos de cliente configurables. |
 | Proveedores | Cubierto | `/proveedores`. |
 | Formas de pago | Cubierto | `finance-service`, `/finanzas`. |
@@ -97,7 +97,7 @@ El legado tiene unos 375 formularios y varias decenas de carpetas de informes. E
 
 ## Orden de trabajo propuesto
 
-1. **Compras e inventario básico.** Hecho en su alcance básico ([doc 20](20-compras-inventario.md)). Queda decidir qué documento de venta descuenta existencias.
+1. **Compras e inventario básico.** Hecho en su alcance básico ([doc 20](20-compras-inventario.md)), incluida la salida de almacén al confirmar el albarán de venta.
 2. **Cartera completa.** Recibos, remesas y caja: exponer la API y las pantallas sobre el modelo que ya existe.
 3. **Facturación automática y cierre de ejercicio.** Operativa mensual que hoy se hace en el legado.
 4. **Comerciales y comisiones, grupos de cliente.**

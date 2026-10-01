@@ -26,6 +26,16 @@ public interface CommercialDocumentRepository extends JpaRepository<CommercialDo
     List<CommercialDocument> findAllByCompanyIdAndTypeInAndStatusInOrderByIssueDateDesc(
             UUID companyId, List<DocumentType> types, List<DocumentStatus> statuses);
 
+    /** Albaranes y facturas sin albarán previo que entregan mercancía, del más antiguo al más reciente. */
+    @Query("select d from CommercialDocument d where d.companyId = :companyId " +
+            "and (d.type = com.peraerp.sales.document.DocumentType.DELIVERY_NOTE " +
+            "or (d.type = com.peraerp.sales.document.DocumentType.INVOICE and d.sourceDocumentId is null)) " +
+            "and d.status <> com.peraerp.sales.document.DocumentStatus.DRAFT " +
+            "and d.updatedAt >= :updatedSince order by d.updatedAt asc, d.id asc")
+    List<CommercialDocument> findDeliveriesUpdatedSince(@Param("companyId") UUID companyId,
+                                                        @Param("updatedSince") java.time.Instant updatedSince,
+                                                        Pageable pageable);
+
     @Query("select d from CommercialDocument d where d.companyId = :companyId " +
             "and (:query = '' or lower(d.documentNumber) like concat('%', lower(:query), '%') " +
             "or lower(d.customerCodeSnapshot) like concat('%', lower(:query), '%') " +

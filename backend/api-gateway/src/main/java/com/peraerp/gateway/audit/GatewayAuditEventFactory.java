@@ -85,6 +85,7 @@ class GatewayAuditEventFactory {
             case "purchase-documents" -> "PURCHASE_DOCUMENT";
             case "warehouses" -> "WAREHOUSE";
             case "stock-movements" -> "STOCK_MOVEMENT";
+            case "sales-deliveries" -> "SALES_DELIVERY";
             case "payment-methods" -> "PAYMENT_METHOD";
             case "due-dates" -> "DUE_DATE";
             case "accounting" -> "ACCOUNTING";

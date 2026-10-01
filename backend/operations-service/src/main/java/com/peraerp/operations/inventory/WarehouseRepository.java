@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,6 +17,9 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, UUID> {
     Optional<Warehouse> findByCompanyIdAndDefaultWarehouseTrue(UUID companyId);
 
     boolean existsByCompanyIdAndCodeIgnoreCase(UUID companyId, String code);
+
+    @Query("select distinct w.companyId from Warehouse w where w.active = true")
+    List<UUID> findCompanyIdsWithActiveWarehouses();
 
     @Query("select w from Warehouse w where w.companyId = :companyId " +
             "and (:filterActive = false or w.active = :active) " +

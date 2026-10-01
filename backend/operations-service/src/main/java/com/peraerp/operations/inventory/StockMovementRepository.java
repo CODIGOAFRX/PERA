@@ -7,11 +7,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public interface StockMovementRepository extends JpaRepository<StockMovement, UUID> {
 
     boolean existsByCompanyIdAndWarehouseId(UUID companyId, UUID warehouseId);
+
+    List<StockMovement> findAllByCompanyIdAndSourceTypeAndSourceIdAndType(UUID companyId, StockSourceType sourceType,
+                                                                          UUID sourceId, StockMovementType type);
 
     @Query("select m from StockMovement m where m.companyId = :companyId " +
             "and (:filterWarehouse = false or m.warehouseId = :warehouseId) " +

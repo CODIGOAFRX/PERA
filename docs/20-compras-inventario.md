@@ -6,7 +6,7 @@ Primer bloque del [mapa de migración](19-mapa-migracion-dimprocristalwin.md). C
 
 ## Dónde vive
 
-Ambos módulos están en `operations-service`, en los paquetes `purchasing` e `inventory`, con las migraciones `V7__inventory.sql` y `V8__purchasing.sql`. Comparten servicio y base de datos a propósito: confirmar un albarán de entrada y dar de alta sus existencias ocurre en una sola transacción, sin eventos ni llamadas entre servicios.
+Ambos módulos están en `operations-service`, en los paquetes `purchasing`, `inventory` y `salesdelivery`, con las migraciones `V7__inventory.sql`, `V8__purchasing.sql` y `V9__sales_deliveries.sql`. Comparten servicio y base de datos a propósito: confirmar un albarán de entrada y dar de alta sus existencias ocurre en una sola transacción, sin eventos ni llamadas entre servicios.
 
 Las pantallas son `/compras` y `/almacen`. Las ven los perfiles propietario, administrador y logística.
 
@@ -30,6 +30,20 @@ Los cuatro se asignan a propietario, administrador y logística al arrancar `ide
 La fecha de un apunte es siempre la del servidor. No se admiten apuntes con fecha pasada porque dejarían incoherente el saldo de los posteriores.
 
 Las existencias de un producto se llevan en una sola unidad de medida por almacén. Un movimiento en otra unidad se rechaza.
+
+## Salidas por ventas
+
+Decisión de producto (1 de octubre de 2026): **el albarán de venta descuenta existencias**. Una factura emitida sin albarán previo también; la factura de un albarán no vuelve a descontar.
+
+Ventas y almacén son servicios distintos, así que se sigue el mismo patrón que la bandeja contable: `operations-service` lee de `sales-service` por un punto interno protegido con la clave de servicio (`GET /internal/v1/inventory/deliveries`) y anota las salidas. El flujo de confirmación de ventas no cambia y nunca espera al almacén.
+
+- **Cuándo se lee.** Cada minuto para las empresas con algún almacén activo (`PERA_INVENTORY_SALES_SYNC_DELAY`, desactivable con `PERA_INVENTORY_SALES_SYNC_ENABLED=false`) y cada vez que alguien abre la pestaña «Salidas de venta» de `/almacen`.
+- **Desde cuándo.** Solo cuentan las ventas confirmadas después de la primera lectura. Activar el inventario no descuenta el histórico.
+- **Qué se descuenta.** Solo los productos que ya tienen ficha de existencias en algún almacén. Un servicio, o un producto que nunca ha entrado en almacén, no se toca; una empresa que no lleva inventario no nota nada.
+- **De dónde.** Del almacén predeterminado. Se descuenta la cantidad pedida, no la facturada, porque los mínimos de tarifa pueden subir esta última.
+- **Si faltan existencias.** La venta no se bloquea. La salida queda pendiente con el motivo y sale sola en cuanto hay existencias; también se puede dar desde otro almacén (`POST /api/v1/sales-deliveries/{id}/post`) o descartar (`POST /{id}/dismiss`).
+- **Todo o nada.** Una entrega sale completa o no sale: no hay salidas parciales.
+- **Anulación.** Si la venta pasa a anulada, la mercancía que salió vuelve al mismo almacén con apuntes de devolución. Hoy `sales-service` no permite anular albaranes, así que esta rama solo está cubierta por pruebas unitarias.
 
 ## Compras
 
@@ -56,7 +70,7 @@ La base de cada línea se redondea al céntimo. La cuota se calcula sobre la sum
 
 ## Límites conocidos
 
-1. **Las ventas no descuentan existencias.** Qué documento de venta rebaja el stock (albarán, factura o expedición) sigue siendo una decisión de producto abierta. Hasta entonces las salidas se registran con ajustes.
+1. **Las facturas rectificativas no devuelven existencias.** Una devolución de cliente se registra hoy con un ajuste de entrada.
 2. **Sin valoración de inventario.** El diario guarda el coste de cada entrada, pero no hay precio medio ni FIFO ni informe de valor de almacén.
 3. **Sin pagos a proveedores.** La factura de proveedor no genera vencimientos ni llega a finanzas o contabilidad.
 4. **Conversiones completas.** No hay recepciones parciales ni agrupación de varios albaranes en una factura.
@@ -66,7 +80,8 @@ La base de cada línea se redondea al céntimo. La cuota se calcula sobre la sum
 
 ## Verificación
 
-- 27 pruebas nuevas en `operations-service` (importes, existencias, almacenes, ciclo documental y permisos).
-- 11 pruebas nuevas en el frontend (cálculo de totales, compras, almacén y rutas).
-- Migraciones V1 a V8 aplicadas sobre PostgreSQL 18 vacío y servicio arrancado con validación de esquema.
+- 36 pruebas nuevas en `operations-service` (importes, existencias, almacenes, ciclo documental, salidas por ventas y permisos) y 1 en `sales-service`.
+- 12 pruebas nuevas en el frontend (cálculo de totales, compras, almacén y rutas).
+- Migraciones V1 a V9 aplicadas sobre PostgreSQL 18 vacío y servicio arrancado con validación de esquema.
 - Recorrido HTTP de 44 comprobaciones contra el servicio real: pedido, albarán, factura, duplicados, ajustes, traspasos, anulaciones con reversión, filtros, permisos y aislamiento entre dos empresas.
+- Recorrido real por el gateway con todos los servicios arrancados: un albarán de venta descuenta existencias, su factura no vuelve a descontar, la venta sin existencias queda pendiente sin bloquearse y la lectura periódica descuenta sin abrir la pantalla.

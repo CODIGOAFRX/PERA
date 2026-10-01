@@ -481,7 +481,7 @@ export interface StockLevel {
   updatedAt: string
 }
 
-export type StockMovementType = 'PURCHASE_RECEIPT' | 'PURCHASE_REVERSAL' | 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'TRANSFER_IN' | 'TRANSFER_OUT'
+export type StockMovementType = 'PURCHASE_RECEIPT' | 'PURCHASE_REVERSAL' | 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'SALES_ISSUE' | 'SALES_RETURN'
 
 export interface StockMovement {
   id: string
@@ -496,10 +496,29 @@ export interface StockMovement {
   unitCost: number | null
   costCurrencyCode: string | null
   occurredAt: string
-  sourceType: 'MANUAL' | 'TRANSFER' | 'PURCHASE_DOCUMENT'
+  sourceType: 'MANUAL' | 'TRANSFER' | 'PURCHASE_DOCUMENT' | 'SALES_DOCUMENT'
   sourceId: string | null
   sourceNumber: string | null
   note: string | null
+}
+
+export type SalesDeliveryStatus = 'PENDING' | 'POSTED' | 'NOT_APPLICABLE' | 'REVERSED' | 'DISMISSED'
+
+/** Albarán o factura de venta y el estado de su salida de almacén. */
+export interface SalesDelivery {
+  id: string
+  sourceDocumentId: string
+  sourceType: string
+  sourceNumber: string
+  sourceDate: string
+  sourceStatus: string
+  customerCode: string | null
+  customerName: string
+  status: SalesDeliveryStatus
+  warehouseId: string | null
+  problem: string | null
+  postedAt: string | null
+  lines: Array<{ sequence: number; productId: string; productCode: string; description: string; quantity: number }>
 }
 
 export type PurchaseDocumentType = 'PURCHASE_ORDER' | 'GOODS_RECEIPT' | 'SUPPLIER_INVOICE'

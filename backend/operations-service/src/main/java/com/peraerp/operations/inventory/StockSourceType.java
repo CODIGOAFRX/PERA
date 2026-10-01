@@ -1,5 +1,5 @@
 package com.peraerp.operations.inventory;
 
 public enum StockSourceType {
-    MANUAL, TRANSFER, PURCHASE_DOCUMENT
+    MANUAL, TRANSFER, PURCHASE_DOCUMENT, SALES_DOCUMENT
 }

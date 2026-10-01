@@ -23,6 +23,12 @@ spring:
       max-request-size: ${PERA_SHIPMENT_DOCUMENT_MULTIPART_MAX_REQUEST_SIZE:11MB}
 
 pera.jwt.secret: ${PERA_JWT_SECRET:change-me-development-secret-at-least-32-bytes}
+pera.internal.service-key: ${PERA_INTERNAL_SERVICE_KEY:pera-local-internal-service-key-change-me}
+pera.services.sales-url: ${SALES_SERVICE_URL:http://localhost:8083}
+# Lectura periódica de los albaranes de venta para dar su salida de almacén.
+pera.inventory.sales-sync:
+  enabled: ${PERA_INVENTORY_SALES_SYNC_ENABLED:true}
+  delay: ${PERA_INVENTORY_SALES_SYNC_DELAY:PT1M}
 pera.shipment-document:
   storage-root: ${PERA_SHIPMENT_DOCUMENT_STORAGE_ROOT:.runtime/shipment-documents}
   max-bytes: ${PERA_SHIPMENT_DOCUMENT_MAX_BYTES:10485760}

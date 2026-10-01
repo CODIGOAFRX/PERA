@@ -20,6 +20,9 @@ public interface StockLevelRepository extends JpaRepository<StockLevel, UUID> {
     Optional<StockLevel> findForUpdate(@Param("companyId") UUID companyId, @Param("warehouseId") UUID warehouseId,
                                        @Param("productId") UUID productId);
 
+    /** Un producto se controla en almacén desde que tiene ficha de existencias en algún almacén. */
+    boolean existsByCompanyIdAndProductId(UUID companyId, UUID productId);
+
     @Query("select s from StockLevel s where s.companyId = :companyId " +
             "and (:filterWarehouse = false or s.warehouseId = :warehouseId) " +
             "and (:filterProduct = false or s.productId = :productId) " +

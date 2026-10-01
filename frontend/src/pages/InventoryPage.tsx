@@ -1,5 +1,6 @@
-import { ArrowLeftRight, Boxes, ClipboardList, Pencil, Plus, SlidersHorizontal, Warehouse as WarehouseIcon } from 'lucide-react'
+import { ArrowLeftRight, Ban, Boxes, ClipboardList, PackageCheck, Pencil, Plus, SlidersHorizontal, Truck, Warehouse as WarehouseIcon } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
+import { useConfirm } from '../components/ConfirmDialog'
 import { EmptyState, LoadingState } from '../components/DataState'
 import { Field, FormActions, FormErrors, useFormErrors } from '../components/Form'
 import { Modal } from '../components/Modal'
@@ -13,14 +14,14 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { unitKey } from '../i18n/businessLabels'
 import { useTranslation } from '../i18n/I18nProvider'
 import { apiFetch, errorMessage } from '../lib/api'
-import { formatCurrency, formatDateTime, formatNumber } from '../lib/format'
-import type { FlatPage, PageResponse, Product, StockLevel, StockMovement, StockMovementType, UnitOfMeasure, Warehouse } from '../types/api'
+import { formatCurrency, formatDate, formatDateTime, formatNumber } from '../lib/format'
+import type { FlatPage, PageResponse, Product, SalesDelivery, SalesDeliveryStatus, StockLevel, StockMovement, StockMovementType, UnitOfMeasure, Warehouse } from '../types/api'
 
-type Tab = 'stock' | 'movements' | 'warehouses'
-type Editor = { kind: 'adjustment'; level?: StockLevel } | { kind: 'transfer'; level?: StockLevel } | { kind: 'warehouse'; item?: Warehouse }
-type InventoryRow = StockLevel | StockMovement | Warehouse
+type Tab = 'stock' | 'movements' | 'deliveries' | 'warehouses'
+type Editor = { kind: 'adjustment'; level?: StockLevel } | { kind: 'transfer'; level?: StockLevel } | { kind: 'warehouse'; item?: Warehouse } | { kind: 'delivery'; delivery: SalesDelivery }
+type InventoryRow = StockLevel | StockMovement | SalesDelivery | Warehouse
 
-const movementTypes: StockMovementType[] = ['PURCHASE_RECEIPT', 'PURCHASE_REVERSAL', 'ADJUSTMENT_IN', 'ADJUSTMENT_OUT', 'TRANSFER_IN', 'TRANSFER_OUT']
+const movementTypes: StockMovementType[] = ['PURCHASE_RECEIPT', 'PURCHASE_REVERSAL', 'SALES_ISSUE', 'SALES_RETURN', 'ADJUSTMENT_IN', 'ADJUSTMENT_OUT', 'TRANSFER_IN', 'TRANSFER_OUT']
 const movementLabels: Record<StockMovementType, [string, string]> = {
   PURCHASE_RECEIPT: ['Entrada de compra', 'Purchase receipt'],
   PURCHASE_REVERSAL: ['Anulación de compra', 'Purchase reversal'],
@@ -28,8 +29,19 @@ const movementLabels: Record<StockMovementType, [string, string]> = {
   ADJUSTMENT_OUT: ['Ajuste de salida', 'Adjustment out'],
   TRANSFER_IN: ['Traspaso recibido', 'Transfer in'],
   TRANSFER_OUT: ['Traspaso enviado', 'Transfer out'],
+  SALES_ISSUE: ['Salida de venta', 'Sales issue'],
+  SALES_RETURN: ['Devolución de venta', 'Sales return'],
 }
-const inbound = (type: StockMovementType) => type === 'PURCHASE_RECEIPT' || type === 'ADJUSTMENT_IN' || type === 'TRANSFER_IN'
+const inbound = (type: StockMovementType) => type === 'PURCHASE_RECEIPT' || type === 'ADJUSTMENT_IN' || type === 'TRANSFER_IN' || type === 'SALES_RETURN'
+const deliveryStatuses: SalesDeliveryStatus[] = ['PENDING', 'POSTED', 'NOT_APPLICABLE', 'REVERSED', 'DISMISSED']
+const deliveryLabels: Record<SalesDeliveryStatus, [string, string]> = {
+  PENDING: ['Pendiente de salida', 'Pending issue'],
+  POSTED: ['Salida anotada', 'Issued'],
+  NOT_APPLICABLE: ['Sin productos en almacén', 'No stock-kept products'],
+  REVERSED: ['Devuelta al almacén', 'Returned to stock'],
+  DISMISSED: ['Descartada', 'Dismissed'],
+}
+const deliveryTone: Record<SalesDeliveryStatus, BadgeTone> = { PENDING: 'warning', POSTED: 'success', NOT_APPLICABLE: 'neutral', REVERSED: 'info', DISMISSED: 'neutral' }
 
 export function InventoryPage() {
   const { language, locale, t } = useTranslation()
@@ -43,11 +55,13 @@ export function InventoryPage() {
   const [warehouseId, setWarehouseId] = useState('')
   const [movementType, setMovementType] = useState<StockMovementType | ''>('')
   const [onlyInStock, setOnlyInStock] = useState(true)
+  const [deliveryStatus, setDeliveryStatus] = useState<SalesDeliveryStatus | ''>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editor, setEditor] = useState<Editor | null>(null)
   const [refresh, setRefresh] = useState(0)
   const { notify } = useToast()
+  const confirm = useConfirm()
 
   // Los almacenes alimentan los filtros y los formularios de las tres pestañas.
   useEffect(() => {
@@ -58,7 +72,7 @@ export function InventoryPage() {
     return () => { active = false }
   }, [refresh])
 
-  useEffect(() => setPage(0), [tab, debouncedQuery, warehouseId, movementType, onlyInStock])
+  useEffect(() => setPage(0), [tab, debouncedQuery, warehouseId, movementType, onlyInStock, deliveryStatus])
   useEffect(() => {
     let active = true
     setLoading(true)
@@ -75,6 +89,11 @@ export function InventoryPage() {
       params.set('sort', 'occurredAt,desc')
       if (warehouseId) params.set('warehouseId', warehouseId)
       if (movementType) params.set('type', movementType)
+    } else if (tab === 'deliveries') {
+      path = '/api/v1/sales-deliveries'
+      params.set('sort', 'sourceDate,desc')
+      params.append('sort', 'sourceNumber,desc')
+      if (deliveryStatus) params.set('status', deliveryStatus)
     } else {
       path = '/api/v1/warehouses'
       params.set('sort', 'code,asc')
@@ -84,10 +103,15 @@ export function InventoryPage() {
       .catch((cause) => { if (active) setError(errorMessage(cause)) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [tab, page, debouncedQuery, warehouseId, movementType, onlyInStock, refresh])
+  }, [tab, page, debouncedQuery, warehouseId, movementType, onlyInStock, deliveryStatus, refresh])
 
   const changeTab = (next: Tab) => { setData(null); setLoading(true); setQuery(''); setTab(next) }
   const saved = (message: string) => { setEditor(null); setRefresh((value) => value + 1); notify(message) }
+  const dismissDelivery = async (delivery: SalesDelivery) => {
+    if (!(await confirm({ message: c(`¿Descartar la salida de ${delivery.sourceNumber}? El almacén no se descontará por esta venta.`, `Dismiss the issue of ${delivery.sourceNumber}? Stock will not be deducted for this sale.`), danger: true }))) return
+    try { await apiFetch(`/api/v1/sales-deliveries/${delivery.id}/dismiss`, { method: 'POST' }); saved(c('Salida descartada.', 'Issue dismissed.')) }
+    catch (cause) { notify(errorMessage(cause), 'error') }
+  }
   const warehouseName = (id: string) => { const warehouse = warehouses.find((item) => item.id === id); return warehouse ? warehouse.code : '—' }
   const unitLabel = (unit: string) => unit in unitKey ? t(unitKey[unit as UnitOfMeasure]) : unit
   const activeWarehouses = warehouses.filter((item) => item.active)
@@ -104,19 +128,21 @@ export function InventoryPage() {
     <nav className="workspace-tabs" aria-label={c('Áreas de almacén', 'Inventory areas')}>
       <button type="button" className={tab === 'stock' ? 'active' : ''} onClick={() => changeTab('stock')}><Boxes size={15} />{c('Existencias', 'Stock')}</button>
       <button type="button" className={tab === 'movements' ? 'active' : ''} onClick={() => changeTab('movements')}><ClipboardList size={15} />{c('Diario de almacén', 'Movement journal')}</button>
+      <button type="button" className={tab === 'deliveries' ? 'active' : ''} onClick={() => changeTab('deliveries')}><Truck size={15} />{c('Salidas de venta', 'Sales issues')}</button>
       <button type="button" className={tab === 'warehouses' ? 'active' : ''} onClick={() => changeTab('warehouses')}><WarehouseIcon size={15} />{c('Almacenes', 'Warehouses')}</button>
     </nav>
 
     <section className="panel table-panel">
-      <TableToolbar value={query} onChange={setQuery} placeholder={tab === 'warehouses' ? c('Buscar almacén', 'Search warehouse') : tab === 'movements' ? c('Buscar por producto o documento', 'Search by product or document') : c('Buscar producto', 'Search product')}>
-        {tab !== 'warehouses' && warehouseFilter}
+      <TableToolbar value={query} onChange={setQuery} placeholder={tab === 'warehouses' ? c('Buscar almacén', 'Search warehouse') : tab === 'deliveries' ? c('Buscar por documento o cliente', 'Search by document or customer') : tab === 'movements' ? c('Buscar por producto o documento', 'Search by product or document') : c('Buscar producto', 'Search product')}>
+        {(tab === 'stock' || tab === 'movements') && warehouseFilter}
+        {tab === 'deliveries' && <select aria-label={t('sales.filterStatus')} value={deliveryStatus} onChange={(event) => setDeliveryStatus(event.target.value as SalesDeliveryStatus | '')}><option value="">{t('sales.allStatuses')}</option>{deliveryStatuses.map((item) => <option key={item} value={item}>{deliveryLabels[item][language === 'es' ? 0 : 1]}</option>)}</select>}
         {tab === 'stock' && <select aria-label={c('Filtrar por existencias', 'Filter by stock')} value={onlyInStock ? 'in' : 'all'} onChange={(event) => setOnlyInStock(event.target.value === 'in')}><option value="in">{c('Con existencias', 'In stock')}</option><option value="all">{c('Incluir agotados', 'Include out of stock')}</option></select>}
         {tab === 'movements' && <select aria-label={t('sales.filterType')} value={movementType} onChange={(event) => setMovementType(event.target.value as StockMovementType | '')}><option value="">{t('sales.allTypes')}</option>{movementTypes.map((item) => <option key={item} value={item}>{movementLabels[item][language === 'es' ? 0 : 1]}</option>)}</select>}
       </TableToolbar>
       {error && <div className="inline-error" role="alert">{error}</div>}
       {loading || !data ? <LoadingState /> : rows.length === 0 ? <EmptyState
-        title={tab === 'stock' ? c('No hay existencias', 'There is no stock') : tab === 'movements' ? c('El diario está vacío', 'The journal is empty') : c('No hay almacenes', 'There are no warehouses')}
-        description={query ? t('common.noResults') : tab === 'warehouses' ? c('Crea el primer almacén para poder recibir mercancía.', 'Create the first warehouse to be able to receive goods.') : c('Las existencias entran al confirmar un albarán de compra o con un ajuste.', 'Stock comes in when a goods receipt is confirmed or through an adjustment.')}
+        title={tab === 'stock' ? c('No hay existencias', 'There is no stock') : tab === 'deliveries' ? c('No hay salidas de venta', 'There are no sales issues') : tab === 'movements' ? c('El diario está vacío', 'The journal is empty') : c('No hay almacenes', 'There are no warehouses')}
+        description={query ? t('common.noResults') : tab === 'deliveries' ? c('Aquí aparecen los albaranes y las facturas sin albarán que se confirmen desde ahora.', 'Delivery notes and invoices without a delivery note confirmed from now on appear here.') : tab === 'warehouses' ? c('Crea el primer almacén para poder recibir mercancía.', 'Create the first warehouse to be able to receive goods.') : c('Las existencias entran al confirmar un albarán de compra o con un ajuste.', 'Stock comes in when a goods receipt is confirmed or through an adjustment.')}
         action={tab === 'warehouses' && !query ? <button className="button button-secondary" type="button" onClick={() => setEditor({ kind: 'warehouse' })}>{c('Crear almacén', 'Create warehouse')}</button> : undefined} /> : <>
         <div className="table-scroll">
           {tab === 'stock' && <table>
@@ -146,6 +172,19 @@ export function InventoryPage() {
               <td>{movement.sourceNumber || movement.note || '—'}{movement.sourceNumber && movement.note && <small>{movement.note}</small>}</td>
             </tr>)}</tbody>
           </table>}
+          {tab === 'deliveries' && <table>
+            <TableCaption es="Salidas de venta" en="Sales issues" />
+            <thead><tr><th>{c('Documento', 'Document')}</th><th>{t('sales.customer')}</th><th>{t('sales.date')}</th><th>{c('Salida de almacén', 'Stock issue')}</th><th>{c('Almacén', 'Warehouse')}</th><th>{c('Detalle', 'Detail')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead>
+            <tbody>{(rows as SalesDelivery[]).map((delivery) => <tr key={delivery.id}>
+              <td><strong className="document-number">{delivery.sourceNumber}</strong><small>{delivery.sourceType === 'INVOICE' ? c('Factura sin albarán', 'Invoice without delivery note') : c('Albarán', 'Delivery note')}</small></td>
+              <td><strong>{delivery.customerName}</strong>{delivery.customerCode && <small>{delivery.customerCode}</small>}</td>
+              <td>{formatDate(delivery.sourceDate, locale)}</td>
+              <td><StatusBadge tone={deliveryTone[delivery.status]}>{deliveryLabels[delivery.status][language === 'es' ? 0 : 1]}</StatusBadge></td>
+              <td>{delivery.warehouseId ? warehouseName(delivery.warehouseId) : '—'}</td>
+              <td>{delivery.problem || (delivery.postedAt ? formatDateTime(delivery.postedAt, locale) : '—')}</td>
+              <td>{delivery.status === 'PENDING' && <><button className="icon-button" type="button" onClick={() => setEditor({ kind: 'delivery', delivery })} aria-label={c(`Dar salida a ${delivery.sourceNumber}`, `Issue ${delivery.sourceNumber}`)}><PackageCheck size={16} /></button><button className="icon-button" type="button" onClick={() => void dismissDelivery(delivery)} aria-label={c(`Descartar ${delivery.sourceNumber}`, `Dismiss ${delivery.sourceNumber}`)}><Ban size={16} /></button></>}</td>
+            </tr>)}</tbody>
+          </table>}
           {tab === 'warehouses' && <table>
             <TableCaption es="Almacenes" en="Warehouses" />
             <thead><tr><th>{t('field.code')}</th><th>{c('Almacén', 'Warehouse')}</th><th>{c('Ubicación', 'Location')}</th><th>{t('field.status')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead>
@@ -162,11 +201,12 @@ export function InventoryPage() {
       </>}
     </section>
 
-    <Modal open={editor !== null} title={editor?.kind === 'adjustment' ? c('Ajuste de existencias', 'Stock adjustment') : editor?.kind === 'transfer' ? c('Traspaso entre almacenes', 'Transfer between warehouses') : editor?.item ? c('Editar almacén', 'Edit warehouse') : c('Nuevo almacén', 'New warehouse')}
-      description={editor?.kind === 'adjustment' ? c('Corrige las existencias tras un recuento, una rotura o una merma. Queda anotado en el diario.', 'Correct the stock after a count, a breakage or a loss. It is recorded in the journal.') : editor?.kind === 'transfer' ? c('Mueve existencias de un almacén a otro.', 'Move stock from one warehouse to another.') : c('Lugar donde se guarda la mercancía.', 'Place where goods are kept.')}
+    <Modal open={editor !== null} title={editor?.kind === 'adjustment' ? c('Ajuste de existencias', 'Stock adjustment') : editor?.kind === 'delivery' ? c(`Dar salida a ${editor.delivery.sourceNumber}`, `Issue ${editor.delivery.sourceNumber}`) : editor?.kind === 'transfer' ? c('Traspaso entre almacenes', 'Transfer between warehouses') : editor?.item ? c('Editar almacén', 'Edit warehouse') : c('Nuevo almacén', 'New warehouse')}
+      description={editor?.kind === 'adjustment' ? c('Corrige las existencias tras un recuento, una rotura o una merma. Queda anotado en el diario.', 'Correct the stock after a count, a breakage or a loss. It is recorded in the journal.') : editor?.kind === 'delivery' ? c('Elige el almacén del que sale la mercancía de esta venta.', 'Choose the warehouse the goods of this sale leave from.') : editor?.kind === 'transfer' ? c('Mueve existencias de un almacén a otro.', 'Move stock from one warehouse to another.') : c('Lugar donde se guarda la mercancía.', 'Place where goods are kept.')}
       onClose={() => setEditor(null)}>
       {editor?.kind === 'adjustment' && <MovementForm mode="adjustment" level={editor.level} warehouses={activeWarehouses} onCancel={() => setEditor(null)} onSaved={() => saved(c('Ajuste registrado.', 'Adjustment recorded.'))} />}
       {editor?.kind === 'transfer' && <MovementForm mode="transfer" level={editor.level} warehouses={activeWarehouses} onCancel={() => setEditor(null)} onSaved={() => saved(c('Traspaso registrado.', 'Transfer recorded.'))} />}
+      {editor?.kind === 'delivery' && <DeliveryForm delivery={editor.delivery} warehouses={activeWarehouses} onCancel={() => setEditor(null)} onSaved={() => saved(c('Salida anotada en el diario.', 'Issue recorded in the journal.'))} />}
       {editor?.kind === 'warehouse' && <WarehouseForm key={editor.item?.id ?? 'new'} item={editor.item} onCancel={() => setEditor(null)} onSaved={() => saved(c('Almacén guardado.', 'Warehouse saved.'))} />}
     </Modal>
   </div>
@@ -219,6 +259,33 @@ function MovementForm({ mode, level, warehouses, onCancel, onSaved }: { mode: 'a
   </div>{error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={mode === 'adjustment' ? c('Registrar ajuste', 'Record adjustment') : c('Registrar traspaso', 'Record transfer')} /></FormErrors></form>
 }
 
+function DeliveryForm({ delivery, warehouses, onCancel, onSaved }: { delivery: SalesDelivery; warehouses: Warehouse[]; onCancel: () => void; onSaved: () => void }) {
+  const { language, locale, t } = useTranslation()
+  const c = (es: string, en: string) => language === 'es' ? es : en
+  const [warehouseId, setWarehouseId] = useState(warehouses.find((item) => item.defaultWarehouse)?.id ?? warehouses[0]?.id ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault(); setSaving(true); setError('')
+    try { await apiFetch(`/api/v1/sales-deliveries/${delivery.id}/post`, { method: 'POST', body: JSON.stringify({ warehouseId }) }); onSaved() }
+    catch (cause) { setError(errorMessage(cause)) } finally { setSaving(false) }
+  }
+
+  return <form onSubmit={submit}>
+    {delivery.problem && <div className="inline-error">{delivery.problem}</div>}
+    <div className="table-scroll detail-lines"><table>
+      <TableCaption es="Productos de la venta" en="Products of the sale" />
+      <thead><tr><th>{t('field.code')}</th><th>{t('sales.product')}</th><th className="align-right">{t('sales.quantity')}</th></tr></thead>
+      <tbody>{delivery.lines.map((line) => <tr key={line.sequence}><td><span className="code-cell">{line.productCode}</span></td><td>{line.description}</td><td className="align-right"><strong>{formatNumber(line.quantity, locale, 6)}</strong></td></tr>)}</tbody>
+    </table></div>
+    <div className="form-grid"><Field label={c('Almacén de salida', 'Issuing warehouse')} htmlFor="delivery-warehouse" hint={c('Solo se descuentan los productos que ya tienen existencias registradas.', 'Only products that already have recorded stock are deducted.')} required wide>
+      <select id="delivery-warehouse" value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} required>{warehouses.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select>
+    </Field></div>
+    {error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={c('Dar salida', 'Issue stock')} />
+  </form>
+}
+
 function WarehouseForm({ item, onCancel, onSaved }: { item?: Warehouse; onCancel: () => void; onSaved: () => void }) {
   const { language, t } = useTranslation()
   const c = (es: string, en: string) => language === 'es' ? es : en
@@ -244,7 +311,8 @@ function WarehouseForm({ item, onCancel, onSaved }: { item?: Warehouse; onCancel
 }
 
 function movementTone(type: StockMovementType): BadgeTone {
-  if (type === 'PURCHASE_REVERSAL' || type === 'ADJUSTMENT_OUT') return 'warning'
+  if (type === 'PURCHASE_REVERSAL' || type === 'ADJUSTMENT_OUT' || type === 'SALES_RETURN') return 'warning'
+  if (type === 'SALES_ISSUE') return 'neutral'
   if (type === 'TRANSFER_IN' || type === 'TRANSFER_OUT') return 'info'
   return 'success'
 }

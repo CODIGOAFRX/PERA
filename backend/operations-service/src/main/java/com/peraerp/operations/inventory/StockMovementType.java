@@ -6,7 +6,9 @@ public enum StockMovementType {
     ADJUSTMENT_IN(true),
     ADJUSTMENT_OUT(false),
     TRANSFER_IN(true),
-    TRANSFER_OUT(false);
+    TRANSFER_OUT(false),
+    SALES_ISSUE(false),
+    SALES_RETURN(true);
 
     private final boolean inbound;
 
@@ -16,6 +18,11 @@ public enum StockMovementType {
 
     public boolean isInbound() {
         return inbound;
+    }
+
+    /** Deshace un movimiento anterior del mismo almacén, así que se admite aunque el almacén ya esté inactivo. */
+    public boolean isReversal() {
+        return this == PURCHASE_REVERSAL || this == SALES_RETURN;
     }
 
     /** Los ajustes son los únicos movimientos que un usuario registra a mano. */

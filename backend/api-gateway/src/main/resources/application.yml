@@ -23,7 +23,7 @@ spring:
               predicates: ['Path=/api/v1/payment-methods/**,/api/v1/due-dates/**,/api/v1/currencies/**,/api/v1/exchange-rates/**,/api/v1/currency-conversions/**,/api/v1/accounting/**']
             - id: operations
               uri: ${OPERATIONS_SERVICE_URL:http://localhost:8085}
-              predicates: ['Path=/api/v1/workflow-templates/**,/api/v1/work-executions/**,/api/v1/carriers/**,/api/v1/vehicles/**,/api/v1/delivery-routes/**,/api/v1/shipments/**,/api/v1/freight-rates/**,/api/v1/warehouses/**,/api/v1/stock-levels/**,/api/v1/stock-movements/**,/api/v1/purchase-documents/**']
+              predicates: ['Path=/api/v1/workflow-templates/**,/api/v1/work-executions/**,/api/v1/carriers/**,/api/v1/vehicles/**,/api/v1/delivery-routes/**,/api/v1/shipments/**,/api/v1/freight-rates/**,/api/v1/warehouses/**,/api/v1/stock-levels/**,/api/v1/stock-movements/**,/api/v1/sales-deliveries/**,/api/v1/purchase-documents/**']
             - id: activity
               uri: ${ACTIVITY_SERVICE_URL:http://localhost:8086}
               predicates: ['Path=/api/v1/history/**,/api/v1/alert-rules/**,/api/v1/alerts/**']
