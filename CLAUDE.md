@@ -1,0 +1,85 @@
+# PERA ERP — contexto de trabajo
+
+> Leer esto antes de empezar nada. Se actualiza con cada entrega: qué se hizo, qué se decidió y qué falta.
+
+## Qué es
+
+PERA es el ERP con el que se renueva DimproCristalWin (Visual FoxPro). No es solo para empresas de vidrio: el núcleo es horizontal, para cualquier pyme, y lo propio de un sector va como extensión opcional ([auditoría de generalización](docs/08-generalizacion-erp-horizontal.md)).
+
+- Backend: Java 21, Spring Boot 4.1, microservicios gruesos en `backend/` (identity, master-data, sales, finance, operations, activity, licensing y api-gateway). Una base PostgreSQL por servicio, migraciones Flyway.
+- Frontend: React + TypeScript + Vite en `frontend/`.
+- El plan de migración desde DimproCristalWin está en [docs/19-mapa-migracion-dimprocristalwin.md](docs/19-mapa-migracion-dimprocristalwin.md).
+
+## Normas de trabajo
+
+### Versión de cada entrega
+
+Todo lo que se sube a GitHub lleva una versión con la fecha del día y el nombre de quien lo sube:
+
+```
+vAAAAMMDD.Nombre        p. ej. v20261003.Raul
+```
+
+- Va al principio del título del commit (`v20261003.Raul feat: ...`) y como etiqueta de Git sobre el último commit subido.
+- Si ese día ya hay una entrega con ese nombre, la siguiente añade un contador: `v20261003.Raul.2`, `v20261003.Raul.3`.
+- Las etiquetas se suben con `git push origin <etiqueta>`.
+
+### Cómo se cambia el código
+
+- Cambios mínimos: arreglar solo lo que falla y no tocar lo que funciona.
+- Seguir el estilo del código de alrededor: entidad + repositorio + servicio + controlador + DTOs + migración Flyway nueva (nunca editar una migración ya aplicada).
+- Todo filtrado por empresa (`company_id` del token). Nada de claves foráneas entre bases de servicios distintos.
+- Comentarios y mensajes en español, explicando el porqué.
+- Un commit por bloque terminado, y documento en `docs/` con alcance, reglas y límites.
+
+### Cómo se verifica
+
+```bash
+mvn -f backend/pom.xml verify
+cd frontend && npm test && npm run build
+```
+
+Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el puerto 15432, gateway en 8080, frontend en 5173) y `scripts/stop-local.ps1` lo para. Usuarios de demostración: `admin`, `administracion`, `economia`, `logistica` y `catalogo`, con la contraseña de desarrollo del script. Con la aplicación arrancada en Windows no se puede reempaquetar (los JAR están bloqueados): parar antes de `mvn verify`.
+
+## Decisiones tomadas
+
+| Fecha | Decisión |
+|---|---|
+| 2026-10-01 | El plan son siete bloques en este orden: compras e inventario, cartera, facturación automática y cierre, comerciales y comisiones, reclamaciones y agenda, plantillas y etiquetas, extensión de vidrio. |
+| 2026-10-01 | El albarán de venta descuenta existencias; una factura sin albarán previo también. |
+| 2026-10-01 | Las remesas se gestionan sin fichero bancario por ahora. |
+| 2026-10-03 | Cada entrega se versiona como `vAAAAMMDD.Nombre`. |
+| 2026-10-03 | Logística puede leer clientes (para elegirlos en reclamaciones y citas), sin ver la pantalla de Clientes. |
+
+## Pendiente de decidir
+
+- **Facturación automática (bloque 3):** si una factura puede agrupar varios albaranes. Hoy la conversión es uno a uno y las facturas van encadenadas en Veri*Factu.
+- **Cierre de ejercicio (bloque 3):** qué hace hoy el cierre en DimproCristalWin (solo numeraciones o también asientos).
+- **Secretos por defecto:** los servicios arrancan con claves públicas si falta la variable de entorno (JWT, clave interna, contraseña de los usuarios demo). Falta decidir si deben negarse a arrancar.
+
+## Registro de entregas
+
+### v20261003.Raul — subida de la rama y bloque 5
+
+Rama `migracion-dimprocristalwin` subida a GitHub por primera vez (sin PR, sin tocar `main` ni `raul`).
+
+- **Bloque 5 — Reclamaciones, agenda y listín** ([docs/22](docs/22-reclamaciones-y-agenda.md)). Reclamaciones con las siete tablas de clasificación del programa anterior, seguimiento con comentarios, cierre con resolución. Agenda semanal de citas con tipos, persona, cliente y contacto. Listín de contactos. Pantallas `/reclamaciones` y `/agenda`.
+- Arreglos tras la prueba de Raúl: abrir una sesión de caja ya no salta al diario; la botonera de los detalles no saca barra horizontal; singulares en «1 apunte», «1 recibo».
+
+### 2026-10-01 — limpieza y bloques 1 y 2 (subidos con la entrega anterior)
+
+- **Limpieza:** dependencia vulnerable del frontend (`undici`) corregida; `start-local.ps1` exige JDK 21; CI de frontend; documentación desfasada y enlaces rotos corregidos.
+- **Bloque 1 — Compras e inventario** ([docs/20](docs/20-compras-inventario.md)). Pedido a proveedor, albarán de entrada y factura de proveedor; almacenes, existencias, diario, ajustes y traspasos; el albarán de venta descuenta existencias. Pantallas `/compras` y `/almacen`.
+- **Bloque 2 — Cartera y caja** ([docs/21](docs/21-cartera-y-caja.md)). Recibos desde los vencimientos, cobro, devolución, remesas sin fichero bancario y cajas con sesiones y arqueo. El cobro actualiza el estado de la factura en Ventas. Pantalla `/cartera`.
+
+## Estado de los bloques
+
+| Bloque | Estado |
+|---|---|
+| 1. Compras e inventario | Hecho |
+| 2. Cartera y caja | Hecho |
+| 3. Facturación automática y cierre | Pendiente de decisiones |
+| 4. Comerciales, comisiones y grupos de cliente | Pendiente |
+| 5. Reclamaciones y agenda | Hecho |
+| 6. Plantillas de documento y etiquetas | Pendiente |
+| 7. Extensión de vidrio | Pendiente |
