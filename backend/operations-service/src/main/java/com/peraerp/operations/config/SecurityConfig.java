@@ -59,6 +59,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/purchase-documents/**")
                         .hasAuthority("purchases:read")
                         .requestMatchers("/api/v1/purchase-documents/**").hasAuthority("purchases:write")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/claims/**", "/api/v1/claim-catalog/**")
+                        .hasAuthority("claims:read")
+                        .requestMatchers("/api/v1/claims/**", "/api/v1/claim-catalog/**").hasAuthority("claims:write")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/agenda-entries/**", "/api/v1/agenda-entry-types/**",
+                                "/api/v1/contacts/**")
+                        .hasAuthority("agenda:read")
+                        .requestMatchers("/api/v1/agenda-entries/**", "/api/v1/agenda-entry-types/**",
+                                "/api/v1/contacts/**")
+                        .hasAuthority("agenda:write")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(server -> server.jwt(jwt ->
                         jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))

@@ -86,6 +86,11 @@ class GatewayAuditEventFactory {
             case "warehouses" -> "WAREHOUSE";
             case "stock-movements" -> "STOCK_MOVEMENT";
             case "sales-deliveries" -> "SALES_DELIVERY";
+            case "claims" -> "CLAIM";
+            case "claim-catalog" -> "CLAIM_CATALOG";
+            case "agenda-entries" -> "AGENDA_ENTRY";
+            case "agenda-entry-types" -> "AGENDA_ENTRY_TYPE";
+            case "contacts" -> "CONTACT";
             case "payment-methods" -> "PAYMENT_METHOD";
             case "due-dates" -> "DUE_DATE";
             case "receipts" -> "RECEIPT";

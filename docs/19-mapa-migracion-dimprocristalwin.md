@@ -31,7 +31,7 @@ El legado tiene unos 375 formularios y varias decenas de carpetas de informes. E
 | Actualiza riesgo clientes | Parcial | Riesgo de crédito en ventas; no hay recálculo masivo. |
 | Obras de clientes | Parcial | `WorkSite` existe pero está congelado, sin API ni pantalla. Pendiente decidir si se generaliza como proyecto o ubicación de servicio. |
 | Códigos postales | Pendiente | |
-| Agenda telefónica | Pendiente | Clientes y proveedores tienen datos de contacto; no hay agenda independiente. |
+| Agenda telefónica | Cubierto | Listín de contactos en `/agenda` ([doc 22](22-reclamaciones-y-agenda.md)). Sin importador desde el programa anterior. |
 | Bancos y agencias | Parcial | IBAN opcional en terceros; no hay maestro de bancos ni cuentas de la empresa. |
 | Tipo de documentos y estados | Cubierto | Tipos y estados fijos en `sales-service`. No son configurables por el usuario. |
 | Series de documentos | Cubierto | Numeraciones configurables, `/configuracion`. |
@@ -81,8 +81,8 @@ El legado tiene unos 375 formularios y varias decenas de carpetas de informes. E
 | Opción en DimproCristalWin | Estado en PERA | Dónde / qué falta |
 |---|---|---|
 | Transporte: tipos, transportistas, salidas | Cubierto | Expediciones y fletes en `/operaciones`. |
-| Agenda | Pendiente | |
-| Reclamaciones y no conformidades | Pendiente | Motivo, causa, área, responsable, resolución y acción preventiva. Es transversal a cualquier sector. |
+| Agenda | Cubierto | Citas por semana con tipos, persona, cliente y contacto en `/agenda` ([doc 22](22-reclamaciones-y-agenda.md)). Sin festivos ni recordatorios. |
+| Reclamaciones y no conformidades | Cubierto | `/reclamaciones` con las siete tablas de clasificación, seguimiento y cierre ([doc 22](22-reclamaciones-y-agenda.md)). Sin «crea documento» ni listados. |
 | Aluminio: series y vidrios | Vertical | |
 | iPedidos | Pendiente | Entrada de pedidos desde un canal externo. Requiere definir primero una API pública de pedidos. |
 | VidrioService: VS-DELIVERY, VS-STOCK | Vertical | |
@@ -101,7 +101,7 @@ El legado tiene unos 375 formularios y varias decenas de carpetas de informes. E
 2. **Cartera completa.** Hecho ([doc 21](21-cartera-y-caja.md)): recibos, remesas sin fichero bancario y caja. El modelo que existía era solo un esqueleto y hubo que diseñarlo.
 3. **Facturación automática y cierre de ejercicio.** Operativa mensual que hoy se hace en el legado.
 4. **Comerciales y comisiones, grupos de cliente.**
-5. **Reclamaciones y agenda.** Módulos transversales e independientes.
+5. **Reclamaciones y agenda.** Hecho ([doc 22](22-reclamaciones-y-agenda.md)), con el listín.
 6. **Plantillas de documento configurables y etiquetas.**
 7. **Extensión vertical de vidrio.** Figuras, cámaras, caballetes, optimización de corte. Solo después de cerrar los bloques comunes, y como módulo opcional.
 

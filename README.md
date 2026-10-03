@@ -11,7 +11,7 @@ PERA es un monorepo de microservicios de granularidad gruesa. La plataforma actu
 - `master-data-service`: clientes, proveedores, productos, importación CSV/Excel, jerarquías, impuestos, tarifas, reglas de precio y embalajes.
 - `sales-service`: numeraciones configurables, presupuestos, pedidos, albaranes, facturas, snapshots y conversiones.
 - `finance-service`: formas de pago, vencimientos, recibos de cobro, remesas y caja, monedas, tipos de cambio, conversiones reproducibles y contabilidad inicial con plan de cuentas, bandeja de facturas y libro diario.
-- `operations-service`: workflows configurables, transportistas, vehículos, rutas, fletes, expediciones y archivos enviados; compras (pedido, albarán de entrada y factura de proveedor) e inventario por almacén con diario de movimientos.
+- `operations-service`: workflows configurables, transportistas, vehículos, rutas, fletes, expediciones y archivos enviados; compras (pedido, albarán de entrada y factura de proveedor), inventario por almacén con diario de movimientos, reclamaciones de clientes y agenda con listín de contactos.
 - `activity-service`: historial central, exportación CSV y alertas personalizadas.
 - `licensing-service`: emisión, activación, validación periódica, suspensión y revocación de licencias.
 - React con dashboard económico comparativo, contabilidad visual, importadores de maestros, centro de informes imprimibles, rutas protegidas por perfil, administración de usuarios, barra lateral ajustable, selector persistente ES/EN y formatos por idioma/moneda.

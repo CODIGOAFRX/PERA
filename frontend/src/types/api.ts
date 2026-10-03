@@ -668,3 +668,109 @@ export interface CashSession {
   closingNote: string | null
   movements: CashMovement[]
 }
+
+export type ClaimCatalogKind = 'REASON' | 'NONCONFORMITY' | 'CAUSE' | 'AREA' | 'RESPONSIBLE' | 'RESOLUTION' | 'PREVENTIVE_ACTION'
+
+export interface ClaimCatalogItem {
+  id: string
+  kind: ClaimCatalogKind
+  name: string
+  followUpDays: number | null
+  active: boolean
+}
+
+export type ClaimStatus = 'OPEN' | 'CLOSED'
+
+export interface ClaimLine {
+  sequence: number
+  productId: string | null
+  productCode: string | null
+  description: string
+  quantity: number
+}
+
+export interface ClaimComment {
+  id: string
+  authorName: string
+  text: string
+  createdAt: string
+}
+
+/** Reclamación de cliente. Cada clasificación apunta a un elemento de su tabla. */
+export interface Claim {
+  id: string
+  number: string
+  claimDate: string
+  status: ClaimStatus
+  customerId: string
+  customerCode: string | null
+  customerName: string
+  sourceDocumentId: string | null
+  sourceDocumentNumber: string | null
+  sourceDocumentDate: string | null
+  description: string
+  reportedByName: string
+  reasonId: string | null
+  nonconformityId: string | null
+  causeId: string | null
+  areaId: string | null
+  responsibleId: string | null
+  resolutionId: string | null
+  preventiveActionId: string | null
+  followUpDate: string | null
+  overdue: boolean
+  closedOn: string | null
+  closingNote: string | null
+  daysOpen: number
+  lines: ClaimLine[]
+  comments: ClaimComment[]
+}
+
+export interface AgendaEntryType {
+  id: string
+  name: string
+  color: string | null
+  active: boolean
+}
+
+export interface Contact {
+  id: string
+  name: string
+  organization: string | null
+  phone: string | null
+  mobile: string | null
+  email: string | null
+  address: string | null
+  postalCode: string | null
+  city: string | null
+  region: string | null
+  customerId: string | null
+  customerName: string | null
+  notes: string | null
+  active: boolean
+}
+
+export type AgendaEntryStatus = 'PENDING' | 'DONE' | 'CANCELLED'
+
+/** Cita de la agenda. Sin hora de inicio es de todo el día. */
+export interface AgendaEntry {
+  id: string
+  date: string
+  startTime: string | null
+  endTime: string | null
+  title: string
+  details: string | null
+  typeId: string | null
+  assigneeName: string | null
+  customerId: string | null
+  customerName: string | null
+  contactId: string | null
+  contactName: string | null
+  contactPhone: string | null
+  location: string | null
+  documentReference: string | null
+  status: AgendaEntryStatus
+  completedOn: string | null
+  outcome: string | null
+  createdByName: string
+}

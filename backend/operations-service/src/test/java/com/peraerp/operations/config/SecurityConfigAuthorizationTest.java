@@ -1,5 +1,9 @@
 package com.peraerp.operations.config;
 
+import com.peraerp.operations.agenda.AgendaController;
+import com.peraerp.operations.agenda.AgendaService;
+import com.peraerp.operations.claims.ClaimController;
+import com.peraerp.operations.claims.ClaimService;
 import com.peraerp.operations.freight.FreightRateController;
 import com.peraerp.operations.freight.FreightRateService;
 import com.peraerp.operations.inventory.StockController;
@@ -123,6 +127,25 @@ class SecurityConfigAuthorizationTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void claimsAndAgendaHaveTheirOwnPermissions() throws Exception {
+        mvc.perform(get("/api/v1/claims").with(permission("agenda:read")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/claim-catalog").with(permission("claims:read")))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/claims/00000000-0000-0000-0000-000000000001/close")
+                        .with(permission("claims:read")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/agenda-entry-types").with(permission("claims:read")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/agenda-entry-types").with(permission("agenda:read")))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/contacts").with(permission("agenda:read")))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/contacts").with(permission("agenda:write")))
+                .andExpect(status().isBadRequest());
+    }
+
     private org.springframework.test.web.servlet.request.RequestPostProcessor permission(String permission) {
         return jwt().authorities(new SimpleGrantedAuthority(permission));
     }
@@ -132,7 +155,8 @@ class SecurityConfigAuthorizationTest {
     @EnableWebSecurity
     @EnableSpringDataWebSupport
     @Import({SecurityConfig.class, FreightRateController.class, ShipmentController.class,
-            WarehouseController.class, StockController.class, PurchaseDocumentController.class})
+            WarehouseController.class, StockController.class, PurchaseDocumentController.class,
+            ClaimController.class, AgendaController.class})
     static class TestConfiguration {
 
         @Bean
@@ -168,6 +192,16 @@ class SecurityConfigAuthorizationTest {
         @Bean
         PurchaseDocumentService purchaseDocumentService() {
             return mock(PurchaseDocumentService.class);
+        }
+
+        @Bean
+        ClaimService claimService() {
+            return mock(ClaimService.class);
+        }
+
+        @Bean
+        AgendaService agendaService() {
+            return mock(AgendaService.class);
         }
     }
 }

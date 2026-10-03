@@ -40,6 +40,7 @@ public class BootstrapDataInitializer implements ApplicationRunner {
             "logistics:read", "logistics:write", "logistics:manage", "logistics:dispatch",
             "freight:read", "freight:write",
             "inventory:read", "inventory:write", "purchases:read", "purchases:write",
+            "claims:read", "claims:write", "agenda:read", "agenda:write",
             "history:read", "history:export", "alerts:read", "alerts:manage", "alerts:acknowledge",
             "license:read", "license:manage"
     );
@@ -52,17 +53,18 @@ public class BootstrapDataInitializer implements ApplicationRunner {
                     "quotes:read", "quotes:write", "finance:read", "finance:write",
                     "accounting:read", "accounting:write",
                     "company-settings:read", "numbering:read", "verifactu:read", "currencies:read",
-                    "pricing:read", "taxes:read")),
+                    "pricing:read", "taxes:read", "claims:read", "claims:write", "agenda:read", "agenda:write")),
             new RoleDefinition("LOGISTICS", "Logística y procesos", List.of(
-                    "suppliers:read", "suppliers:write", "products:read",
+                    "customers:read", "suppliers:read", "suppliers:write", "products:read",
                     "company-settings:read", "currencies:read", "workflows:read", "workflows:manage",
                     "workflows:execute", "logistics:read", "logistics:write", "logistics:manage",
                     "logistics:dispatch", "freight:read", "freight:write",
-                    "inventory:read", "inventory:write", "purchases:read", "purchases:write")),
+                    "inventory:read", "inventory:write", "purchases:read", "purchases:write",
+                    "claims:read", "claims:write", "agenda:read", "agenda:write")),
             new RoleDefinition("CATALOG", "Catálogo y maestros", List.of(
                     "customers:read", "products:read", "products:write", "company-settings:read",
                     "currencies:read", "taxes:read", "taxes:write", "pricing:read", "pricing:write",
-                    "packaging:read", "packaging:write"))
+                    "packaging:read", "packaging:write", "agenda:read", "agenda:write"))
     );
 
     private final CompanyRepository companyRepository;
