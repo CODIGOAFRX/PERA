@@ -44,6 +44,12 @@ Migración `V14__verifactu_remission.sql` del servicio de ventas: código y text
 
 Para probar sin certificado real, `pera.verifactu.aeat.test-endpoint` apunta la remisión a un servicio local que hace de AEAT de pruebas. Se ignora siempre en producción.
 
+## Prueba con la AEAT de pruebas real
+
+El 8 de octubre de 2026 Raúl presentó una factura con su certificado personal de la FNMT en la preproducción de la AEAT: aceptada, con CSV, y el QR la encuentra al escanearlo.
+
+Esa prueba destapó un fallo: la cadena se llevaba por empresa, y la primera factura con el NIF nuevo se encadenó con un registro de otro NIF. La AEAT la rechazó (error 1123 del bloque de Encadenamiento). La cadena es de cada emisor: ahora, si el registro anterior es de otro NIF, el nuevo empieza cadena propia como primer registro.
+
 ## Límites y siguiente paso
 
 - **Subsanación** de registros rechazados o aceptados con errores, y **anulación**: fase 6 del plan.

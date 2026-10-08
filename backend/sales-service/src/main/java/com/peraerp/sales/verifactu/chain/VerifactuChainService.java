@@ -61,14 +61,22 @@ public class VerifactuChainService {
         ZonedDateTime generatedAt = ZonedDateTime.now(clock.withZone(request.zone()));
         requireRecordIsNotOlderThanTheInvoice(request, generatedAt);
 
-        String previousFingerprint = head.getLastFingerprint();
+        VerifactuRecord previous = previousRecord(head);
+        // La cadena es de cada emisor: si la empresa ha cambiado de NIF, el primer registro con el
+        // nuevo empieza cadena propia («PrimerRegistro»). Encadenarlo con un registro de otro NIF
+        // lo rechaza la AEAT (error 1123 del bloque de Encadenamiento).
+        boolean newIssuer = previous != null && !previous.getIssuerTaxId().equals(request.issuerTaxId());
+        if (newIssuer) {
+            previous = null;
+        }
+        String previousFingerprint = newIssuer ? null : head.getLastFingerprint();
         String fingerprint = RecordFingerprint.of(fingerprintInput(request, previousFingerprint, generatedAt));
 
         // El XML se construye ahora, no antes: contiene la huella y los datos del registro
         // anterior, y ninguno de los dos se conoce hasta tener el bloqueo.
         String payloadXml = request.payloadFactory() == null ? null
                 : request.payloadFactory().serialize(new RecordPayloadFactory.PayloadContext(
-                        previousFingerprint, fingerprint, generatedAt, previousRecord(head)));
+                        previousFingerprint, fingerprint, generatedAt, previous));
 
         VerifactuRecord record = records.save(new VerifactuRecord(companyId, request.documentId(),
                 request.recordType(), head.getNextSequence(), request.issuerTaxId(), request.invoiceNumber(),
@@ -82,9 +90,8 @@ public class VerifactuChainService {
     }
 
     /**
-     * Solo se lee cuando hay algo que serializar: el bloque de encadenamiento del XML necesita el
-     * número y la fecha del registro anterior, no basta con su huella. Si no hay XML que construir,
-     * la consulta sobra.
+     * El registro anterior de la cadena: el bloque de encadenamiento del XML necesita su número y
+     * su fecha, no basta con la huella, y su NIF dice si el nuevo registro sigue la misma cadena.
      */
     private VerifactuRecord previousRecord(InvoiceChainHead head) {
         return head.getLastRecordId() == null

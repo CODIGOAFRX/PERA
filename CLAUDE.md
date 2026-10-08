@@ -71,6 +71,12 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 - Pantalla nueva `/verifactu` con el estado de la conexión, el recuento por estado y la lista de lo que necesita atención. En la factura, estado ante la AEAT con el código y texto de la respuesta y «Enviar ahora».
 - `FiscalDelivery` queda solo para B2Brouter.
 
+### v20261008.Raul.3 — cadena Veri*Factu por emisor
+
+- Probado con la AEAT de pruebas real y el certificado FNMT de Raúl: factura aceptada con CSV y QR que la encuentra.
+- **Arreglo:** la cadena se llevaba por empresa; al cambiar el NIF del emisor, el primer registro se encadenaba con uno de otro NIF y la AEAT lo rechazaba (1123). Ahora un NIF nuevo empieza su propia cadena.
+- Para probar contra la AEAT real en local: `PERA_VERIFACTU_DEVELOPER_TAX_ID` y `PERA_VERIFACTU_DEVELOPER_NAME` con datos reales (un NIF inventado lo rechaza la AEAT) y el certificado cargado en Conexiones.
+
 ### v20261008.Raul — ficha de cliente
 
 - **Bloque 4, primera parte — Ficha de cliente** ([docs/23](docs/23-ficha-de-cliente.md)). Tablas de grupos, tipos, formas de entrega y motivos de baja; maestro de comerciales; en la ficha, comercial, móvil y cuenta contable; contactos con principal único, direcciones de entrega con habitual única y notas. La lista filtra por grupo, comercial y estado. Migración `V11` de master-data.

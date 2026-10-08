@@ -115,6 +115,25 @@ class VerifactuChainServiceTest {
     }
 
     @Test
+    void aNewIssuerTaxIdStartsItsOwnChain() {
+        VerifactuRecord old = service.append(COMPANY, alta("F-2026-0000015"));
+        when(records.findById(old.getId())).thenReturn(Optional.of(old));
+
+        VerifactuRecord first = service.append(COMPANY, altaOf("A39200019", "F-2026-0000016"));
+
+        assertThat(first.getPreviousFingerprint()).isNull();
+        assertThat(first.getSequenceNumber()).isEqualTo(2L);
+        when(records.findById(first.getId())).thenReturn(Optional.of(first));
+        VerifactuRecord second = service.append(COMPANY, altaOf("A39200019", "F-2026-0000017"));
+        assertThat(second.getPreviousFingerprint()).isEqualTo(first.getFingerprint());
+    }
+
+    private ChainedRecordRequest altaOf(String issuer, String number) {
+        return new ChainedRecordRequest(UUID.randomUUID(), VerifactuRecordType.ALTA, issuer, number,
+                ISSUE_DATE, InvoiceKind.F1, null, new BigDecimal("21.00"), new BigDecimal("121.00"), MADRID, null);
+    }
+
+    @Test
     void chainHeadAdvancesToTheLastRecord() {
         service.append(COMPANY, alta("F-2026-0000015"));
         VerifactuRecord last = service.append(COMPANY, alta("F-2026-0000016"));
