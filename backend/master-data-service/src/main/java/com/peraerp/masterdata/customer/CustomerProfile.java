@@ -37,6 +37,20 @@ public class CustomerProfile extends CompanyScopedEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "risk_policy", nullable = false, length = 30)
     private RiskPolicy riskPolicy = RiskPolicy.WARN;
+    @Column(name = "group_id")
+    private UUID groupId;
+    @Column(name = "type_id")
+    private UUID typeId;
+    @Column(name = "salesperson_id")
+    private UUID salespersonId;
+    @Column(name = "delivery_method_id")
+    private UUID deliveryMethodId;
+    @Column(name = "inactive_reason_id")
+    private UUID inactiveReasonId;
+    @Column(length = 40)
+    private String mobile;
+    @Column(name = "accounting_account", length = 20)
+    private String accountingAccount;
 
     protected CustomerProfile() {}
 
@@ -69,6 +83,21 @@ public class CustomerProfile extends CompanyScopedEntity {
         this.riskPolicy = riskPolicy == null ? RiskPolicy.WARN : riskPolicy;
     }
 
+    /** Aplica la clasificación ya validada. El motivo de baja solo tiene sentido en un cliente inactivo. */
+    public void classify(CustomerClassification classification, boolean active) {
+        this.groupId = classification.groupId();
+        this.typeId = classification.typeId();
+        this.salespersonId = classification.salespersonId();
+        this.deliveryMethodId = classification.deliveryMethodId();
+        this.inactiveReasonId = active ? null : classification.inactiveReasonId();
+        this.mobile = blankToNull(classification.mobile());
+        this.accountingAccount = blankToNull(classification.accountingAccount());
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
     public UUID getPartyId() { return partyId; }
     public UUID getPriceListId() { return priceListId; }
     public UUID getDefaultPaymentMethodId() { return defaultPaymentMethodId; }
@@ -81,4 +110,11 @@ public class CustomerProfile extends CompanyScopedEntity {
     public BigDecimal getCreditLimit() { return creditLimit; }
     public BigDecimal getRiskWarningThreshold() { return riskWarningThreshold; }
     public RiskPolicy getRiskPolicy() { return riskPolicy; }
+    public UUID getGroupId() { return groupId; }
+    public UUID getTypeId() { return typeId; }
+    public UUID getSalespersonId() { return salespersonId; }
+    public UUID getDeliveryMethodId() { return deliveryMethodId; }
+    public UUID getInactiveReasonId() { return inactiveReasonId; }
+    public String getMobile() { return mobile; }
+    public String getAccountingAccount() { return accountingAccount; }
 }

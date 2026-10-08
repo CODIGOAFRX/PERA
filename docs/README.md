@@ -18,6 +18,7 @@
 - 20 · [Compras e inventario básico](20-compras-inventario.md)
 - 21 · [Cartera y caja](21-cartera-y-caja.md)
 - 22 · [Reclamaciones y agenda](22-reclamaciones-y-agenda.md)
+- 23 · [Ficha de cliente](23-ficha-de-cliente.md)
 
 Notas de sesión: [traspaso de contexto del 23-09-2026](TRASPASO-CONTEXTO-2026-09-23.md).
 

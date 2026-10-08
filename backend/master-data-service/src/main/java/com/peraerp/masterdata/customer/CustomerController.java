@@ -23,8 +23,14 @@ public class CustomerController {
     public CustomerController(CustomerService service) { this.service = service; }
 
     @GetMapping
-    Page<CustomerResponse> search(@RequestParam(required = false) String query, Pageable pageable) {
-        return service.search(query, pageable);
+    Page<CustomerResponse> search(@RequestParam(required = false) String query,
+                                  @RequestParam(required = false) UUID groupId,
+                                  @RequestParam(required = false) UUID typeId,
+                                  @RequestParam(required = false) UUID salespersonId,
+                                  @RequestParam(required = false) Boolean active,
+                                  Pageable pageable) {
+        return service.search(query, new CustomerService.CustomerFilter(groupId, typeId, salespersonId, active),
+                pageable);
     }
     @GetMapping("/{id}")
     CustomerResponse findById(@PathVariable UUID id) { return service.findById(id); }

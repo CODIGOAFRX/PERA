@@ -112,6 +112,72 @@ export interface Customer {
   riskWarningThreshold: number
   riskPolicy: RiskPolicy
   createdAt: string
+  classification?: CustomerClassification | null
+}
+
+/** Clasificación comercial del cliente. Si no se envía al modificar, se conserva la guardada. */
+export interface CustomerClassification {
+  groupId: string | null
+  typeId: string | null
+  salespersonId: string | null
+  deliveryMethodId: string | null
+  inactiveReasonId: string | null
+  mobile: string | null
+  accountingAccount: string | null
+}
+
+export type CustomerCatalogKind = 'GROUP' | 'TYPE' | 'DELIVERY_METHOD' | 'INACTIVE_REASON'
+
+export interface CustomerCatalogItem {
+  id: string
+  kind: CustomerCatalogKind
+  name: string
+  active: boolean
+}
+
+export interface Salesperson {
+  id: string
+  code: string
+  name: string
+  email: string | null
+  phone: string | null
+  commissionPercentage: number | null
+  active: boolean
+}
+
+export interface CustomerContact {
+  id: string
+  name: string
+  position: string | null
+  phone: string | null
+  mobile: string | null
+  email: string | null
+  notes: string | null
+  primaryContact: boolean
+}
+
+export interface CustomerAddress {
+  id: string
+  type: string
+  label: string | null
+  line1: string
+  line2: string | null
+  postalCode: string | null
+  city: string | null
+  province: string | null
+  country: string | null
+  contactPhone: string | null
+  primaryAddress: boolean
+  active: boolean
+}
+
+export interface CustomerNote {
+  id: string
+  title: string
+  message: string
+  showOnDocuments: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 export interface CustomerInput {
@@ -132,6 +198,7 @@ export interface CustomerInput {
   riskWarningThreshold?: number
   riskPolicy?: RiskPolicy
   active?: boolean
+  classification?: CustomerClassification | null
 }
 
 export interface Supplier {

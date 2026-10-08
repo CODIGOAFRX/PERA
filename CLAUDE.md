@@ -50,6 +50,8 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 | 2026-10-01 | Las remesas se gestionan sin fichero bancario por ahora. |
 | 2026-10-03 | Cada entrega se versiona como `vAAAAMMDD.Nombre`. |
 | 2026-10-03 | Logística puede leer clientes (para elegirlos en reclamaciones y citas), sin ver la pantalla de Clientes. |
+| 2026-10-08 | El bloque 4 se parte en dos: primero la ficha de cliente (clasificación, comerciales, contactos, direcciones y notas); las comisiones después, porque tocan Ventas. |
+| 2026-10-08 | El texto para documentos del cliente se guarda como nota con «mostrar en documentos», no como campo aparte. |
 
 ## Pendiente de decidir
 
@@ -58,6 +60,12 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 - **Secretos por defecto:** los servicios arrancan con claves públicas si falta la variable de entorno (JWT, clave interna, contraseña de los usuarios demo). Falta decidir si deben negarse a arrancar.
 
 ## Registro de entregas
+
+### v20261008.Raul — ficha de cliente
+
+- **Bloque 4, primera parte — Ficha de cliente** ([docs/23](docs/23-ficha-de-cliente.md)). Tablas de grupos, tipos, formas de entrega y motivos de baja; maestro de comerciales; en la ficha, comercial, móvil y cuenta contable; contactos con principal único, direcciones de entrega con habitual única y notas. La lista filtra por grupo, comercial y estado. Migración `V11` de master-data.
+- **Arreglo:** al guardar un cliente desde la pantalla se borraban su tarifa, su forma de pago y su código de proveedor.
+- Quien solo tiene `customers:read` ve clientes y fichas sin botones de edición.
 
 ### v20261003.Raul — subida de la rama y bloque 5
 
@@ -79,7 +87,7 @@ Rama `migracion-dimprocristalwin` subida a GitHub por primera vez (sin PR, sin t
 | 1. Compras e inventario | Hecho |
 | 2. Cartera y caja | Hecho |
 | 3. Facturación automática y cierre | Pendiente de decisiones |
-| 4. Comerciales, comisiones y grupos de cliente | Pendiente |
+| 4. Comerciales, comisiones y grupos de cliente | Ficha de cliente hecha; faltan las comisiones |
 | 5. Reclamaciones y agenda | Hecho |
 | 6. Plantillas de documento y etiquetas | Pendiente |
 | 7. Extensión de vidrio | Pendiente |

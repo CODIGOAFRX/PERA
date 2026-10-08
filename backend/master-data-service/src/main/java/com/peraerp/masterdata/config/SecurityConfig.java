@@ -24,8 +24,10 @@ public class SecurityConfig {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/customers/**").hasAuthority("customers:read")
-                        .requestMatchers("/api/v1/customers/**").hasAuthority("customers:write")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/customers/**", "/api/v1/customer-catalog/**",
+                                "/api/v1/salespeople/**").hasAuthority("customers:read")
+                        .requestMatchers("/api/v1/customers/**", "/api/v1/customer-catalog/**",
+                                "/api/v1/salespeople/**").hasAuthority("customers:write")
                         .requestMatchers(HttpMethod.GET, "/api/v1/suppliers/**").hasAuthority("suppliers:read")
                         .requestMatchers("/api/v1/suppliers/**").hasAuthority("suppliers:write")
                         .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/product-natures/**",

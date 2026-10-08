@@ -34,13 +34,15 @@ class CustomerServiceTest {
     @Mock CustomerProfileRepository customers;
     @Mock PartyRepository parties;
     @Mock CurrentCompanyProvider companyProvider;
+    @Mock CustomerCatalogItemRepository catalog;
+    @Mock SalespersonRepository salespeople;
 
     private final UUID companyId = UUID.randomUUID();
     private CustomerService service;
 
     @BeforeEach
     void setUp() {
-        service = new CustomerService(customers, parties, companyProvider);
+        service = new CustomerService(customers, parties, catalog, salespeople, companyProvider);
     }
 
     @Test
@@ -108,15 +110,87 @@ class CustomerServiceTest {
     @Test
     void usesRepositoryAlphabeticalOrderInsteadOfEntitySortFields() {
         when(companyProvider.requireCompanyId()).thenReturn(companyId);
-        when(customers.search(any(UUID.class), any(String.class), any(Pageable.class))).thenReturn(Page.empty());
+        when(customers.search(any(UUID.class), any(String.class), any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(Page.empty());
 
         service.search(" cliente ", PageRequest.of(2, 12, Sort.by("legalName")));
 
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(customers).search(eq(companyId), eq("cliente"), pageable.capture());
+        verify(customers).search(eq(companyId), eq("cliente"), eq(null), eq(null), eq(null), eq(null),
+                pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isEqualTo(2);
         assertThat(pageable.getValue().getPageSize()).isEqualTo(12);
         assertThat(pageable.getValue().getSort().isUnsorted()).isTrue();
+    }
+
+    @Test
+    void keepsStoredClassificationWhenAnOldClientDoesNotSendIt() {
+        UUID customerId = UUID.randomUUID();
+        UUID partyId = UUID.randomUUID();
+        UUID groupId = UUID.randomUUID();
+        Party party = new Party(companyId, "C001", "Cliente", null, null, null, null, null);
+        CustomerProfile profile = new CustomerProfile(companyId, partyId, null, null, null,
+                BigDecimal.ONE, BigDecimal.ZERO, BigDecimal.ZERO, RiskPolicy.WARN);
+        profile.classify(new CustomerClassification(groupId, null, null, null, null, "611", "430000001"), true);
+        when(companyProvider.requireCompanyId()).thenReturn(companyId);
+        when(customers.findByIdAndCompanyId(customerId, companyId)).thenReturn(Optional.of(profile));
+        when(parties.findByIdAndCompanyId(partyId, companyId)).thenReturn(Optional.of(party));
+
+        CustomerResponse response = service.update(customerId, request("C001", "Cliente", true));
+
+        assertThat(response.classification().groupId()).isEqualTo(groupId);
+        assertThat(response.classification().accountingAccount()).isEqualTo("430000001");
+    }
+
+    @Test
+    void rejectsGroupFromAnotherTableOrAlreadyDischarged() {
+        UUID customerId = UUID.randomUUID();
+        UUID partyId = UUID.randomUUID();
+        Party party = new Party(companyId, "C001", "Cliente", null, null, null, null, null);
+        CustomerProfile profile = new CustomerProfile(companyId, partyId, null, null, null,
+                BigDecimal.ONE, BigDecimal.ZERO, BigDecimal.ZERO, RiskPolicy.WARN);
+        CustomerCatalogItem type = new CustomerCatalogItem(companyId, CustomerCatalogKind.TYPE, "Particular", true);
+        CustomerCatalogItem oldGroup = new CustomerCatalogItem(companyId, CustomerCatalogKind.GROUP, "Antiguo", false);
+        UUID typeId = UUID.randomUUID();
+        UUID oldGroupId = UUID.randomUUID();
+        when(companyProvider.requireCompanyId()).thenReturn(companyId);
+        when(customers.findByIdAndCompanyId(customerId, companyId)).thenReturn(Optional.of(profile));
+        when(parties.findByIdAndCompanyId(partyId, companyId)).thenReturn(Optional.of(party));
+        when(catalog.findByIdAndCompanyId(typeId, companyId)).thenReturn(Optional.of(type));
+        when(catalog.findByIdAndCompanyId(oldGroupId, companyId)).thenReturn(Optional.of(oldGroup));
+
+        assertThatThrownBy(() -> service.update(customerId, classified("C001", true,
+                new CustomerClassification(typeId, null, null, null, null, null, null))))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("no existe");
+        assertThatThrownBy(() -> service.update(customerId, classified("C001", true,
+                new CustomerClassification(oldGroupId, null, null, null, null, null, null))))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("dado de baja");
+    }
+
+    @Test
+    void keepsInactiveReasonOnlyWhileTheCustomerIsInactive() {
+        UUID customerId = UUID.randomUUID();
+        UUID partyId = UUID.randomUUID();
+        UUID reasonId = UUID.randomUUID();
+        Party party = new Party(companyId, "C001", "Cliente", null, null, null, null, null);
+        CustomerProfile profile = new CustomerProfile(companyId, partyId, null, null, null,
+                BigDecimal.ONE, BigDecimal.ZERO, BigDecimal.ZERO, RiskPolicy.WARN);
+        when(companyProvider.requireCompanyId()).thenReturn(companyId);
+        when(customers.findByIdAndCompanyId(customerId, companyId)).thenReturn(Optional.of(profile));
+        when(parties.findByIdAndCompanyId(partyId, companyId)).thenReturn(Optional.of(party));
+        when(catalog.findByIdAndCompanyId(reasonId, companyId)).thenReturn(Optional.of(
+                new CustomerCatalogItem(companyId, CustomerCatalogKind.INACTIVE_REASON, "Cierre", true)));
+        CustomerClassification withReason = new CustomerClassification(null, null, null, null, reasonId, null, null);
+
+        assertThat(service.update(customerId, classified("C001", false, withReason))
+                .classification().inactiveReasonId()).isEqualTo(reasonId);
+        assertThat(service.update(customerId, classified("C001", true, withReason))
+                .classification().inactiveReasonId()).isNull();
+    }
+
+    private CustomerRequest classified(String code, Boolean active, CustomerClassification classification) {
+        return new CustomerRequest(code, "Cliente", null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, active, null, classification);
     }
 
     private CustomerRequest request(String code, String name, Boolean active) {

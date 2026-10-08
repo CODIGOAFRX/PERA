@@ -23,10 +23,10 @@ El legado tiene unos 375 formularios y varias decenas de carpetas de informes. E
 | Grupo descuento | Parcial | Las reglas de tarifa cubren descuentos; no hay un maestro de grupos de descuento como tal. |
 | Artículos, familias, tipos, agrupación | Cubierto | Jerarquía naturaleza → supertipo → tipo → grupo, `/catalogo` y `/maestros`. |
 | Almacén y diario de almacén | Parcial | Almacenes, existencias, diario, ajustes y traspasos en `/almacen` ([doc 20](20-compras-inventario.md)). El albarán de venta descuenta existencias. Sin valoración de inventario. |
-| Clientes, grupos y tipos de cliente | Parcial | Clientes en `/clientes`. Sin grupos ni tipos de cliente configurables. |
+| Clientes, grupos y tipos de cliente | Cubierto | Ficha con grupo, tipo, comercial, forma de entrega, motivo de baja, contactos, direcciones de entrega y notas en `/clientes` ([doc 23](23-ficha-de-cliente.md)). |
 | Proveedores | Cubierto | `/proveedores`. |
 | Formas de pago | Cubierto | `finance-service`, `/finanzas`. |
-| Vendedores, cobradores, comerciales | Pendiente | No hay maestro de comerciales ni comisiones. |
+| Vendedores, cobradores, comerciales | Parcial | Maestro de comerciales con comisión por defecto y asignación al cliente ([doc 23](23-ficha-de-cliente.md)). Sin cobradores ni cálculo de comisiones. |
 | Rutas, transportes, forma de entrega | Cubierto | Rutas, transportistas y vehículos en `operations-service`, `/operaciones`. |
 | Actualiza riesgo clientes | Parcial | Riesgo de crédito en ventas; no hay recálculo masivo. |
 | Obras de clientes | Parcial | `WorkSite` existe pero está congelado, sin API ni pantalla. Pendiente decidir si se generaliza como proyecto o ubicación de servicio. |

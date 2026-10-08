@@ -17,6 +17,12 @@ public interface CustomerProfileRepository extends JpaRepository<CustomerProfile
             "or lower(p.legalName) like lower(concat('%', :query, '%')) " +
             "or lower(coalesce(p.tradeName, '')) like lower(concat('%', :query, '%')) " +
             "or lower(coalesce(p.taxId, '')) like lower(concat('%', :query, '%'))) " +
+            "and (:groupId is null or c.groupId = :groupId) and (:typeId is null or c.typeId = :typeId) " +
+            "and (:salespersonId is null or c.salespersonId = :salespersonId) " +
+            "and (:active is null or p.active = :active) " +
             "order by p.legalName asc, p.code asc")
-    Page<CustomerProfile> search(@Param("companyId") UUID companyId, @Param("query") String query, Pageable pageable);
+    Page<CustomerProfile> search(@Param("companyId") UUID companyId, @Param("query") String query,
+                                 @Param("groupId") UUID groupId, @Param("typeId") UUID typeId,
+                                 @Param("salespersonId") UUID salespersonId, @Param("active") Boolean active,
+                                 Pageable pageable);
 }
