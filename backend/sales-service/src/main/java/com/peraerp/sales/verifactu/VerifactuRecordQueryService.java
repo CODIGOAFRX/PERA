@@ -1,5 +1,16 @@
 package com.peraerp.sales.verifactu;
 
+import com.peraerp.sales.verifactu.api.VerifactuRemissionSummary;
+import com.peraerp.sales.verifactu.domain.VerifactuRecordType;
+import com.peraerp.sales.verifactu.domain.VerifactuState;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
+import java.time.Instant;
+import java.util.EnumMap;
+import java.util.Map;
+
 import com.peraerp.platform.domain.ResourceNotFoundException;
 import com.peraerp.sales.config.CurrentCompanyProvider;
 import com.peraerp.sales.verifactu.api.VerifactuRecordResponse;
@@ -26,12 +37,67 @@ public class VerifactuRecordQueryService {
     private final VerifactuRecordRepository records;
     private final VerifactuSettingsRepository settings;
     private final CurrentCompanyProvider companyProvider;
+    private final JdbcTemplate jdbc;
 
     public VerifactuRecordQueryService(VerifactuRecordRepository records, VerifactuSettingsRepository settings,
-                                       CurrentCompanyProvider companyProvider) {
+                                       CurrentCompanyProvider companyProvider, JdbcTemplate jdbc) {
         this.records = records;
         this.settings = settings;
         this.companyProvider = companyProvider;
+        this.jdbc = jdbc;
+    }
+
+    /**
+     * Registros de alta de la empresa en los estados pedidos, los más recientes primero. Sin estados,
+     * todos. Es la lista de la pantalla de seguimiento.
+     */
+    @Transactional(readOnly = true)
+    public Page<VerifactuRecordResponse> search(List<VerifactuState> states, Pageable pageable) {
+        UUID companyId = companyProvider.requireCompanyId();
+        VerifactuEnvironment environment = environment(companyId);
+        List<VerifactuState> wanted = states == null || states.isEmpty() ? List.of(VerifactuState.values()) : states;
+        Pageable page = PageRequest.of(pageable.getPageNumber(), Math.min(pageable.getPageSize(), 100));
+        return records.findByCompanyIdAndRecordTypeAndStateInOrderBySequenceNumberDesc(companyId,
+                        VerifactuRecordType.ALTA, wanted, page)
+                .map(record -> VerifactuRecordResponse.from(record, qrPayload(record, environment)));
+    }
+
+    /** Situación de la remisión a la AEAT: configuración, conexión, esperas y recuento por estado. */
+    @Transactional(readOnly = true)
+    public VerifactuRemissionSummary remission() {
+        UUID companyId = companyProvider.requireCompanyId();
+        var configuration = settings.findByCompanyId(companyId);
+        Map<VerifactuState, Long> counts = new EnumMap<>(VerifactuState.class);
+        for (VerifactuState state : VerifactuState.values()) {
+            counts.put(state, 0L);
+        }
+        for (Object[] row : records.countAltasByState(companyId)) {
+            counts.put((VerifactuState) row[0], (Long) row[1]);
+        }
+        var connection = jdbc.query("""
+                SELECT enabled, next_send_at, last_sent_at, failures, last_error FROM fiscal_connections
+                WHERE company_id = ? AND provider = 'AEAT'
+                """, (rs, n) -> new Object[]{rs.getBoolean(1), instant(rs.getTimestamp(2)), instant(rs.getTimestamp(3)),
+                rs.getInt(4), rs.getString(5)}, companyId).stream().findFirst().orElse(null);
+        return new VerifactuRemissionSummary(
+                configuration.map(VerifactuSettings::isEnabled).orElse(false),
+                configuration.map(VerifactuSettings::getEnvironment).orElse(VerifactuEnvironment.TEST),
+                connection != null,
+                connection != null && (Boolean) connection[0],
+                connection == null ? null : (Instant) connection[1],
+                connection == null ? null : (Instant) connection[2],
+                connection == null ? 0 : (Integer) connection[3],
+                connection == null ? null : (String) connection[4],
+                counts);
+    }
+
+    private static Instant instant(java.sql.Timestamp timestamp) {
+        return timestamp == null ? null : timestamp.toInstant();
+    }
+
+    private VerifactuEnvironment environment(UUID companyId) {
+        return settings.findByCompanyId(companyId).map(VerifactuSettings::getEnvironment)
+                .orElse(VerifactuEnvironment.TEST);
     }
 
     @Transactional(readOnly = true)

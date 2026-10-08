@@ -359,7 +359,7 @@ que ya están en la factura.
 | **3b** | Desglose de IVA, bloque destinatario, `SistemaInformatico` y serialización XML contra los XSD | 3a | ✅ **hecho** — el XML se guarda en `verifactu_records.payload_xml` y se consulta en `/api/v1/verifactu-records/{id}/xml` |
 | **4a** | QR de cotejo y bloque Veri*Factu en el detalle de la factura | 3a | ✅ **hecho** — cotejado contra la AEAT en preproducción |
 | **4b** | Factura individual en A4 con QR y leyenda, en PDF generado por el servidor | 4a | 🟡 **PDF hecho, falta el domicilio del destinatario** (ver 7.1) |
-| **5** | `AeatSoapSubmitter`: certificado por empresa, WSDL, entorno de pruebas, `TiempoEsperaEnvio`, lotes, reintentos | 3b | pendiente |
+| **5** | Remisión: certificado por empresa, WSDL, pruebas y producción, `TiempoEsperaEnvio`, lotes, reintentos | 3b | ✅ **hecho** — automática, ver [doc 24](24-verifactu-remision-automatica.md) |
 | **6** | Anulación y subsanación; pantalla de estado Veri*Factu por factura | 5 | pendiente |
 | **7** | Declaración responsable, documentación del producto, `docs/11-ampliacion-plataforma.md` actualizado | todo | pendiente |
 

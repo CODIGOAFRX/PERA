@@ -19,6 +19,13 @@ public interface VerifactuRecordRepository extends JpaRepository<VerifactuRecord
     Page<VerifactuRecord> findByCompanyIdAndStateInOrderBySequenceNumberAsc(
             UUID companyId, List<VerifactuState> states, Pageable pageable);
 
+    Page<VerifactuRecord> findByCompanyIdAndRecordTypeAndStateInOrderBySequenceNumberDesc(
+            UUID companyId, VerifactuRecordType recordType, List<VerifactuState> states, Pageable pageable);
+
+    @Query("select r.state, count(r) from VerifactuRecord r where r.companyId = :companyId " +
+            "and r.recordType = com.peraerp.sales.verifactu.domain.VerifactuRecordType.ALTA group by r.state")
+    List<Object[]> countAltasByState(@Param("companyId") UUID companyId);
+
     boolean existsByCompanyIdAndDocumentIdAndRecordType(UUID companyId, UUID documentId, VerifactuRecordType recordType);
 
     @Query("select distinct r.documentId from VerifactuRecord r where r.companyId = :companyId " +

@@ -377,7 +377,10 @@ function VerifactuPanel() {
           <input id="vf-name" value={form.issuerLegalName} maxLength={180} required
             onChange={(event) => change('issuerLegalName', event.target.value)} />
         </Field>
-        <Field label={c('Entorno', 'Environment')} htmlFor="vf-env" name="environment">
+        <Field label={c('Entorno', 'Environment')} htmlFor="vf-env" name="environment"
+          hint={production
+            ? c('Las facturas se presentan de verdad a la AEAT con el certificado de Conexiones.', 'Invoices are reported to AEAT for real with the certificate in Connections.')
+            : c('Los registros van a la preproducción de la AEAT y no tienen efecto fiscal.', 'Records go to AEAT pre-production and have no tax effect.')}>
           <select id="vf-env" value={form.environment}
             onChange={(event) => change('environment', event.target.value as VerifactuSettingsValue['environment'])}>
             <option value="TEST">{c('Pruebas (preproducción)', 'Test (pre-production)')}</option>

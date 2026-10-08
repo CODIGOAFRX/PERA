@@ -4,10 +4,11 @@ import QRCode from 'qrcode'
 import { apiFetch, apiFetchText, errorMessage } from '../lib/api'
 import { saveBlob } from '../lib/download'
 import { formatDateTime } from '../lib/format'
-import { FiscalDelivery } from './FiscalDelivery'
+import { VerifactuRemission } from './VerifactuRemission'
+import { verifactuStateLabel, verifactuStateTone } from '../lib/verifactu'
 import { useTranslation } from '../i18n/I18nProvider'
-import { StatusBadge, type BadgeTone } from './StatusBadge'
-import type { VerifactuRecord, VerifactuState } from '../types/api'
+import { StatusBadge } from './StatusBadge'
+import type { VerifactuRecord } from '../types/api'
 
 /**
  * Bloque Veri*Factu de una factura: huella, encadenado, estado ante la AEAT y QR de cotejo.
@@ -58,7 +59,7 @@ export function VerifactuBlock({ documentId, configureLink }: { documentId: stri
         <div className="verifactu-heading">
           <ShieldCheck size={17} />
           <strong>VERI*FACTU</strong>
-          <StatusBadge tone={stateTone(record.state)}>{stateLabel(record.state, language)}</StatusBadge>
+          <StatusBadge tone={verifactuStateTone(record.state)}>{verifactuStateLabel(record.state, language)}</StatusBadge>
         </div>
         <dl>
           <div><dt>{c('Registro', 'Record')}</dt><dd>{c('N.º', 'No.')} {record.sequenceNumber}</dd></div>
@@ -76,7 +77,7 @@ export function VerifactuBlock({ documentId, configureLink }: { documentId: stri
         </figure>
       )}
       <RecordXml recordId={record.id} invoiceNumber={record.invoiceNumber} />
-      <FiscalDelivery sourceId={record.id} provider="AEAT" configureLink={configureLink} onSent={() => setRevision(n => n + 1)} />
+      <VerifactuRemission record={record} configureLink={configureLink} onChanged={() => setRevision(n => n + 1)} />
     </div>
   )
 }
@@ -148,24 +149,4 @@ function indent(xml: string): string {
       return indented
     })
     .join('\n')
-}
-
-function stateTone(state: VerifactuState): BadgeTone {
-  if (state === 'ACCEPTED') return 'success'
-  if (state === 'REJECTED') return 'danger'
-  if (state === 'ACCEPTED_WITH_ERRORS') return 'warning'
-  if (state === 'SENT') return 'info'
-  return 'neutral'
-}
-
-function stateLabel(state: VerifactuState, language: string): string {
-  const es: Record<VerifactuState, string> = {
-    PENDING: 'Pendiente de remitir', SENT: 'Remitido', ACCEPTED: 'Aceptado',
-    ACCEPTED_WITH_ERRORS: 'Aceptado con errores', REJECTED: 'Rechazado',
-  }
-  const en: Record<VerifactuState, string> = {
-    PENDING: 'Pending submission', SENT: 'Submitted', ACCEPTED: 'Accepted',
-    ACCEPTED_WITH_ERRORS: 'Accepted with errors', REJECTED: 'Rejected',
-  }
-  return language === 'es' ? es[state] : en[state]
 }

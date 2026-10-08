@@ -1,4 +1,4 @@
-import { Banknote, BookOpenCheck, Boxes, CalendarDays, MessageSquareWarning, Building2, Cable, FileCheck2, FileText, History as HistoryIcon, LayoutDashboard, PackageSearch, Printer, ReceiptText, Settings, ShoppingCart, SlidersHorizontal, Truck, UserCog, Users, type LucideIcon } from 'lucide-react'
+import { Banknote, BookOpenCheck, Boxes, CalendarDays, MessageSquareWarning, Building2, Cable, FileCheck2, FileText, History as HistoryIcon, LayoutDashboard, PackageSearch, Printer, ReceiptText, Settings, ShieldCheck, ShoppingCart, SlidersHorizontal, Truck, UserCog, Users, type LucideIcon } from 'lucide-react'
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 import type { UserRoleCode } from '../auth/AuthContext'
 import type { TranslationKey } from '../i18n/catalogs'
@@ -8,6 +8,7 @@ import { matchPath } from './Router'
 const ConnectionsPage = lazy(() => import('../pages/ConnectionsPage').then((module) => ({ default: module.ConnectionsPage })))
 const AgendaPage = lazy(() => import('../pages/AgendaPage').then((module) => ({ default: module.AgendaPage })))
 const ClaimsPage = lazy(() => import('../pages/ClaimsPage').then((module) => ({ default: module.ClaimsPage })))
+const VerifactuPage = lazy(() => import('../pages/VerifactuPage').then((module) => ({ default: module.VerifactuPage })))
 const CollectionsPage = lazy(() => import('../pages/CollectionsPage').then((module) => ({ default: module.CollectionsPage })))
 const CatalogPage = lazy(() => import('../pages/CatalogPage').then((module) => ({ default: module.CatalogPage })))
 const CatalogConfigurationPage = lazy(() => import('../pages/CatalogConfigurationPage').then((module) => ({ default: module.CatalogConfigurationPage })))
@@ -53,6 +54,7 @@ export const appRoutes: AppRoute[] = [
   { id: 'purchases', path: '/compras', component: PurchasesPage, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS'], navigation: { labelKey: 'nav.purchases', group: 'operations', groupLabelKey: 'nav.group.operations', icon: ShoppingCart } },
   { id: 'inventory', path: '/almacen', component: InventoryPage, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS'], navigation: { labelKey: 'nav.inventory', group: 'operations', groupLabelKey: 'nav.group.operations', icon: PackageSearch } },
   { id: 'finance', path: '/finanzas', component: FinancePage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.finance', group: 'operations', groupLabelKey: 'nav.group.operations', icon: ReceiptText } },
+  { id: 'verifactu', path: '/verifactu', component: VerifactuPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.verifactu', group: 'operations', groupLabelKey: 'nav.group.operations', icon: ShieldCheck } },
   { id: 'collections', path: '/cartera', component: CollectionsPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.collections', group: 'operations', groupLabelKey: 'nav.group.operations', icon: Banknote } },
   { id: 'accounting', path: '/contabilidad', component: AccountingPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.accounting', group: 'operations', groupLabelKey: 'nav.group.operations', icon: BookOpenCheck } },
   { id: 'operations', path: '/operaciones', component: OperationsPage, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS'], navigation: { labelKey: 'nav.operations', group: 'operations', groupLabelKey: 'nav.group.operations', icon: Truck } },

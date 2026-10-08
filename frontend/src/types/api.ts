@@ -290,6 +290,24 @@ export interface VerifactuRecord {
   aeatCsv: string | null
   /** Contenido exacto del QR de cotejo, construido por el servidor. */
   qrPayload: string | null
+  /** Código y texto de la AEAT, o el motivo por el que no se pudo remitir. */
+  aeatErrorCode?: string | null
+  aeatMessage?: string | null
+  attemptCount?: number
+  lastAttemptAt?: string | null
+}
+
+/** Situación de la remisión automática a la AEAT de la empresa. */
+export interface VerifactuRemissionSummary {
+  enabled: boolean
+  environment: 'TEST' | 'PRODUCTION'
+  connectionConfigured: boolean
+  connectionActive: boolean
+  nextSendAt: string | null
+  lastSentAt: string | null
+  failures: number
+  lastError: string | null
+  counts: Record<VerifactuState, number>
 }
 
 /** TipoFactura de Veri*Factu. F1 completa, F2 simplificada, F3 sustitutiva, R1-R5 rectificativas. */

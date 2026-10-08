@@ -12,6 +12,8 @@ public class TestIntegrationController {
     @PutMapping("/api/v1/connections/fiscal") public TestIntegrationService.View save(@RequestBody @Valid TestIntegrationService.Config request) { return service.save(request); }
     @PostMapping("/api/v1/connections/fiscal/{provider}/test") public Map<String,String> test(@PathVariable String provider) { return service.test(provider); }
     @GetMapping("/api/v1/verifactu-records/{id}/delivery") public TestIntegrationService.Delivery aeatStatus(@PathVariable UUID id) { return service.status("AEAT",id); }
+    /** «Remitir ahora» de la pantalla de seguimiento: adelanta la remisión automática de la empresa. */
+    @PostMapping("/api/v1/verifactu-records/remission") public VerifactuRemissionService.Outcome remitPending() { return service.remitPending(); }
     @PostMapping("/api/v1/verifactu-records/{id}/delivery") public TestIntegrationService.Delivery aeatSend(@PathVariable UUID id) { return service.sendAeat(id); }
     public record B2bRequest(@Min(1) long contactId) {}
     @GetMapping("/api/v1/documents/{id}/b2b") public TestIntegrationService.Delivery b2bStatus(@PathVariable UUID id) { return service.status("B2B",id); }

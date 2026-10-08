@@ -59,7 +59,7 @@ class TestIntegrationServiceTest {
         }).when(jdbc).query(anyString(), any(RowMapper.class), any(Object[].class));
         when(jdbc.update(anyString(), any(Object[].class))).thenReturn(1);
         service = new TestIntegrationService(jdbc, companies, cipher, mapper, mock(AeatTestTransport.class), b2b,
-                settings, mock(VerifactuRecordRepository.class), documents, transactions);
+                settings, mock(VerifactuRecordRepository.class), documents, transactions, mock(VerifactuRemissionService.class));
     }
 
     private CommercialDocument invoice() {

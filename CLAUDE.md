@@ -52,14 +52,24 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 | 2026-10-03 | Logística puede leer clientes (para elegirlos en reclamaciones y citas), sin ver la pantalla de Clientes. |
 | 2026-10-08 | El bloque 4 se parte en dos: primero la ficha de cliente (clasificación, comerciales, contactos, direcciones y notas); las comisiones después, porque tocan Ventas. |
 | 2026-10-08 | El texto para documentos del cliente se guarda como nota con «mostrar en documentos», no como campo aparte. |
+| 2026-10-08 | Veri*Factu se presenta de forma propia (registro, huella y cadena de PERA, remitidos con el certificado de la empresa), no a través de Verifacti o B2BRouter como en DimproCristalWin. Se completa lo que hace Dimpro: envío automático, estado por factura, seguimiento. |
 
 ## Pendiente de decidir
+
+- **Veri*Factu en producción:** antes de la primera empresa real, declaración responsable de PERA como sistema informático de facturación y revisión de un asesor fiscal. Siguiente fase técnica: subsanación y anulación, y validación del NIF del cliente en la AEAT.
 
 - **Facturación automática (bloque 3):** si una factura puede agrupar varios albaranes. Hoy la conversión es uno a uno y las facturas van encadenadas en Veri*Factu.
 - **Cierre de ejercicio (bloque 3):** qué hace hoy el cierre en DimproCristalWin (solo numeraciones o también asientos).
 - **Secretos por defecto:** los servicios arrancan con claves públicas si falta la variable de entorno (JWT, clave interna, contraseña de los usuarios demo). Falta decidir si deben negarse a arrancar.
 
 ## Registro de entregas
+
+### v20261008.Raul.2 — Veri*Factu: remisión automática
+
+- **Remisión automática a la AEAT** ([docs/24](docs/24-verifactu-remision-automatica.md)), fase 5 del plan de Veri*Factu. Cada factura expedida se presenta sola, en lotes de hasta 1.000 y respetando el tiempo de espera de la AEAT, en pruebas o en producción según la empresa. Si se pierde la respuesta se reconcilia con el «duplicado» de la AEAT; si la AEAT rechaza el envío entero se reintenta con esperas crecientes; un registro rechazado no se reenvía. Migración `V14` de ventas.
+- **Arreglo:** una empresa en producción generaba el QR de Veri*Factu pero no remitía nada (el envío solo admitía pruebas y era manual).
+- Pantalla nueva `/verifactu` con el estado de la conexión, el recuento por estado y la lista de lo que necesita atención. En la factura, estado ante la AEAT con el código y texto de la respuesta y «Enviar ahora».
+- `FiscalDelivery` queda solo para B2Brouter.
 
 ### v20261008.Raul — ficha de cliente
 

@@ -32,13 +32,18 @@ public record VerifactuRecordResponse(
         Instant generatedAt,
         VerifactuState state,
         String aeatCsv,
-        String qrPayload) {
+        String qrPayload,
+        String aeatErrorCode,
+        String aeatMessage,
+        int attemptCount,
+        Instant lastAttemptAt) {
 
     public static VerifactuRecordResponse from(VerifactuRecord record, String qrPayload) {
         return new VerifactuRecordResponse(record.getId(), record.getDocumentId(), record.getRecordType(),
                 record.getSequenceNumber(), record.getIssuerTaxId(), record.getInvoiceNumber(),
                 record.getInvoiceDate(), record.getInvoiceKind(), record.getTotalTaxAmount(),
                 record.getTotalAmount(), record.getPreviousFingerprint(), record.getFingerprint(),
-                record.getGeneratedAt(), record.getState(), record.getAeatCsv(), qrPayload);
+                record.getGeneratedAt(), record.getState(), record.getAeatCsv(), qrPayload,
+                record.getAeatErrorCode(), record.getAeatMessage(), record.getAttemptCount(), record.getLastAttemptAt());
     }
 }

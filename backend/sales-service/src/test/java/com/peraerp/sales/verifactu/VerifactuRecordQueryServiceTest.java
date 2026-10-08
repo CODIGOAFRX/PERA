@@ -44,7 +44,8 @@ class VerifactuRecordQueryServiceTest {
         VerifactuSettingsRepository settings = mock(VerifactuSettingsRepository.class);
         CurrentCompanyProvider companyProvider = mock(CurrentCompanyProvider.class);
         when(companyProvider.requireCompanyId()).thenReturn(COMPANY);
-        service = new VerifactuRecordQueryService(records, settings, companyProvider);
+        service = new VerifactuRecordQueryService(records, settings, companyProvider,
+                org.mockito.Mockito.mock(org.springframework.jdbc.core.JdbcTemplate.class));
     }
 
     private static VerifactuRecord record(String payloadXml) {

@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.*;
 import java.util.Base64;
+import java.util.List;
+import com.peraerp.sales.verifactu.domain.VerifactuEnvironment;
 import static org.assertj.core.api.Assertions.*;
 
 class AeatTestTransportTest {
@@ -55,5 +57,62 @@ class AeatTestTransportTest {
         assertThat(AeatTestTransport.taxId("VATES-B12345678")).isEqualTo("B12345678");
         assertThat(AeatTestTransport.taxId("es12345678z")).isEqualTo("12345678Z");
         assertThat(AeatTestTransport.taxId(null)).isNull();
+    }
+
+    String line(String number,String state,String extra) {
+        return "<r:RespuestaLinea><r:IDFactura><sf:IDEmisorFactura>89890001K</sf:IDEmisorFactura><sf:NumSerieFactura>"+number+"</sf:NumSerieFactura><sf:FechaExpedicionFactura>23-09-2026</sf:FechaExpedicionFactura></r:IDFactura><r:EstadoRegistro>"+state+"</r:EstadoRegistro>"+extra+"</r:RespuestaLinea>";
+    }
+    String batch(String... lines) {
+        return "<r:RespuestaRegFactuSistemaFacturacion xmlns:r=\""+AeatTestTransport.RESPONSE+"\" xmlns:sf=\""+AeatTestTransport.SF+"\"><r:CSV>CSV-1</r:CSV><r:TiempoEsperaEnvio>90</r:TiempoEsperaEnvio><r:EstadoEnvio>ParcialmenteCorrecto</r:EstadoEnvio>"+String.join("",lines)+"</r:RespuestaRegFactuSistemaFacturacion>";
+    }
+    @Test void readsEveryLineOfABatchWithItsInvoice() throws Exception {
+        var result=AeatTestTransport.parseBatch(batch(line("F1","Correcto",""),
+                line("F2","Incorrecto","<r:CodigoErrorRegistro>1100</r:CodigoErrorRegistro><r:DescripcionErrorRegistro>NIF no identificado</r:DescripcionErrorRegistro>")),"89890001K");
+        assertThat(result.csv()).isEqualTo("CSV-1"); assertThat(result.waitSeconds()).isEqualTo(90);
+        assertThat(result.lines()).extracting(AeatTestTransport.LineResult::number,AeatTestTransport.LineResult::state,AeatTestTransport.LineResult::errorCode)
+                .containsExactly(tuple("F1","ACCEPTED",null),tuple("F2","REJECTED","1100"));
+        assertThat(result.lines().get(1).message()).isEqualTo("NIF no identificado");
+        assertThat(result.lines().get(1).response()).contains("NIF no identificado").doesNotContain("F1");
+    }
+    @Test void reconcilesADuplicateWithTheStateTheAeatAlreadyHas() throws Exception {
+        String duplicate="<r:RegistroDuplicado><sf:IdPeticionRegistroDuplicado>123</sf:IdPeticionRegistroDuplicado><sf:EstadoRegistroDuplicado>Correcta</sf:EstadoRegistroDuplicado></r:RegistroDuplicado>";
+        var result=AeatTestTransport.parseBatch(batch(line("F1","Incorrecto","<r:CodigoErrorRegistro>3000</r:CodigoErrorRegistro>"+duplicate)),"89890001K");
+        assertThat(result.lines().getFirst().state()).isEqualTo("ACCEPTED");
+        assertThat(result.lines().getFirst().message()).startsWith("La AEAT ya tenía este registro");
+        String annulled=duplicate.replace("Correcta","Anulada");
+        assertThat(AeatTestTransport.parseBatch(batch(line("F1","Incorrecto",annulled)),"89890001K").lines().getFirst().state()).isEqualTo("UNKNOWN");
+    }
+    @Test void refusesAResponseForAnotherIssuer() {
+        assertThatThrownBy(()->AeatTestTransport.parseBatch(batch(line("F1","Correcto","")),"B00000000")).hasMessageContaining("emisor");
+    }
+    @Test void recognisesASoapFaultAsARejectionOfTheWholeEnvelope() {
+        String fault="<env:Envelope xmlns:env=\"http://schemas.xmlsoap.org/soap/envelope/\"><env:Body><env:Fault><faultcode>env:Client</faultcode><faultstring>Codigo[4102].El XML no cumple el esquema</faultstring></env:Fault></env:Body></env:Envelope>";
+        assertThat(AeatTestTransport.fault(fault)).isEqualTo("Codigo[4102].El XML no cumple el esquema");
+        assertThat(AeatTestTransport.fault("<html>proxy error</html>")).isNull();
+    }
+    @Test void usesTheOfficialAddressOfEachEnvironmentAndCertificate() {
+        assertThat(AeatTestTransport.endpoint(VerifactuEnvironment.PRODUCTION,false)).hasToString("https://www1.agenciatributaria.gob.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP");
+        assertThat(AeatTestTransport.endpoint(VerifactuEnvironment.PRODUCTION,true).getHost()).isEqualTo("www10.agenciatributaria.gob.es");
+        assertThat(AeatTestTransport.endpoint(VerifactuEnvironment.TEST,false).getHost()).isEqualTo("prewww1.aeat.es");
+        assertThat(AeatTestTransport.endpoint(VerifactuEnvironment.TEST,true).getHost()).isEqualTo("prewww10.aeat.es");
+    }
+    @Test void batchesRecordsOfOneIssuerUnderASingleHeader() throws Exception {
+        String a="<sf:RegistroAlta xmlns:sf=\""+AeatTestTransport.SF+"\"><sf:IDFactura><sf:IDEmisorFactura>89890001K</sf:IDEmisorFactura></sf:IDFactura><sf:NombreRazonEmisor>Demo</sf:NombreRazonEmisor></sf:RegistroAlta>";
+        String envelope=AeatTestTransport.envelope(List.of(a,a));
+        var doc=AeatTestTransport.xml(envelope);
+        assertThat(doc.getElementsByTagNameNS(AeatTestTransport.LR,"RegistroFactura").getLength()).isEqualTo(2);
+        assertThat(doc.getElementsByTagNameNS(AeatTestTransport.LR,"Cabecera").getLength()).isEqualTo(1);
+        assertThatThrownBy(()->AeatTestTransport.envelope(List.of(a,a.replace("89890001K","B00000000")))).hasMessageContaining("mismo emisor");
+    }
+    @Test void neverSendsProductionRecordsToTheLocalTestService() {
+        var local=new AeatTestTransport("http://localhost:18090/aeat");
+        assertThat(local.target(VerifactuEnvironment.TEST,false)).hasToString("http://localhost:18090/aeat");
+        assertThat(local.target(VerifactuEnvironment.PRODUCTION,false).getHost()).isEqualTo("www1.agenciatributaria.gob.es");
+        assertThat(new AeatTestTransport("").target(VerifactuEnvironment.TEST,true).getHost()).isEqualTo("prewww10.aeat.es");
+    }
+    @Test void spacesOutRetriesUpToAnHour() {
+        assertThat(VerifactuRemissionService.backoff(1)).isEqualTo(60);
+        assertThat(VerifactuRemissionService.backoff(3)).isEqualTo(240);
+        assertThat(VerifactuRemissionService.backoff(50)).isEqualTo(3600);
     }
 }

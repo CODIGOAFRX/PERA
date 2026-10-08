@@ -13,7 +13,11 @@ import org.springframework.transaction.PlatformTransactionManager;
 import tools.jackson.databind.ObjectMapper;
 import java.util.*;
 
-/** Explicit sandbox submissions. Claims are committed before HTTP so an uncertain result cannot create a duplicate. */
+/**
+ * Conexiones fiscales de la empresa. La remisión a la AEAT es automática ({@link VerifactuRemissionService});
+ * aquí quedan su configuración, el botón «Enviar ahora» y el envío de pruebas a B2Brouter. Los envíos se
+ * reclaman antes de la llamada HTTP para que un resultado incierto no pueda duplicar nada.
+ */
 @Service
 public class TestIntegrationService {
     public record Config(@NotBlank @Pattern(regexp="AEAT|B2B") String provider,
@@ -30,11 +34,13 @@ public class TestIntegrationService {
     private final ObjectMapper mapper; private final AeatTestTransport aeat; private final B2bTestTransport b2b;
     private final VerifactuSettingsRepository settings; private final VerifactuRecordRepository records;
     private final CommercialDocumentRepository documents; private final TransactionTemplate tx;
+    private final VerifactuRemissionService remission;
     public TestIntegrationService(JdbcTemplate jdbc,CurrentCompanyProvider company,MailSecretCipher cipher,ObjectMapper mapper,
             AeatTestTransport aeat,B2bTestTransport b2b,VerifactuSettingsRepository settings,VerifactuRecordRepository records,
-            CommercialDocumentRepository documents,PlatformTransactionManager transactions) {
+            CommercialDocumentRepository documents,PlatformTransactionManager transactions,VerifactuRemissionService remission) {
         this.jdbc=jdbc;this.company=company;this.cipher=cipher;this.mapper=mapper;this.aeat=aeat;this.b2b=b2b;
         this.settings=settings;this.records=records;this.documents=documents;this.tx=new TransactionTemplate(transactions);
+        this.remission=remission;
     }
     private static void provider(String p) { if(!Set.of("AEAT","B2B").contains(p)) throw new BusinessRuleException("Proveedor desconocido"); }
     Connection connection(UUID id,String p) { return connection(id,p,false); }
@@ -51,7 +57,9 @@ public class TestIntegrationService {
             String issuer=settings.findByCompanyId(id).map(VerifactuSettings::getIssuerTaxId).map(AeatTestTransport::taxId).orElse(null);
             if(info!=null && issuer!=null) matches=issuer.equals(info.personalTaxId()) || issuer.equals(info.entityTaxId());
         }
-        return new View(p,c!=null,cipher.ready(),c==null?"":c.account(),c!=null&&c.enabled(),"TEST",info,matches);
+        // B2Brouter solo funciona en su sandbox; la AEAT, en el entorno que tenga configurado la empresa.
+        String environment=p.equals("AEAT")?settings.findByCompanyId(id).map(s->s.getEnvironment().name()).orElse("TEST"):"TEST";
+        return new View(p,c!=null,cipher.ready(),c==null?"":c.account(),c!=null&&c.enabled(),environment,info,matches);
     }
     /** Informative only: a missing server key or a damaged secret must not break the configuration screen. */
     private AeatTestTransport.CertificateInfo certificateInfo(UUID id,Connection c) {
@@ -91,7 +99,7 @@ public class TestIntegrationService {
         return node;
     }
     private Connection ready(UUID id,String p) {
-        var c=connection(id,p); if(c==null || !c.enabled()) throw new BusinessRuleException("Configura y activa la conexión de pruebas en Conexiones"); return c;
+        var c=connection(id,p); if(c==null || !c.enabled()) throw new BusinessRuleException(p.equals("AEAT")?"Configura y activa la conexión con la AEAT en Conexiones":"Configura y activa la conexión de pruebas en Conexiones"); return c;
     }
     private VerifactuSettings settings(UUID id) {
         return settings.findByCompanyId(id).orElseThrow(()->new BusinessRuleException("Configura primero la identidad fiscal de la empresa"));
@@ -110,6 +118,13 @@ public class TestIntegrationService {
     public Delivery status(String p,UUID source) {
         UUID id=company.requireCompanyId(); provider(p);
         var c=connection(id,p); boolean active=c!=null && c.enabled();
+        if(p.equals("AEAT")) {
+            // El estado de la remisión vive en el propio registro: lo escribe la remisión automática.
+            var r=records.findByIdAndCompanyId(source,id).orElseThrow(()->new BusinessRuleException("Registro no encontrado"));
+            String state=r.getState()==VerifactuState.PENDING?"NOT_SENT":r.getState().name();
+            String message=r.getAeatMessage()==null?"":(r.getAeatErrorCode()==null?"":r.getAeatErrorCode()+" · ")+r.getAeatMessage();
+            return new Delivery(state,r.getAeatCsv(),message,r.getLastAttemptAt()==null?null:r.getLastAttemptAt().toString(),active);
+        }
         return jdbc.query("SELECT state,remote_id,message,updated_at FROM fiscal_deliveries WHERE company_id=? AND provider=? AND source_id=?",
                 (rs,n)->new Delivery(rs.getString(1),rs.getString(2),rs.getString(3),rs.getTimestamp(4).toInstant().toString(),active),id,p,source)
                 .stream().findFirst().orElse(new Delivery("NOT_SENT",null,"",null,active));
@@ -125,39 +140,20 @@ public class TestIntegrationService {
     private void finish(UUID id,String p,UUID source,String state,String remote,String message,String response) {
         jdbc.update("UPDATE fiscal_deliveries SET state=?,remote_id=COALESCE(?,remote_id),message=?,response=?,updated_at=now() WHERE company_id=? AND provider=? AND source_id=?",state,remote,message,response,id,p,source);
     }
+    /** Remite ya lo pendiente de la empresa, sin saltarse el tiempo de espera de la AEAT. */
+    public VerifactuRemissionService.Outcome remitPending() {
+        UUID id=company.requireCompanyId(); ready(id,"AEAT");
+        return remission.remit(id);
+    }
+    /** «Enviar ahora»: adelanta la remisión automática de la empresa, que incluye este registro. */
     public Delivery sendAeat(UUID source) {
-        UUID id=company.requireCompanyId(); var c=ready(id,"AEAT"); var s=secret(id,"AEAT",c);
-        if(settings(id).getEnvironment()!=VerifactuEnvironment.TEST) throw new BusinessRuleException("Solo se permite el entorno TEST de VeriFactu");
-        var r=records.findByIdAndCompanyId(source,id).orElseThrow(()->new BusinessRuleException("Registro no encontrado"));
-        if(r.getState()!=VerifactuState.PENDING || r.getRecordType()!=VerifactuRecordType.ALTA) throw new BusinessRuleException("Solo se remiten altas pendientes");
-        aeat.certificate(s.path("certificate").asText(),s.path("password").asText());
-        try { AeatSchema.validate(AeatTestTransport.envelope(r.getPayloadXml())); }
-        catch(Exception e) { throw new BusinessRuleException("El registro guardado no supera el esquema oficial de la AEAT: "+e.getMessage()); }
-        // Serialise claims and the per-company wait window without holding a transaction across HTTP.
-        tx.executeWithoutResult(ignored->{
-            claim(id,"AEAT",source,c);
-            int claimed=jdbc.update("UPDATE fiscal_connections SET next_send_at=now()+interval '60 seconds' WHERE company_id=? AND provider='AEAT' AND (next_send_at IS NULL OR next_send_at<=now())",id);
-            if(claimed!=1) throw new BusinessRuleException("Espera al menos 60 segundos entre remisiones a la AEAT");
-            int pending=jdbc.update("UPDATE verifactu_records SET state='SENT',attempt_count=attempt_count+1,last_attempt_at=now(),version=version+1 WHERE id=? AND company_id=? AND state='PENDING'",source,id);
-            if(pending!=1) throw new BusinessRuleException("El registro ya no está pendiente de remisión. Consulta su estado.");
-        });
-        AeatTestTransport.Result result;
-        try { result=aeat.send(r,s.path("certificate").asText(),s.path("password").asText(),c.account().equals("SEAL")); }
-        catch(Exception e) {
-            finish(id,"AEAT",source,"UNKNOWN",null,"No se pudo confirmar la respuesta. Revisa el registro en la AEAT de pruebas antes de repetir la remisión.",null);
-            return status("AEAT",source);
-        }
-        try {
-            tx.executeWithoutResult(ignored->{
-                finish(id,"AEAT",source,result.state(),null,result.message(),result.response());
-                jdbc.update("UPDATE fiscal_connections SET next_send_at=now()+(? * interval '1 second') WHERE company_id=? AND provider='AEAT'",result.waitSeconds(),id);
-                jdbc.update("UPDATE verifactu_records SET state=?,aeat_csv=?,aeat_response=?,version=version+1 WHERE id=? AND company_id=?",result.state().equals("UNKNOWN")?"SENT":result.state(),result.csv(),result.response(),source,id);
-            });
-        } catch(RuntimeException e) {
-            // The AEAT did answer: keep its response for reconciliation instead of discarding it.
-            finish(id,"AEAT",source,"UNKNOWN",null,"La AEAT respondió, pero no se pudo actualizar el registro local. Revisa la respuesta guardada antes de repetir la remisión.",result.response());
-        }
-        return status("AEAT",source);
+        UUID id=company.requireCompanyId(); ready(id,"AEAT");
+        var outcome=remission.remitNow(id,source);
+        var current=status("AEAT",source);
+        // Si no se ha podido remitir ahora (tiempo de espera, esquema...), se dice por qué.
+        if(outcome.remitted()==0 && current.message().isBlank() && !outcome.message().isBlank())
+            return new Delivery(current.state(),current.remoteId(),outcome.message(),current.updatedAt(),current.connectionActive());
+        return current;
     }
     public Delivery sendB2b(UUID source,long contact) {
         UUID id=company.requireCompanyId(); var c=ready(id,"B2B"); var s=secret(id,"B2B",c); String key=s.path("apiKey").asText();

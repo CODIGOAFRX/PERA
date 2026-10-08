@@ -26,6 +26,20 @@ public class VerifactuRecordController {
         return service.findByDocument(documentId);
     }
 
+    /** Registros de alta por estado, para la pantalla de seguimiento. */
+    @GetMapping("/search")
+    org.springframework.data.domain.Page<VerifactuRecordResponse> search(
+            @RequestParam(required = false) List<com.peraerp.sales.verifactu.domain.VerifactuState> state,
+            org.springframework.data.domain.Pageable pageable) {
+        return service.search(state, pageable);
+    }
+
+    /** Situación de la remisión automática a la AEAT. */
+    @GetMapping("/remission")
+    VerifactuRemissionSummary remission() {
+        return service.remission();
+    }
+
     @GetMapping("/availability")
     List<UUID> findRegisteredDocuments(@RequestParam List<UUID> documentIds) {
         return service.findRegisteredDocuments(documentIds);

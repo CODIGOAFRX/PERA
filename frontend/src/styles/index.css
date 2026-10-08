@@ -1048,3 +1048,13 @@ input:focus, select:focus, textarea:focus { border-color: #51964b; box-shadow: 0
 .customer-note p { grid-column: 1; margin: 0; white-space: pre-wrap; }
 .customer-note .row-actions { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
 .form-section-title { grid-column: 1 / -1; margin: 10px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12.5px; }
+/* Seguimiento Veri*Factu */
+.verifactu-connection p { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+.verifactu-connection-badges { justify-content: flex-start; flex-wrap: wrap; }
+.verifactu-counts { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 0; }
+.verifactu-count { min-height: 82px; border: 1px solid var(--line); border-radius: 11px; padding: 11px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; background: #fff; cursor: pointer; text-align: left; }
+.verifactu-count small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.verifactu-count strong { margin-top: 5px; font-size: 20px; }
+.verifactu-count.active { border-color: var(--pear-700); box-shadow: 0 0 0 1px var(--pear-700) inset; }
+@media (max-width: 900px) { .verifactu-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.fiscal-delivery-note { color: var(--muted); }

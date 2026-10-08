@@ -92,7 +92,7 @@ El legado tiene unos 375 formularios y varias decenas de carpetas de informes. E
 - **IGIC.** El legado mantiene una rama separada para Canarias, con el impuesto por artículo o por documento según una propiedad de empresa. PERA tiene un catálogo fiscal genérico por país; falta comprobar que cubre IGIC y recargo de equivalencia sin duplicar el producto en dos ramas.
 - **Cartera.** Recibos, vencimientos y remesas viven en un programa aparte (DimproCartera). PERA los cubre en `/cartera` ([doc 21](21-cartera-y-caja.md)), todavía sin fichero para el banco ni pagos a proveedores.
 - **Informes por cliente.** Cada cliente del legado tiene sus propios formatos de factura, con y sin logo. PERA genera un único PDF de factura con el logo de la empresa; no hay plantillas configurables.
-- **Factura electrónica.** El legado genera Factura-e. PERA tiene Veri*Factu y B2Brouter en pruebas, no Factura-e.
+- **Factura electrónica.** El legado genera Factura-e y presenta Veri*Factu a través de Verifacti o B2BRouter. PERA presenta Veri*Factu directamente a la AEAT, de forma automática y en pruebas o producción ([doc 24](24-verifactu-remision-automatica.md)); B2Brouter sigue solo en pruebas y no hay Factura-e.
 - **Propiedades de empresa.** El legado activa comportamientos por empresa con propiedades numeradas. En PERA esas variaciones deben modelarse como parámetros de empresa con nombre, no como interruptores numerados.
 
 ## Orden de trabajo propuesto

@@ -66,6 +66,11 @@ public class VerifactuRecord extends CompanyScopedEntity {
     private Instant lastAttemptAt;
     @Column(name = "attempt_count", nullable = false)
     private int attemptCount = 0;
+    /** Código y texto de la AEAT para este registro, o el motivo por el que no se pudo remitir. */
+    @Column(name = "aeat_error_code", length = 10)
+    private String aeatErrorCode;
+    @Column(name = "aeat_message", length = 1500)
+    private String aeatMessage;
 
     protected VerifactuRecord() {}
 
@@ -135,4 +140,6 @@ public class VerifactuRecord extends CompanyScopedEntity {
     public String getAeatResponse() { return aeatResponse; }
     public Instant getLastAttemptAt() { return lastAttemptAt; }
     public int getAttemptCount() { return attemptCount; }
+    public String getAeatErrorCode() { return aeatErrorCode; }
+    public String getAeatMessage() { return aeatMessage; }
 }
