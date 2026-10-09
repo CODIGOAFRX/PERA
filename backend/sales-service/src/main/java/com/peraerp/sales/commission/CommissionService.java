@@ -18,7 +18,11 @@ import com.peraerp.sales.document.MonetaryRounding;
 import com.peraerp.sales.document.PaymentStatus;
 import com.peraerp.sales.masterdata.SalesMasterDataService;
 import com.peraerp.sales.masterdata.SalespersonSnapshot;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -51,6 +55,8 @@ public class CommissionService {
     private final SalesMasterDataService masterData;
     private final CurrentCompanyProvider companyProvider;
     private final Clock clock;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public CommissionService(CommissionRuleRepository rules, SalesCommissionRepository commissions,
                              CommercialDocumentRepository documents, SalesMasterDataService masterData,
@@ -128,8 +134,9 @@ public class CommissionService {
         if (request.fromDate().plusDays(MAX_PERIOD_DAYS).isBefore(request.toDate())) {
             throw new BusinessRuleException("Calcula como mucho un año de una vez.");
         }
-        List<CommercialDocument> invoices = documents.findForCommissions(companyId, request.salespersonId(),
-                request.fromDate(), request.toDate());
+        List<CommercialDocument> invoices = request.salespersonId() == null
+                ? documents.findForCommissions(companyId, request.fromDate(), request.toDate())
+                : documents.findForCommissionsOf(companyId, request.salespersonId(), request.fromDate(), request.toDate());
         Map<UUID, List<CommissionRule>> rulesBySalesperson = new HashMap<>();
         Map<UUID, BigDecimal> defaults = new HashMap<>();
         Map<UUID, UUID> groups = new HashMap<>();
@@ -184,8 +191,13 @@ public class CommissionService {
                                            LocalDate toDate, Boolean collected, Pageable pageable) {
         UUID companyId = companyProvider.requireCompanyId();
         Pageable page = PageRequest.of(pageable.getPageNumber(), Math.min(pageable.getPageSize(), 100));
-        Page<SalesCommission> result = commissions.search(companyId, salespersonId, status, fromDate, toDate,
-                collected, PaymentStatus.PAID, page);
+        Filter filter = new Filter(companyId, salespersonId, status, fromDate, toDate, collected);
+        TypedQuery<SalesCommission> query = filter.bind(entityManager.createQuery(
+                "select c " + filter.jpql() + " order by d.issueDate desc, d.documentNumber desc", SalesCommission.class));
+        query.setFirstResult((int) page.getOffset());
+        query.setMaxResults(page.getPageSize());
+        Long count = filter.bind(entityManager.createQuery("select count(c) " + filter.jpql(), Long.class)).getSingleResult();
+        Page<SalesCommission> result = new PageImpl<>(query.getResultList(), page, count);
         Map<UUID, CommercialDocument> byId = documents.findAllById(
                         result.getContent().stream().map(SalesCommission::getDocumentId).toList())
                 .stream().collect(Collectors.toMap(CommercialDocument::getId, Function.identity()));
@@ -195,8 +207,9 @@ public class CommissionService {
     @Transactional(readOnly = true)
     public Totals totals(UUID salespersonId, SalesCommission.Status status, LocalDate fromDate, LocalDate toDate,
                          Boolean collected) {
-        Object[] row = commissions.totals(companyProvider.requireCompanyId(), salespersonId, status, fromDate, toDate,
-                collected, PaymentStatus.PAID).getFirst();
+        Filter filter = new Filter(companyProvider.requireCompanyId(), salespersonId, status, fromDate, toDate, collected);
+        Object[] row = filter.bind(entityManager.createQuery("select coalesce(sum(c.baseAmount), 0), "
+                + "coalesce(sum(c.commissionAmount), 0), count(c) " + filter.jpql(), Object[].class)).getSingleResult();
         return new Totals((Long) row[2], (BigDecimal) row[0], (BigDecimal) row[1]);
     }
 
@@ -235,6 +248,34 @@ public class CommissionService {
                     throw new BusinessRuleException("La comisión de este documento ya está liquidada. "
                             + "Deshaz la liquidación antes de cambiar el comercial.");
                 });
+    }
+
+    /**
+     * Filtros de la lista. La consulta lleva solo los que vienen: un parámetro nulo comparado con
+     * «is null» no tiene tipo para PostgreSQL y la consulta falla.
+     */
+    private record Filter(UUID companyId, UUID salespersonId, SalesCommission.Status status, LocalDate fromDate,
+                          LocalDate toDate, Boolean collected) {
+        String jpql() {
+            StringBuilder jpql = new StringBuilder("from SalesCommission c, CommercialDocument d "
+                    + "where d.id = c.documentId and c.companyId = :companyId");
+            if (salespersonId != null) jpql.append(" and c.salespersonId = :salespersonId");
+            if (status != null) jpql.append(" and c.status = :status");
+            if (fromDate != null) jpql.append(" and d.issueDate >= :fromDate");
+            if (toDate != null) jpql.append(" and d.issueDate <= :toDate");
+            if (collected != null) jpql.append(collected ? " and d.paymentStatus = :paid" : " and d.paymentStatus <> :paid");
+            return jpql.toString();
+        }
+
+        <T> TypedQuery<T> bind(TypedQuery<T> query) {
+            query.setParameter("companyId", companyId);
+            if (salespersonId != null) query.setParameter("salespersonId", salespersonId);
+            if (status != null) query.setParameter("status", status);
+            if (fromDate != null) query.setParameter("fromDate", fromDate);
+            if (toDate != null) query.setParameter("toDate", toDate);
+            if (collected != null) query.setParameter("paid", PaymentStatus.PAID);
+            return query;
+        }
     }
 
     private SalesCommission require(UUID id) {

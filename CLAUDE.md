@@ -64,10 +64,14 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Registro de entregas
 
+### v20261009.Raul.3 — pantalla de comisiones
+
+- Bloque 4 terminado (3 de 3): pantalla `/comisiones` con recálculo por periodo, totales, detalle por línea, liquidación y deshacer, y pestaña de reglas por comercial ([docs/25](docs/25-comisiones.md)).
+- **Arreglo:** la lista y los totales de comisiones daban error 500 al filtrar sin comercial o sin cobro (un parámetro nulo sin tipo para PostgreSQL). La consulta se arma solo con los filtros que llegan, y el cálculo de todos los comerciales va en su propia consulta.
+
 ### v20261009.Raul.2 — comisiones (servidor)
 
 - Bloque 4, segunda parte (2 de 3): reglas de comisión por comercial (artículo, grupo, tramo), cálculo por periodo sobre facturas y rectificativas con detalle por línea, liquidación y deshacer; lo liquidado no se recalcula ni deja cambiar el comercial ([docs/25](docs/25-comisiones.md)). Permisos `commissions:read/write`.
-- Falta la pantalla de Comisiones.
 
 ### v20261009.Raul — comercial en los documentos de venta
 
@@ -112,7 +116,7 @@ Rama `migracion-dimprocristalwin` subida a GitHub por primera vez (sin PR, sin t
 | 1. Compras e inventario | Hecho |
 | 2. Cartera y caja | Hecho |
 | 3. Facturación automática y cierre | Pendiente de decisiones |
-| 4. Comerciales, comisiones y grupos de cliente | Ficha de cliente y comercial en documentos hechos; faltan las comisiones |
+| 4. Comerciales, comisiones y grupos de cliente | Hecho (sin cobradores) |
 | 5. Reclamaciones y agenda | Hecho |
 | 6. Plantillas de documento y etiquetas | Pendiente |
 | 7. Extensión de vidrio | Pendiente |

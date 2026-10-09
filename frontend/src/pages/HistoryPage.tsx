@@ -165,7 +165,7 @@ function auditResourceLabel(resource: string, language: string): string {
     ACCOUNTING: ['Contabilidad', 'Accounting'],
     PURCHASE_DOCUMENT: ['Documento de compra', 'Purchase document'], WAREHOUSE: ['Almacén', 'Warehouse'],
     STOCK_MOVEMENT: ['Movimiento de almacén', 'Stock movement'], SALES_DELIVERY: ['Salida de venta', 'Sales issue'],
-    CUSTOMER_CATALOG: ['Clasificación de clientes', 'Customer classification'], SALESPERSON: ['Comercial', 'Salesperson'], CLAIM: ['Reclamación', 'Claim'], CLAIM_CATALOG: ['Tabla de reclamaciones', 'Claim table'], AGENDA_ENTRY: ['Cita', 'Appointment'], AGENDA_ENTRY_TYPE: ['Tipo de cita', 'Appointment type'], CONTACT: ['Contacto', 'Contact'],
+    CUSTOMER_CATALOG: ['Clasificación de clientes', 'Customer classification'], COMMISSION: ['Comisión', 'Commission'], COMMISSION_RULE: ['Regla de comisión', 'Commission rule'], SALESPERSON: ['Comercial', 'Salesperson'], CLAIM: ['Reclamación', 'Claim'], CLAIM_CATALOG: ['Tabla de reclamaciones', 'Claim table'], AGENDA_ENTRY: ['Cita', 'Appointment'], AGENDA_ENTRY_TYPE: ['Tipo de cita', 'Appointment type'], CONTACT: ['Contacto', 'Contact'],
   }
   const label = labels[resource] ?? [resource.replaceAll('_', ' ').toLowerCase(), resource.replaceAll('_', ' ').toLowerCase()]
   return label[language === 'es' ? 0 : 1]

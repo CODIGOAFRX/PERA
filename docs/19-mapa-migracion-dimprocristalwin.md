@@ -26,7 +26,7 @@ El legado tiene unos 375 formularios y varias decenas de carpetas de informes. E
 | Clientes, grupos y tipos de cliente | Cubierto | Ficha con grupo, tipo, comercial, forma de entrega, motivo de baja, contactos, direcciones de entrega y notas en `/clientes` ([doc 23](23-ficha-de-cliente.md)). |
 | Proveedores | Cubierto | `/proveedores`. |
 | Formas de pago | Cubierto | `finance-service`, `/finanzas`. |
-| Vendedores, cobradores, comerciales | Parcial | Maestro de comerciales con comisión por defecto y asignación al cliente ([doc 23](23-ficha-de-cliente.md)). Sin cobradores ni cálculo de comisiones. |
+| Vendedores, cobradores, comerciales | Parcial | Comerciales, comercial en cada documento y comisiones con reglas, cálculo y liquidación en `/comisiones` ([doc 23](23-ficha-de-cliente.md), [doc 25](25-comisiones.md)). Sin cobradores. |
 | Rutas, transportes, forma de entrega | Cubierto | Rutas, transportistas y vehículos en `operations-service`, `/operaciones`. |
 | Actualiza riesgo clientes | Parcial | Riesgo de crédito en ventas; no hay recálculo masivo. |
 | Obras de clientes | Parcial | `WorkSite` existe pero está congelado, sin API ni pantalla. Pendiente decidir si se generaliza como proyecto o ubicación de servicio. |

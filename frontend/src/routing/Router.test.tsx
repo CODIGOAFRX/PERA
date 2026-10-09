@@ -31,7 +31,7 @@ describe('RouterProvider', () => {
   it('keeps the current routes unique in the canonical registry', () => {
     const paths = appRoutes.map((route) => route.path)
     expect(new Set(paths).size).toBe(paths.length)
-    expect(paths).toEqual(['/', '/impresion', '/clientes', '/proveedores', '/catalogo', '/maestros', '/presupuestos', '/ventas', '/compras', '/almacen', '/finanzas', '/verifactu', '/cartera', '/contabilidad', '/operaciones', '/reclamaciones', '/agenda', '/historial', '/conexiones', '/configuracion', '/usuarios'])
+    expect(paths).toEqual(['/', '/impresion', '/clientes', '/proveedores', '/catalogo', '/maestros', '/presupuestos', '/ventas', '/compras', '/almacen', '/finanzas', '/comisiones', '/verifactu', '/cartera', '/contabilidad', '/operaciones', '/reclamaciones', '/agenda', '/historial', '/conexiones', '/configuracion', '/usuarios'])
   })
 
   it('keeps economic and logistics workspaces separated by role', () => {

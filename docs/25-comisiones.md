@@ -32,6 +32,11 @@ La base es el neto de la línea sin IVA, en moneda base. Las rectificativas rest
 
 **Liquidación**: se liquidan las seleccionadas con fecha y nota; ya no se recalculan. Se puede deshacer una liquidación hecha por error. El comercial de una factura con la comisión liquidada no se cambia sin deshacerla antes.
 
+**Pantalla** `/comisiones` (Ventas › Comisiones):
+
+- *Comisiones*: filtros por comercial, fechas, estado y cobro; «Recalcular» el periodo; totales del filtro y de lo seleccionado; detalle por línea con el origen del porcentaje; «Liquidar» lo seleccionado con fecha y nota; «Deshacer la liquidación» desde el detalle.
+- *Reglas*: las del comercial elegido, con su comisión por defecto a la vista; alta y edición de reglas por artículo, grupo o generales, con tramo y porcentaje.
+
 **Permisos**: `commissions:read` y `commissions:write`, para propietario, administrador y economía.
 
 ## Límites
