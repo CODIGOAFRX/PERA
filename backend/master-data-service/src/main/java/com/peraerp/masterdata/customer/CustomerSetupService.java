@@ -70,6 +70,12 @@ public class CustomerSetupService {
                 .map(SalespersonResponse::from).toList();
     }
 
+    @Transactional(readOnly = true)
+    public SalespersonResponse findSalesperson(UUID id) {
+        return SalespersonResponse.from(salespersonRepository.findByIdAndCompanyId(id, companyProvider.requireCompanyId())
+                .orElseThrow(() -> new ResourceNotFoundException("Comercial", id)));
+    }
+
     @Transactional
     public SalespersonResponse createSalesperson(SalespersonRequest request) {
         UUID companyId = companyProvider.requireCompanyId();

@@ -82,6 +82,18 @@ it('creates a document with the entered line', async () => {
   expect(payload.lines).toEqual([expect.objectContaining({ description: 'Instalación', quantity: 1, unitPrice: 27.95, unitPriceOverridden: true })])
 })
 
+it('lets the user choose another salesperson for the document', async () => {
+  mockApi({ '/api/v1/salespeople': () => [{ id: 's1', code: 'V01', name: 'Marta Ruiz', email: null, phone: null, commissionPercentage: 3, active: true }] })
+  view()
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuevo documento' }))
+  fireEvent.change(await screen.findByLabelText(/^Cliente/), { target: { value: 'c1' } })
+  fireEvent.change(screen.getByLabelText('Comercial'), { target: { value: 's1' } })
+  fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Instalación' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Crear documento' }))
+  expect(await screen.findByText('Documento creado correctamente.')).toBeInTheDocument()
+  expect(JSON.parse(String(calls('POST', '/api/v1/documents')[0][1]?.body))).toMatchObject({ salespersonId: 's1' })
+})
+
 it('shows a server validation error on the exact line field', async () => {
   mockApi({ '/api/v1/documents/credit-risk': () => ({ level: 'OK' }), '/api/v1/documents': (init) => {
     if (init?.method !== 'POST') return page([albaran])

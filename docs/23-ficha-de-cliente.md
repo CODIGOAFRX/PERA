@@ -41,6 +41,17 @@ Al pulsar un cliente de la lista se abre su ficha con cuatro apartados:
 - **Direcciones de entrega**: obras, almacenes o tiendas, además de la dirección fiscal. Una sola es la habitual y una dirección dada de baja no puede serlo. Cuelgan del tercero, no del perfil de cliente, para que sirvan también a proveedores.
 - **Notas**: título, texto y la marca «mostrar en documentos», que sustituye al texto para documentos del programa anterior. Saldrán impresas cuando lleguen las plantillas de documento (bloque 6). Borrar una nota la desactiva.
 
+## El comercial en los documentos
+
+Desde la entrega `v20261009.Raul`, presupuestos, albaranes y facturas guardan su comercial, como `albaran.id_vend` en el programa anterior:
+
+- Al crear el documento se toma el de la ficha del cliente. En la pantalla de Ventas se puede elegir otro; uno dado de baja no se puede elegir. Si el de la ficha está de baja, el documento queda sin comercial.
+- Al pasar de presupuesto a albarán y de albarán a factura, el comercial pasa con él.
+- Se puede cambiar después (`PUT /api/v1/documents/{id}/salesperson`), también en facturas expedidas: no es dato fiscal. Es el «cambio de vendedores» del programa anterior.
+- Se guarda el nombre en el documento, para listarlo sin depender de maestros.
+
+La migración `V15` de ventas crea también las tablas de reglas y comisiones, que se usarán en la entrega de comisiones.
+
 ## Compatibilidad
 
 - Las peticiones que no envían el bloque `classification` (la importación de clientes, integraciones antiguas) conservan la clasificación guardada.
@@ -48,7 +59,7 @@ Al pulsar un cliente de la lista se abre su ficha con cuatro apartados:
 
 ## Límites
 
-- Sin comisiones todavía, ni comercial en los documentos de venta.
+- Sin cálculo de comisiones todavía.
 - Sin cobradores, rutas de reparto, mandatos SEPA, recargo de equivalencia ni retenciones por cliente.
 - La dirección de entrega no se elige aún en albaranes ni facturas.
 - No se importan los grupos, comerciales y contactos del programa anterior.

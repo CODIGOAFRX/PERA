@@ -29,6 +29,38 @@ public class SalesMasterDataService {
         return customer;
     }
 
+    /**
+     * Comercial del documento: el indicado o, si no se indica, el de la ficha del cliente. Uno indicado
+     * a mano tiene que estar activo; si el de la ficha se dio de baja, el documento queda sin comercial.
+     */
+    public SalespersonSnapshot resolveSalesperson(UUID requested, CustomerSnapshot customer) {
+        UUID id = requested != null ? requested : customer.salespersonId();
+        if (id == null) {
+            return null;
+        }
+        SalespersonSnapshot salesperson = client.findSalesperson(id);
+        if (!salesperson.active()) {
+            if (requested != null) {
+                throw new BusinessRuleException("El comercial " + salesperson.name() + " está dado de baja.");
+            }
+            return null;
+        }
+        return salesperson;
+    }
+
+    public SalespersonSnapshot findSalesperson(UUID id) {
+        return client.findSalesperson(id);
+    }
+
+    /** Grupo del producto, para las reglas de comisión por grupo. */
+    public UUID productGroupOf(UUID productId) {
+        return client.findProduct(productId).productGroupId();
+    }
+
+    public ProductSnapshot findProduct(UUID productId) {
+        return client.findProduct(productId);
+    }
+
     public ResolvedDocumentLine resolveLine(UUID customerId, DocumentLineRequest line,
                                             LocalDate issueDate, String currency) {
         if (line.productId() == null) {

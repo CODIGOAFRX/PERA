@@ -211,6 +211,32 @@ class DocumentServiceTest {
         org.mockito.Mockito.verifyNoInteractions(verifactuIssuance);
     }
 
+    @Test
+    void takesTheSalespersonOfTheCustomerAndLetsItBeChanged() {
+        UUID salespersonId = UUID.randomUUID();
+        when(masterDataService.resolveSalesperson(any(), any())).thenReturn(
+                new com.peraerp.sales.masterdata.SalespersonSnapshot(salespersonId, "V01", "Marta Ruiz", null, true));
+        when(numberGenerator.next(any(), any(), any(), any())).thenReturn("ALB-2026-000001");
+        when(currencyService.resolve(any(), any())).thenReturn(new DocumentCurrencySnapshot("EUR", BigDecimal.ONE,
+                LocalDate.of(2026, 8, 7), "IDENTITY"));
+        when(documents.save(any(CommercialDocument.class))).thenAnswer(invocation -> withId(invocation.getArgument(0)));
+
+        DocumentResponse created = service.create(request(DocumentType.DELIVERY_NOTE, true));
+
+        assertThat(created.salespersonId()).isEqualTo(salespersonId);
+        assertThat(created.salespersonName()).isEqualTo("Marta Ruiz");
+
+        UUID id = UUID.randomUUID();
+        CommercialDocument stored = document(id, DocumentType.DELIVERY_NOTE);
+        when(documents.findByIdAndCompanyId(id, companyId)).thenReturn(Optional.of(stored));
+        UUID retired = UUID.randomUUID();
+        when(masterDataService.findSalesperson(retired)).thenReturn(
+                new com.peraerp.sales.masterdata.SalespersonSnapshot(retired, "V02", "Retirado", null, false));
+        assertThatThrownBy(() -> service.changeSalesperson(id, retired)).isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("baja");
+        assertThat(service.changeSalesperson(id, null).salespersonId()).isNull();
+    }
+
     private CreateDocumentRequest request(DocumentType type, boolean confirm) {
         return new CreateDocumentRequest(type, UUID.randomUUID(), "C001", "Cliente Demo",
                 LocalDate.of(2026, 8, 7), null, "EUR", null, "Primera operación", confirm,

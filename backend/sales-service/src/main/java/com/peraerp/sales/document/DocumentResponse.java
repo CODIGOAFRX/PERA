@@ -23,7 +23,7 @@ public record DocumentResponse(UUID id, String number, DocumentType type, Docume
                                UUID rectifiedDocumentId, String rectifiedNumber, LocalDate rectifiedIssueDate,
                                boolean issued,
                                String customerTaxId, TaxIdentificationType customerTaxIdentificationType,
-                               String customerTaxCountry) {
+                               String customerTaxCountry, UUID salespersonId, String salespersonName) {
     public static DocumentResponse from(CommercialDocument document) {
         return new DocumentResponse(document.getId(), document.getDocumentNumber(), document.getType(),
                 document.getStatus(), document.getCustomerId(), document.getCustomerCodeSnapshot(),
@@ -40,6 +40,6 @@ public record DocumentResponse(UUID id, String number, DocumentType type, Docume
                 document.getRectifiedNumberSnapshot(), document.getRectifiedIssueDateSnapshot(),
                 document.isIssued(),
                 document.getCustomerTaxIdSnapshot(), document.getCustomerTaxIdentificationTypeSnapshot(),
-                document.getCustomerTaxCountrySnapshot());
+                document.getCustomerTaxCountrySnapshot(), document.getSalespersonId(), document.getSalespersonName());
     }
 }

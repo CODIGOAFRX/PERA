@@ -16,7 +16,22 @@ import java.util.UUID;
 public record CustomerSnapshot(UUID id, String code, String legalName, boolean active,
                                String taxId, TaxIdentificationType taxIdentificationType,
                                String taxCountryCode, String email, com.peraerp.platform.domain.ContactDetails details,
-                               BigDecimal creditLimit, BigDecimal riskWarningThreshold, String riskPolicy) {
+                               BigDecimal creditLimit, BigDecimal riskWarningThreshold, String riskPolicy,
+                               Classification classification) {
+    /** Lo que ventas usa de la clasificación del cliente: su comercial. */
+    public record Classification(UUID salespersonId) {}
+
+    public CustomerSnapshot(UUID id, String code, String legalName, boolean active, String taxId,
+                            TaxIdentificationType taxIdentificationType, String taxCountryCode, String email,
+                            com.peraerp.platform.domain.ContactDetails details, BigDecimal creditLimit,
+                            BigDecimal riskWarningThreshold, String riskPolicy) {
+        this(id, code, legalName, active, taxId, taxIdentificationType, taxCountryCode, email, details,
+                creditLimit, riskWarningThreshold, riskPolicy, null);
+    }
+
+    /** Comercial de la ficha del cliente, si tiene. */
+    public UUID salespersonId() { return classification == null ? null : classification.salespersonId(); }
+
     /** Sin datos de riesgo: el cliente no tiene límite ni política que aplicar. */
     public CustomerSnapshot(UUID id, String code, String legalName, boolean active, String taxId,
                             TaxIdentificationType taxIdentificationType, String taxCountryCode, String email,

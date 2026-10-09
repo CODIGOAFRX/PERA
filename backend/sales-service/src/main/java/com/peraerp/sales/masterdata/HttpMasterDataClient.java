@@ -52,6 +52,20 @@ class HttpMasterDataClient implements MasterDataClient {
     }
 
     @Override
+    public SalespersonSnapshot findSalesperson(UUID salespersonId) {
+        try {
+            SalespersonSnapshot response = client.get().uri("/api/v1/salespeople/{id}", salespersonId)
+                    .header("Authorization", bearer()).retrieve().body(SalespersonSnapshot.class);
+            if (response == null || response.id() == null) {
+                throw new BusinessRuleException("El servicio de maestros no devolvió un comercial válido.");
+            }
+            return response;
+        } catch (RestClientException exception) {
+            throw new BusinessRuleException("No se pudo validar el comercial del documento.", exception);
+        }
+    }
+
+    @Override
     public TaxCodeSnapshot findTaxCode(UUID taxCodeId) {
         try {
             TaxCodeSnapshot response = client.get().uri("/api/v1/tax-codes/{id}", taxCodeId)

@@ -36,6 +36,19 @@ public interface CommercialDocumentRepository extends JpaRepository<CommercialDo
                                                         @Param("updatedSince") java.time.Instant updatedSince,
                                                         Pageable pageable);
 
+    /** Facturas y rectificativas expedidas con comercial, para calcular comisiones. */
+    @Query("select d from CommercialDocument d where d.companyId = :companyId and d.salespersonId is not null " +
+            "and (:salespersonId is null or d.salespersonId = :salespersonId) " +
+            "and d.type in (com.peraerp.sales.document.DocumentType.INVOICE, " +
+            "com.peraerp.sales.document.DocumentType.RECTIFYING_INVOICE) " +
+            "and d.status in (com.peraerp.sales.document.DocumentStatus.CONFIRMED, " +
+            "com.peraerp.sales.document.DocumentStatus.CONVERTED) " +
+            "and d.issueDate >= :fromDate and d.issueDate <= :toDate order by d.issueDate, d.documentNumber")
+    List<CommercialDocument> findForCommissions(@Param("companyId") UUID companyId,
+                                                @Param("salespersonId") UUID salespersonId,
+                                                @Param("fromDate") LocalDate fromDate,
+                                                @Param("toDate") LocalDate toDate);
+
     @Query("select d from CommercialDocument d where d.companyId = :companyId " +
             "and (:query = '' or lower(d.documentNumber) like concat('%', lower(:query), '%') " +
             "or lower(d.customerCodeSnapshot) like concat('%', lower(:query), '%') " +

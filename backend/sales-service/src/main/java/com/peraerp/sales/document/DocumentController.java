@@ -38,5 +38,10 @@ public class DocumentController {
                                                                                             @RequestParam(defaultValue = "false") boolean riskAcknowledged) { return service.convert(id, riskAcknowledged); }
     @PostMapping("/{id}/confirm") DocumentResponse confirm(@PathVariable UUID id,
                                                            @RequestParam(defaultValue = "false") boolean riskAcknowledged) { return service.confirmDraft(id, riskAcknowledged); }
+    /** Comercial del documento; {@code salespersonId} nulo lo quita. */
+    public record SalespersonRequest(UUID salespersonId) {}
+    @PutMapping("/{id}/salesperson") DocumentResponse salesperson(@PathVariable UUID id, @RequestBody SalespersonRequest request) {
+        return service.changeSalesperson(id, request.salespersonId());
+    }
     @PatchMapping("/{id}/payment-status") DocumentResponse paymentStatus(@PathVariable UUID id, @Valid @RequestBody UpdatePaymentStatusRequest request) { return service.updatePaymentStatus(id, request.status()); }
 }

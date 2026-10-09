@@ -85,6 +85,11 @@ public class CommercialDocument extends CompanyScopedEntity {
     private BigDecimal baseTotalAmount = BigDecimal.ZERO;
     @Column(columnDefinition = "text")
     private String notes;
+    /** Comercial del documento: se toma del cliente y no es dato fiscal, así que se puede cambiar. */
+    @Column(name = "salesperson_id")
+    private UUID salespersonId;
+    @Column(name = "salesperson_name", length = 160)
+    private String salespersonName;
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("lineOrder ASC")
     private List<DocumentLine> lines = new ArrayList<>();
@@ -310,6 +315,14 @@ public class CommercialDocument extends CompanyScopedEntity {
     public UUID getCustomerId() { return customerId; }
     public String getCustomerCodeSnapshot() { return customerCodeSnapshot; }
     public String getCustomerNameSnapshot() { return customerNameSnapshot; }
+    public UUID getSalespersonId() { return salespersonId; }
+    public String getSalespersonName() { return salespersonName; }
+
+    /** Asigna o quita el comercial. No pasa por {@code requireModifiable}: no forma parte de la factura fiscal. */
+    public void assignSalesperson(UUID salespersonId, String salespersonName) {
+        this.salespersonId = salespersonId;
+        this.salespersonName = salespersonId == null ? null : salespersonName;
+    }
     public LocalDate getIssueDate() { return issueDate; }
     public LocalDate getDueDate() { return dueDate; }
     public String getCurrency() { return currency; }

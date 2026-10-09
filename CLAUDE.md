@@ -64,6 +64,11 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Registro de entregas
 
+### v20261009.Raul — comercial en los documentos de venta
+
+- Bloque 4, segunda parte (1 de 3): presupuestos, albaranes y facturas guardan su comercial, tomado de la ficha del cliente o elegido al crear; pasa al convertir y se puede cambiar después, incluso en facturas expedidas. Migración `V15` de ventas, que deja creadas las tablas de reglas y comisiones ([docs/23](docs/23-ficha-de-cliente.md)).
+- Falta: reglas, cálculo y liquidación de comisiones (servicio y pantalla). El código a medias está en la rama local `comisiones-en-curso`.
+
 ### v20261008.Raul.2 — Veri*Factu: remisión automática
 
 - **Remisión automática a la AEAT** ([docs/24](docs/24-verifactu-remision-automatica.md)), fase 5 del plan de Veri*Factu. Cada factura expedida se presenta sola, en lotes de hasta 1.000 y respetando el tiempo de espera de la AEAT, en pruebas o en producción según la empresa. Si se pierde la respuesta se reconcilia con el «duplicado» de la AEAT; si la AEAT rechaza el envío entero se reintenta con esperas crecientes; un registro rechazado no se reenvía. Migración `V14` de ventas.
@@ -103,7 +108,7 @@ Rama `migracion-dimprocristalwin` subida a GitHub por primera vez (sin PR, sin t
 | 1. Compras e inventario | Hecho |
 | 2. Cartera y caja | Hecho |
 | 3. Facturación automática y cierre | Pendiente de decisiones |
-| 4. Comerciales, comisiones y grupos de cliente | Ficha de cliente hecha; faltan las comisiones |
+| 4. Comerciales, comisiones y grupos de cliente | Ficha de cliente y comercial en documentos hechos; faltan las comisiones |
 | 5. Reclamaciones y agenda | Hecho |
 | 6. Plantillas de documento y etiquetas | Pendiente |
 | 7. Extensión de vidrio | Pendiente |

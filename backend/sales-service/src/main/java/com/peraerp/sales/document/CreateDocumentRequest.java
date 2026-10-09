@@ -26,8 +26,18 @@ public record CreateDocumentRequest(
         UUID numberingSchemeId,
         InvoiceKind invoiceKind,
         RectificationType rectificationType,
-        UUID rectifiedDocumentId
+        UUID rectifiedDocumentId,
+        @io.swagger.v3.oas.annotations.media.Schema(description = "Comercial del documento. Si se omite, el de la ficha del cliente.")
+        UUID salespersonId
 ) {
+    public CreateDocumentRequest(DocumentType type, UUID customerId, String customerCode, String customerName,
+                                 LocalDate issueDate, LocalDate dueDate, String currency, UUID paymentMethodId,
+                                 String notes, boolean confirm, List<DocumentLineRequest> lines,
+                                 UUID numberingSchemeId, InvoiceKind invoiceKind, RectificationType rectificationType,
+                                 UUID rectifiedDocumentId) {
+        this(type, customerId, customerCode, customerName, issueDate, dueDate, currency, paymentMethodId,
+                notes, confirm, lines, numberingSchemeId, invoiceKind, rectificationType, rectifiedDocumentId, null);
+    }
     public CreateDocumentRequest(DocumentType type, UUID customerId, String customerCode, String customerName,
                                  LocalDate issueDate, LocalDate dueDate, String currency, UUID paymentMethodId,
                                  String notes, boolean confirm, List<DocumentLineRequest> lines) {

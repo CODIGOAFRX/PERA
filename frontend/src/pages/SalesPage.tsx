@@ -23,7 +23,7 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { saveBlob } from '../lib/download'
 import { documentStatusKey, documentTypeKey, paymentStatusKey } from '../i18n/businessLabels'
 import { useTranslation } from '../i18n/I18nProvider'
-import type { CommercialDocument, CreateDocumentInput, CurrencyDefinition, Customer, DocumentStatus, DocumentType, PageResponse, PaymentMethod, Product } from '../types/api'
+import type { CommercialDocument, CreateDocumentInput, CurrencyDefinition, Customer, DocumentStatus, DocumentType, PageResponse, PaymentMethod, Product, Salesperson } from '../types/api'
 import { TableCaption } from '../components/TableCaption'
 
 const documentTypes = Object.keys(documentTypeKey) as DocumentType[]
@@ -128,12 +128,13 @@ function CreateDocumentForm({ onCancel, onSaved }: { onCancel: () => void; onSav
   const [customers, setCustomers] = useState<Customer[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
+  const [salespeople, setSalespeople] = useState<Salesperson[]>([])
   const [currencies, setCurrencies] = useState<CurrencyDefinition[]>([])
   const [loadingOptions, setLoadingOptions] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const formErrors = useFormErrors()
-  const [form, setForm] = useState({ type: 'QUOTE' as DocumentType, customerId: '', issueDate: localIsoDate(), dueDate: '', currency: 'EUR', paymentMethodId: '', notes: '', confirm: true })
+  const [form, setForm] = useState({ type: 'QUOTE' as DocumentType, customerId: '', issueDate: localIsoDate(), dueDate: '', currency: 'EUR', paymentMethodId: '', salespersonId: '', notes: '', confirm: true })
   const [lines, setLines] = useState([{ productId: '', productCode: '', description: '', quantity: '1', unitPrice: '0', discountPercentage: '0', taxPercentage: '21', unitPriceOverridden: false, taxPercentageOverridden: false }])
 
   useEffect(() => {
@@ -142,7 +143,10 @@ function CreateDocumentForm({ onCancel, onSaved }: { onCancel: () => void; onSav
       apiFetch<PageResponse<Product>>('/api/v1/products?size=100&sort=name,asc'),
       apiFetch<PaymentMethod[]>('/api/v1/payment-methods'),
       apiFetch<CurrencyDefinition[]>('/api/v1/currencies').catch(() => []),
-    ]).then(([customerPage, productPage, methods, currencyList]) => {
+      // Sin permiso para ver comerciales, el documento toma el de la ficha del cliente.
+      apiFetch<Salesperson[]>('/api/v1/salespeople?active=true').catch(() => []),
+    ]).then(([customerPage, productPage, methods, currencyList, people]) => {
+      setSalespeople(Array.isArray(people) ? people : [])
       setCustomers(customerPage.content.filter((item) => item.active))
       setProducts(productPage.content.filter((item) => item.active))
       setPaymentMethods(methods.filter((item) => item.active))
@@ -187,6 +191,7 @@ function CreateDocumentForm({ onCancel, onSaved }: { onCancel: () => void; onSav
     const payload: CreateDocumentInput = {
       type: form.type, customerId: customer.id, customerCode: customer.code, customerName: customer.legalName,
       issueDate: form.issueDate, dueDate: form.dueDate || null, currency: form.currency, paymentMethodId: form.paymentMethodId || null,
+      salespersonId: form.salespersonId || null,
       notes: form.notes.trim() || null, confirm: form.confirm,
       lines: lines.map((line) => ({ productId: line.productId || null, productCode: line.productCode || null, description: line.description.trim(), quantity: Number(line.quantity), unitPrice: Number(line.unitPrice), discountPercentage: Number(line.discountPercentage), taxPercentage: Number(line.taxPercentage), unitPriceOverridden: line.unitPriceOverridden, taxPercentageOverridden: line.taxPercentageOverridden })),
     }
@@ -206,6 +211,7 @@ function CreateDocumentForm({ onCancel, onSaved }: { onCancel: () => void; onSav
       <Field label={t('sales.dueDate')} htmlFor="document-due" name="dueDate"><input id="document-due" type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} /></Field>
       <Field label={c('Moneda', 'Currency')} htmlFor="document-currency" name="currency" required><select id="document-currency" value={form.currency} onChange={(event) => setForm({ ...form, currency: event.target.value })}>{currencies.length ? currencies.map((currency) => <option key={currency.code} value={currency.code}>{currency.code} · {currency.name}</option>) : <option value="EUR">EUR</option>}</select></Field>
       <Field label={t('sales.paymentMethod')} htmlFor="document-payment" name="paymentMethodId"><select id="document-payment" value={form.paymentMethodId} onChange={(event) => setForm({ ...form, paymentMethodId: event.target.value })}><option value="">{t('sales.noPaymentMethod')}</option>{paymentMethods.map((method) => <option key={method.id} value={method.id}>{method.code} · {method.name}</option>)}</select></Field>
+      {salespeople.length > 0 && <Field label={language === 'es' ? 'Comercial' : 'Salesperson'} htmlFor="document-salesperson" name="salespersonId"><select id="document-salesperson" value={form.salespersonId} onChange={(event) => setForm({ ...form, salespersonId: event.target.value })}><option value="">{language === 'es' ? 'El de la ficha del cliente' : "The customer's one"}</option>{salespeople.map((person) => <option key={person.id} value={person.id}>{person.code} · {person.name}</option>)}</select></Field>}
       <Field label={t('sales.initialStatus')} htmlFor="document-confirm" name="confirm"><label className="switch-row" htmlFor="document-confirm"><input id="document-confirm" type="checkbox" checked={form.confirm} onChange={(event) => setForm({ ...form, confirm: event.target.checked })} /><span>{t('sales.confirmOnSave')}</span></label></Field>
     </div>
     <div className="document-lines-heading"><div><span className="eyebrow">{t('sales.detail')}</span><h3>{t('sales.documentLines')}</h3></div><button className="button button-secondary button-small" type="button" onClick={() => setLines((current) => [...current, { productId: '', productCode: '', description: '', quantity: '1', unitPrice: '0', discountPercentage: '0', taxPercentage: '21', unitPriceOverridden: false, taxPercentageOverridden: false }])}><Plus size={15} />{t('sales.addLine')}</button></div>
@@ -240,7 +246,7 @@ function DocumentDetail({ document, onAction, onDownload }: { document: Commerci
   // A draft saved without "confirm on save" is confirmed (or, for an invoice, issued) from here.
   const confirmable = document.status === 'DRAFT' && document.type !== 'QUOTE'
   return <div className="document-detail">
-    <div className="detail-summary"><div><small>{t('sales.customer')}</small><strong>{document.customerName}</strong><span>{document.customerCode}</span></div><div><small>{t('sales.issue')}</small><strong>{formatDate(document.issueDate, locale)}</strong><span>{t('sales.due', { date: formatDate(document.dueDate, locale) })}</span></div><div><small>{t('sales.status')}</small><StatusBadge tone={statusTone(document.status)}>{t(documentStatusKey[document.status])}</StatusBadge><span>{t(paymentStatusKey[document.paymentStatus])}</span></div><div><small>{t('sales.total')}</small><strong className="detail-total">{formatCurrency(document.totalAmount, document.currency, locale)}</strong><span>{document.currency}</span></div></div>
+    <div className="detail-summary"><div><small>{t('sales.customer')}</small><strong>{document.customerName}</strong><span>{document.customerCode}{document.salespersonName ? ` · ${language === 'es' ? 'Comercial' : 'Salesperson'}: ${document.salespersonName}` : ''}</span></div><div><small>{t('sales.issue')}</small><strong>{formatDate(document.issueDate, locale)}</strong><span>{t('sales.due', { date: formatDate(document.dueDate, locale) })}</span></div><div><small>{t('sales.status')}</small><StatusBadge tone={statusTone(document.status)}>{t(documentStatusKey[document.status])}</StatusBadge><span>{t(paymentStatusKey[document.paymentStatus])}</span></div><div><small>{t('sales.total')}</small><strong className="detail-total">{formatCurrency(document.totalAmount, document.currency, locale)}</strong><span>{document.currency}</span></div></div>
     <div className="table-scroll detail-lines"><table><TableCaption es="Líneas del documento" en="Document lines" /><thead><tr><th>#</th><th>{t('sales.lineDescription')}</th><th className="align-right">{t('sales.quantity')}</th><th className="align-right">{t('sales.price')}</th><th className="align-right">{t('sales.discount')}</th><th className="align-right">{t('sales.total')}</th></tr></thead><tbody>{document.lines.map((line) => <tr key={line.id || line.order}><td>{line.order}</td><td><strong>{line.description}</strong>{line.productCode && <small>{line.productCode}</small>}</td><td className="align-right">{formatNumber(line.quantity, locale, 6)}</td><td className="align-right">{formatCurrency(line.unitPrice, document.currency, locale)}</td><td className="align-right">{formatNumber(line.discountPercentage, locale, 4)} %</td><td className="align-right"><strong>{formatCurrency(line.totalAmount, document.currency, locale)}</strong></td></tr>)}</tbody></table></div>
     <div className="detail-totals"><span>{t('sales.net')} <strong>{formatCurrency(document.netAmount, document.currency, locale)}</strong></span><span>{t('catalog.tax')} <strong>{formatCurrency(document.taxAmount, document.currency, locale)}</strong></span><span>{t('sales.total')} <strong>{formatCurrency(document.totalAmount, document.currency, locale)}</strong></span></div>
     {printable && <DocumentEmail id={document.id} disabled={document.status === 'DRAFT'} />}

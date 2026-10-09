@@ -369,6 +369,9 @@ export interface CommercialDocument {
   customerTaxId: string | null
   customerTaxIdentificationType: TaxIdentificationType | null
   customerTaxCountry: string | null
+  /** Comercial del documento, tomado del cliente o elegido al crearlo. */
+  salespersonId?: string | null
+  salespersonName?: string | null
   invoiceKind: InvoiceKind | null
   rectificationType: RectificationType | null
   rectifiedDocumentId: string | null
@@ -379,6 +382,8 @@ export interface CommercialDocument {
 }
 
 export interface CreateDocumentInput {
+  /** Si se omite, el comercial de la ficha del cliente. */
+  salespersonId?: string | null
   type: DocumentType
   customerId: string
   customerCode: string

@@ -60,6 +60,10 @@ public class DocumentService {
         CommercialDocument document = new CommercialDocument(companyId, number, request.type(), customer.id(),
                 customer.code(), customer.legalName(), request.issueDate(), request.dueDate(), currency,
                 null, request.paymentMethodId(), request.notes());
+        var salesperson = masterDataService.resolveSalesperson(request.salespersonId(), customer);
+        if (salesperson != null) {
+            document.assignSalesperson(salesperson.id(), salesperson.name());
+        }
         for (ResolvedDocumentLine line : resolvedLines) {
             document.addLine(toLine(line));
         }
@@ -166,6 +170,8 @@ public class DocumentService {
                 numberGenerator.next(companyId, targetType, issueDate, null), targetType, source.getCustomerId(),
                 source.getCustomerCodeSnapshot(), source.getCustomerNameSnapshot(), issueDate, source.getDueDate(),
                 source.getCurrency(), source.getId(), source.getPaymentMethodId(), source.getNotes());
+        // La venta sigue siendo del mismo comercial al pasar de presupuesto a albarán y de albarán a factura.
+        target.assignSalesperson(source.getSalespersonId(), source.getSalespersonName());
         for (DocumentLine line : source.getLines()) {
             target.addLine(line.copySnapshot());
         }
@@ -237,6 +243,25 @@ public class DocumentService {
                 rectified == null ? null : rectified.getId(),
                 rectified == null ? null : rectified.getDocumentNumber(),
                 rectified == null ? null : rectified.getIssueDate());
+    }
+
+    /**
+     * Cambia el comercial de un documento, como el «cambio de vendedores» del programa anterior. No es dato
+     * fiscal, así que se admite también en facturas expedidas. Sin comercial, el documento queda sin él.
+     */
+    @Transactional
+    public DocumentResponse changeSalesperson(UUID id, UUID salespersonId) {
+        CommercialDocument document = requireDocument(id);
+        if (salespersonId == null) {
+            document.assignSalesperson(null, null);
+        } else {
+            var salesperson = masterDataService.findSalesperson(salespersonId);
+            if (!salesperson.active() && !salespersonId.equals(document.getSalespersonId())) {
+                throw new BusinessRuleException("El comercial " + salesperson.name() + " está dado de baja.");
+            }
+            document.assignSalesperson(salesperson.id(), salesperson.name());
+        }
+        return DocumentResponse.from(repository.save(document));
     }
 
     private CommercialDocument requireDocument(UUID id) {

@@ -48,6 +48,11 @@ public class CustomerSetupController {
         return service.salespeople(active);
     }
 
+    @GetMapping("/salespeople/{id}")
+    SalespersonResponse findSalesperson(@PathVariable UUID id) {
+        return service.findSalesperson(id);
+    }
+
     @PostMapping("/salespeople")
     @ResponseStatus(HttpStatus.CREATED)
     SalespersonResponse createSalesperson(@Valid @RequestBody SalespersonRequest request) {
