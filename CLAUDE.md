@@ -65,6 +65,10 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Registro de entregas
 
+### v20261009.Raul.6 — dependencia vulnerable del frontend
+
+- La comprobación de GitHub del frontend falló al pasar a `main`: aviso nuevo de seguridad en `source-map-js` 1.2.1 (lo usan Vite y jsdom). Actualizado a 1.2.2 con `npm audit fix`; solo cambia `package-lock.json`.
+
 ### v20261009.Raul.5 — todo a `main`
 
 - `main` avanza hasta esta rama: bloques 1, 2, 4 y 5, ficha de cliente, comisiones y Veri*Factu automático. Clonar el repositorio ya trae todo sin elegir rama.
