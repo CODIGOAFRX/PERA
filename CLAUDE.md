@@ -52,6 +52,7 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 | 2026-10-03 | Logística puede leer clientes (para elegirlos en reclamaciones y citas), sin ver la pantalla de Clientes. |
 | 2026-10-08 | El bloque 4 se parte en dos: primero la ficha de cliente (clasificación, comerciales, contactos, direcciones y notas); las comisiones después, porque tocan Ventas. |
 | 2026-10-08 | El texto para documentos del cliente se guarda como nota con «mostrar en documentos», no como campo aparte. |
+| 2026-10-09 | `main` recibe todo lo de `migracion-dimprocristalwin` (Raúl lo pidió para que el compañero lo clone directamente). Se sigue trabajando en la rama y se pasa a `main` al terminar cada entrega. |
 | 2026-10-08 | Veri*Factu se presenta de forma propia (registro, huella y cadena de PERA, remitidos con el certificado de la empresa), no a través de Verifacti o B2BRouter como en DimproCristalWin. Se completa lo que hace Dimpro: envío automático, estado por factura, seguimiento. |
 
 ## Pendiente de decidir
@@ -63,6 +64,10 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 - **Secretos por defecto:** los servicios arrancan con claves públicas si falta la variable de entorno (JWT, clave interna, contraseña de los usuarios demo). Falta decidir si deben negarse a arrancar.
 
 ## Registro de entregas
+
+### v20261009.Raul.5 — todo a `main`
+
+- `main` avanza hasta esta rama: bloques 1, 2, 4 y 5, ficha de cliente, comisiones y Veri*Factu automático. Clonar el repositorio ya trae todo sin elegir rama.
 
 ### v20261009.Raul.4 — Veri*Factu: cabecera del seguimiento
 
