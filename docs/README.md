@@ -21,6 +21,7 @@
 - 23 · [Ficha de cliente](23-ficha-de-cliente.md)
 - 24 · [Veri*Factu: remisión automática a la AEAT](24-verifactu-remision-automatica.md)
 - 25 · [Comisiones de los comerciales](25-comisiones.md)
+- 26 · [Inventario de DimproCristalWin frente a PERA](26-inventario-dimprocristalwin.md)
 
 Notas de sesión: [traspaso de contexto del 23-09-2026](TRASPASO-CONTEXTO-2026-09-23.md).
 

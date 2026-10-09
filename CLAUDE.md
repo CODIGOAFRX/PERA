@@ -8,7 +8,7 @@ PERA es el ERP con el que se renueva DimproCristalWin (Visual FoxPro). No es sol
 
 - Backend: Java 21, Spring Boot 4.1, microservicios gruesos en `backend/` (identity, master-data, sales, finance, operations, activity, licensing y api-gateway). Una base PostgreSQL por servicio, migraciones Flyway.
 - Frontend: React + TypeScript + Vite en `frontend/`.
-- El plan de migración desde DimproCristalWin está en [docs/19-mapa-migracion-dimprocristalwin.md](docs/19-mapa-migracion-dimprocristalwin.md).
+- El plan de migración desde DimproCristalWin está en [docs/19-mapa-migracion-dimprocristalwin.md](docs/19-mapa-migracion-dimprocristalwin.md) y, opción por opción del menú, en [docs/26-inventario-dimprocristalwin.md](docs/26-inventario-dimprocristalwin.md), que se regenera con `tools/inventario-dimpro`.
 
 ## Normas de trabajo
 
@@ -52,6 +52,7 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 | 2026-10-03 | Logística puede leer clientes (para elegirlos en reclamaciones y citas), sin ver la pantalla de Clientes. |
 | 2026-10-08 | El bloque 4 se parte en dos: primero la ficha de cliente (clasificación, comerciales, contactos, direcciones y notas); las comisiones después, porque tocan Ventas. |
 | 2026-10-08 | El texto para documentos del cliente se guarda como nota con «mostrar en documentos», no como campo aparte. |
+| 2026-10-09 | Traer a PERA todo lo que hace DimproCristalWin, leyendo su código fuente: se copia el comportamiento (opciones, campos, reglas y cálculos, comprobados con datos reales), no la estructura de su código. Base: el inventario del doc 26. |
 | 2026-10-09 | `main` recibe todo lo de `migracion-dimprocristalwin` (Raúl lo pidió para que el compañero lo clone directamente). Se sigue trabajando en la rama y se pasa a `main` al terminar cada entrega. |
 | 2026-10-08 | Veri*Factu se presenta de forma propia (registro, huella y cadena de PERA, remitidos con el certificado de la empresa), no a través de Verifacti o B2BRouter como en DimproCristalWin. Se completa lo que hace Dimpro: envío automático, estado por factura, seguimiento. |
 
@@ -64,6 +65,10 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 - **Secretos por defecto:** los servicios arrancan con claves públicas si falta la variable de entorno (JWT, clave interna, contraseña de los usuarios demo). Falta decidir si deben negarse a arrancar.
 
 ## Registro de entregas
+
+### v20261009.Raul.7 — inventario de DimproCristalWin
+
+- [docs/26](docs/26-inventario-dimprocristalwin.md): las 150 opciones del menú principal del programa anterior, con lo que abre cada una, el tamaño de su código y su estado en PERA (36 hechas, 41 parciales, 29 pendientes, 20 de vidrio, 16 por revisar, 8 que no aplican), más las pantallas internas grandes. Generado por `tools/inventario-dimpro` leyendo el código fuente; al terminar cada entrega se actualiza su diccionario `STATUS` y se regenera.
 
 ### v20261009.Raul.6 — dependencia vulnerable del frontend
 
