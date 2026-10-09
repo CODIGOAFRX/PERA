@@ -71,13 +71,14 @@ export function VerifactuPage() {
         {canWrite && summary?.connectionActive && unanswered > 0 && <button className="button button-primary" type="button" disabled={sending} onClick={() => void remitNow()}><Send size={17} />{sending ? c('Remitiendo…', 'Submitting…') : c('Remitir ahora', 'Submit now')}</button>}
       </>} />
 
-    {summary && <section className="panel verifactu-connection">
-      <div className="row-actions verifactu-connection-badges">
-        <StatusBadge tone={summary.enabled ? 'success' : 'neutral'}>{summary.enabled ? c('Veri*Factu activado', 'Veri*Factu enabled') : c('Veri*Factu desactivado', 'Veri*Factu disabled')}</StatusBadge>
-        <StatusBadge tone={production ? 'success' : 'info'}>{production ? c('Producción', 'Production') : c('Pruebas (preproducción)', 'Test (pre-production)')}</StatusBadge>
-        <StatusBadge tone={summary.connectionActive ? 'success' : 'warning'}>{summary.connectionActive ? c('Remisión automática activa', 'Automatic submission on') : summary.connectionConfigured ? c('Remisión desactivada', 'Submission disabled') : c('Sin certificado', 'No certificate')}</StatusBadge>
-      </div>
-      <p>{connectionText()}</p>
+    {summary && <section className="panel verifactu-connection" aria-label={c('Situación de la remisión', 'Submission status')}>
+      <dl className="verifactu-facts">
+        <div><dt>Veri*Factu</dt><dd><StatusBadge tone={summary.enabled ? 'success' : 'neutral'}>{summary.enabled ? c('Activado', 'Enabled') : c('Desactivado', 'Disabled')}</StatusBadge></dd></div>
+        <div><dt>{c('Entorno', 'Environment')}</dt><dd><StatusBadge tone={production ? 'success' : 'info'}>{production ? c('Producción', 'Production') : c('Pruebas', 'Test')}</StatusBadge><small>{production ? c('Se presenta de verdad', 'Reported for real') : c('Preproducción, sin efecto fiscal', 'Pre-production, no tax effect')}</small></dd></div>
+        <div><dt>{c('Remisión automática', 'Automatic submission')}</dt><dd><StatusBadge tone={summary.connectionActive ? 'success' : 'warning'}>{summary.connectionActive ? c('Activa', 'On') : summary.connectionConfigured ? c('Desactivada', 'Off') : c('Sin certificado', 'No certificate')}</StatusBadge></dd></div>
+        <div><dt>{c('Último envío', 'Last submission')}</dt><dd><strong>{summary.lastSentAt ? formatDateTime(summary.lastSentAt, locale) : c('Todavía ninguno', 'None yet')}</strong>{summary.nextSendAt && new Date(summary.nextSendAt) > new Date() && <small>{c(`Próximo a partir de ${formatDateTime(summary.nextSendAt, locale)}`, `Next from ${formatDateTime(summary.nextSendAt, locale)}`)}</small>}</dd></div>
+      </dl>
+      <p className="verifactu-connection-note">{connectionText()}</p>
       {summary.lastError && summary.failures > 0 && <p className="certificate-warning" role="alert"><AlertTriangle size={15} aria-hidden="true" /> {summary.failures === 1 ? c('Último envío fallido: ', 'Last submission failed: ') : c(`${summary.failures} envíos fallidos seguidos. Último: `, `${summary.failures} failed submissions in a row. Last: `)}{summary.lastError}</p>}
     </section>}
 
@@ -120,9 +121,7 @@ export function VerifactuPage() {
     if (!summary) return ''
     if (!summary.enabled) return c('La empresa no tiene Veri*Factu activado: las facturas no generan registro. Se activa en Configuración › Veri*Factu.', 'The company does not have Veri*Factu enabled: invoices generate no record. Enable it in Settings › Veri*Factu.')
     if (!summary.connectionActive) return c('Las facturas generan su registro y su QR, pero no se remiten hasta que se cargue el certificado y se active la remisión en Conexiones.', 'Invoices get their record and QR, but are not submitted until the certificate is loaded and submission is enabled in Connections.')
-    const next = summary.nextSendAt && new Date(summary.nextSendAt) > new Date()
-      ? c(` Próximo envío a partir de ${formatDateTime(summary.nextSendAt, locale)}.`, ` Next submission from ${formatDateTime(summary.nextSendAt, locale)}.`) : ''
-    const last = summary.lastSentAt ? c(` Último envío: ${formatDateTime(summary.lastSentAt, locale)}.`, ` Last submission: ${formatDateTime(summary.lastSentAt, locale)}.`) : ''
-    return c('PERA remite solo cada factura expedida, en lotes y respetando el tiempo de espera que fija la AEAT.', 'PERA submits every issued invoice automatically, in batches and respecting the waiting time AEAT sets.') + last + next
+    return c('Cada factura expedida se remite sola a la AEAT, en lotes y respetando el tiempo de espera que fija la AEAT entre envíos.', 'Every issued invoice is submitted to AEAT automatically, in batches and respecting the waiting time AEAT sets between submissions.')
   }
+
 }

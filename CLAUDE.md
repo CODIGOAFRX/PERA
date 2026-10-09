@@ -64,6 +64,10 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Registro de entregas
 
+### v20261009.Raul.4 — Veri*Factu: cabecera del seguimiento
+
+- La tarjeta de situación de `/verifactu` (activado, entorno, remisión, último y próximo envío) se veía apelotonada y pegada al borde; ahora son cuatro datos con su título y la explicación debajo. Pedido por Raúl al verla.
+
 ### v20261009.Raul.3 — pantalla de comisiones
 
 - Bloque 4 terminado (3 de 3): pantalla `/comisiones` con recálculo por periodo, totales, detalle por línea, liquidación y deshacer, y pestaña de reglas por comercial ([docs/25](docs/25-comisiones.md)).

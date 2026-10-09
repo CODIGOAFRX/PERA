@@ -1049,8 +1049,16 @@ input:focus, select:focus, textarea:focus { border-color: #51964b; box-shadow: 0
 .customer-note .row-actions { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
 .form-section-title { grid-column: 1 / -1; margin: 10px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12.5px; }
 /* Seguimiento Veri*Factu */
-.verifactu-connection p { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
-.verifactu-connection-badges { justify-content: flex-start; flex-wrap: wrap; }
+.verifactu-connection { padding: 18px 20px; }
+.verifactu-facts { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.verifactu-facts > div { min-width: 0; }
+.verifactu-facts dt { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.verifactu-facts dd { margin: 7px 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.verifactu-facts dd strong { font-size: 13px; }
+.verifactu-facts dd small { color: var(--muted); font-size: 11px; }
+.verifactu-connection-note { margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.verifactu-connection .certificate-warning { margin: 12px 0 0; }
+@media (max-width: 900px) { .verifactu-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .verifactu-counts { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 0; }
 .verifactu-count { min-height: 82px; border: 1px solid var(--line); border-radius: 11px; padding: 11px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; background: #fff; cursor: pointer; text-align: left; }
 .verifactu-count small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
