@@ -64,10 +64,14 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Registro de entregas
 
+### v20261009.Raul.2 — comisiones (servidor)
+
+- Bloque 4, segunda parte (2 de 3): reglas de comisión por comercial (artículo, grupo, tramo), cálculo por periodo sobre facturas y rectificativas con detalle por línea, liquidación y deshacer; lo liquidado no se recalcula ni deja cambiar el comercial ([docs/25](docs/25-comisiones.md)). Permisos `commissions:read/write`.
+- Falta la pantalla de Comisiones.
+
 ### v20261009.Raul — comercial en los documentos de venta
 
 - Bloque 4, segunda parte (1 de 3): presupuestos, albaranes y facturas guardan su comercial, tomado de la ficha del cliente o elegido al crear; pasa al convertir y se puede cambiar después, incluso en facturas expedidas. Migración `V15` de ventas, que deja creadas las tablas de reglas y comisiones ([docs/23](docs/23-ficha-de-cliente.md)).
-- Falta: reglas, cálculo y liquidación de comisiones (servicio y pantalla). El código a medias está en la rama local `comisiones-en-curso`.
 
 ### v20261008.Raul.2 — Veri*Factu: remisión automática
 

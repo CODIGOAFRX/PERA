@@ -57,6 +57,10 @@ public class SalesMasterDataService {
         return client.findProduct(productId).productGroupId();
     }
 
+    public ProductGroupSnapshot findProductGroup(UUID productGroupId) {
+        return client.findProductGroup(productGroupId);
+    }
+
     public ProductSnapshot findProduct(UUID productId) {
         return client.findProduct(productId);
     }

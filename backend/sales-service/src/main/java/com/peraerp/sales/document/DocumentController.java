@@ -14,7 +14,8 @@ import java.util.UUID;
 @RequestMapping("/api/v1/documents")
 public class DocumentController {
     private final DocumentService service;
-    public DocumentController(DocumentService service) { this.service=service; }
+    private final com.peraerp.sales.commission.CommissionService commissions;
+    public DocumentController(DocumentService service, com.peraerp.sales.commission.CommissionService commissions) { this.service=service; this.commissions=commissions; }
     @GetMapping
     Page<DocumentResponse> search(@RequestParam(required=false) String q,
                                   @RequestParam(required=false) DocumentType type,
@@ -41,6 +42,7 @@ public class DocumentController {
     /** Comercial del documento; {@code salespersonId} nulo lo quita. */
     public record SalespersonRequest(UUID salespersonId) {}
     @PutMapping("/{id}/salesperson") DocumentResponse salesperson(@PathVariable UUID id, @RequestBody SalespersonRequest request) {
+        commissions.requireNotSettled(id);
         return service.changeSalesperson(id, request.salespersonId());
     }
     @PatchMapping("/{id}/payment-status") DocumentResponse paymentStatus(@PathVariable UUID id, @Valid @RequestBody UpdatePaymentStatusRequest request) { return service.updatePaymentStatus(id, request.status()); }

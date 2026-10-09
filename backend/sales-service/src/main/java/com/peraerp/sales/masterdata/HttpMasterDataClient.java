@@ -66,6 +66,20 @@ class HttpMasterDataClient implements MasterDataClient {
     }
 
     @Override
+    public ProductGroupSnapshot findProductGroup(UUID productGroupId) {
+        try {
+            ProductGroupSnapshot response = client.get().uri("/api/v1/product-groups/{id}", productGroupId)
+                    .header("Authorization", bearer()).retrieve().body(ProductGroupSnapshot.class);
+            if (response == null || response.id() == null) {
+                throw new BusinessRuleException("El servicio de maestros no devolvió un grupo de artículos válido.");
+            }
+            return response;
+        } catch (RestClientException exception) {
+            throw new BusinessRuleException("No se pudo validar el grupo de artículos.", exception);
+        }
+    }
+
+    @Override
     public TaxCodeSnapshot findTaxCode(UUID taxCodeId) {
         try {
             TaxCodeSnapshot response = client.get().uri("/api/v1/tax-codes/{id}", taxCodeId)

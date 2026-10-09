@@ -8,6 +8,7 @@ public interface MasterDataClient {
     CustomerSnapshot findCustomer(UUID customerId);
     ProductSnapshot findProduct(UUID productId);
     SalespersonSnapshot findSalesperson(UUID salespersonId);
+    ProductGroupSnapshot findProductGroup(UUID productGroupId);
     TaxCodeSnapshot findTaxCode(UUID taxCodeId);
     PricingSnapshot resolvePrice(UUID customerId, UUID productId, BigDecimal quantity,
                                  LocalDate date, BigDecimal basePrice, String currency);

@@ -77,6 +77,8 @@ class GatewayAuditEventFactory {
             case "quotes" -> "QUOTE";
             case "customers" -> "CUSTOMER";
             case "customer-catalog" -> "CUSTOMER_CATALOG";
+            case "commissions" -> "COMMISSION";
+            case "commission-rules" -> "COMMISSION_RULE";
             case "salespeople" -> "SALESPERSON";
             case "suppliers" -> "SUPPLIER";
             case "products" -> "PRODUCT";
