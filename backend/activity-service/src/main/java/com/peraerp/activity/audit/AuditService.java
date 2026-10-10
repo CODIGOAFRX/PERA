@@ -138,6 +138,7 @@ public class AuditService {
                         criteria.like(criteria.lower(root.get("resourceType")), pattern),
                         criteria.like(criteria.lower(root.get("resourceId")), pattern),
                         criteria.like(criteria.lower(root.get("actorName")), pattern),
+                        criteria.like(criteria.lower(root.get("metadataJson")), pattern),
                         criteria.like(criteria.lower(root.get("correlationId")), pattern)
                 ));
             }

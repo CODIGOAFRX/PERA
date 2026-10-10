@@ -22,8 +22,11 @@
 - 24 · [Veri*Factu: remisión automática a la AEAT](24-verifactu-remision-automatica.md)
 - 25 · [Comisiones de los comerciales](25-comisiones.md)
 - 26 · [Inventario de DimproCristalWin frente a PERA](26-inventario-dimprocristalwin.md)
+- 27 · [Remesas, auditoría y revisión funcional](27-remesas-auditoria-y-revision.md)
 
 Notas de sesión: [traspaso de contexto del 23-09-2026](TRASPASO-CONTEXTO-2026-09-23.md).
+
+Handoff completo para asistentes: [AGENTS — estado del 10-10-2026](AGENTS-HANDOFF-2026-10-10.md). Copia portable del `AGENTS.md` de la raíz con capacidades, límites, cambios pendientes y contexto operativo de la sesión.
 
 La carpeta `reference/` contiene material de descubrimiento. Ese material ayuda a entender el ERP legado, pero no sustituye requisitos validados con usuarios ni constituye una orden de copiar código, datos o estructuras privadas.
 

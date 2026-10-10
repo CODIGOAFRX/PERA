@@ -1066,3 +1066,4 @@ input:focus, select:focus, textarea:focus { border-color: #51964b; box-shadow: 0
 .verifactu-count.active { border-color: var(--pear-700); box-shadow: 0 0 0 1px var(--pear-700) inset; }
 @media (max-width: 900px) { .verifactu-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .fiscal-delivery-note { color: var(--muted); }
+.inline-note { padding: 1rem 1.25rem; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); line-height: 1.6; }

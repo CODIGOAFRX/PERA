@@ -44,6 +44,8 @@ Todos los recibos de una remesa deben estar en la misma moneda.
 
 **Esta versión no genera el fichero para el banco.** Lleva la gestión —qué se presenta, cuándo se envía, cuándo se abona—; el fichero SEPA de adeudos directos queda para cuando los clientes tengan mandato registrado.
 
+Desde el 10 de octubre de 2026 la UI dice **Registrar presentación** y **Presentación registrada** para distinguir ese registro manual de una transmisión real. La auditoría de sus cambios se conserva en la transacción local y se publica con reintentos. Alcance y recuperación explícita de estados previos en el [doc 27](27-remesas-auditoria-y-revision.md).
+
 ## Caja
 
 - **Cajas** (`/api/v1/cash-registers`). Código, nombre y responsable.

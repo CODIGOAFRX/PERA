@@ -23,6 +23,15 @@ class GatewayAuditEventFactory {
         int apiIndex = segments.size() >= 2 && "api".equals(segments.get(0)) && "v1".equals(segments.get(1))
                 ? 2 : 0;
         String resourceSegment = segments.size() > apiIndex ? segments.get(apiIndex) : "api";
+        // Finance persiste estos éxitos en su transacción y los publica de forma duradera.
+        // Los intentos fallidos siguen apareciendo como tales desde el gateway.
+        if (statusCode >= 200 && statusCode < 300 && "remittances".equals(resourceSegment)
+                && ((segments.size() == apiIndex + 1 && method == HttpMethod.POST)
+                || (segments.size() == apiIndex + 2 && method == HttpMethod.PUT)
+                || (segments.size() == apiIndex + 3 && method == HttpMethod.POST
+                && List.of("send", "settle", "cancel").contains(segments.getLast())))) {
+            return Optional.empty();
+        }
         String resourceId = segments.size() > apiIndex + 1 ? abbreviate(segments.get(apiIndex + 1), 100) : null;
         String resourceType = businessResource(resourceSegment);
         String action = businessAction(method, segments, apiIndex);
@@ -47,6 +56,7 @@ class GatewayAuditEventFactory {
                 case "CONVERT" -> "CONVERT";
                 case "PAYMENT_STATUS" -> "UPDATE_PAYMENT_STATUS";
                 case "SEND" -> "SEND";
+                case "SETTLE" -> "SETTLE";
                 case "ACCEPT" -> "ACCEPT";
                 case "REJECT" -> "REJECT";
                 case "ISSUE" -> "ISSUE";

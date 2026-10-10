@@ -50,6 +50,7 @@ class ReceiptServiceTest {
     @Mock InvoicePaymentNotifier notifier;
     @Mock CashService cashService;
     @Mock CurrentCompanyProvider companyProvider;
+    @Mock com.peraerp.finance.remittance.RemittanceAuditRecorder audit;
 
     private final List<Receipt> stored = new ArrayList<>();
     private ReceiptService service;
@@ -68,7 +69,7 @@ class ReceiptServiceTest {
         second = dueDate(2, "40.00", TODAY.plusDays(60));
         InvoiceCollectionTracker tracker = new InvoiceCollectionTracker(dueDates, repository, notifier);
         service = new ReceiptService(repository, dueDates, remittances, new CollectionNumbering(sequences), tracker,
-                cashService, companyProvider);
+                cashService, companyProvider, audit);
         when(companyProvider.requireCompanyId()).thenReturn(companyId);
         when(dueDates.findAllByCompanyIdAndDocumentIdOrderByInstallmentNumber(companyId, documentId))
                 .thenReturn(List.of(first, second));

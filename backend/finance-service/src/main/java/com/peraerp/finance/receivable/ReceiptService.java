@@ -9,6 +9,7 @@ import com.peraerp.finance.receivable.ReceiptDtos.ReceiptResponse;
 import com.peraerp.finance.receivable.ReceiptDtos.ReopenReceiptRequest;
 import com.peraerp.finance.receivable.ReceiptDtos.ReturnReceiptRequest;
 import com.peraerp.finance.remittance.RemittanceRepository;
+import com.peraerp.finance.remittance.RemittanceAuditRecorder;
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
 import org.springframework.data.domain.Page;
@@ -33,11 +34,12 @@ public class ReceiptService {
     private final InvoiceCollectionTracker tracker;
     private final CashService cashService;
     private final CurrentCompanyProvider companyProvider;
+    private final RemittanceAuditRecorder audit;
 
     public ReceiptService(ReceiptRepository repository, DocumentDueDateRepository dueDates,
                           RemittanceRepository remittances, CollectionNumbering numbering,
                           InvoiceCollectionTracker tracker, CashService cashService,
-                          CurrentCompanyProvider companyProvider) {
+                          CurrentCompanyProvider companyProvider, RemittanceAuditRecorder audit) {
         this.repository = repository;
         this.dueDates = dueDates;
         this.remittances = remittances;
@@ -45,6 +47,7 @@ public class ReceiptService {
         this.tracker = tracker;
         this.cashService = cashService;
         this.companyProvider = companyProvider;
+        this.audit = audit;
     }
 
     /** Emite un recibo por cada vencimiento pendiente de la factura que todavía no lo tenga. */
@@ -118,7 +121,13 @@ public class ReceiptService {
             receipt.markReturned(request.returnDate(), request.reason().trim());
             if (receipt.getRemittanceId() != null) {
                 remittances.findByIdAndCompanyId(receipt.getRemittanceId(), receipt.getCompanyId())
-                        .ifPresent(remittance -> remittance.registerReturn());
+                        .ifPresent(remittance -> {
+                            var previousStatus = remittance.getStatus();
+                            remittance.registerReturn();
+                            audit.record("RETURN", remittance, previousStatus,
+                                    repository.findAllByCompanyIdAndRemittanceIdOrderByDueDateAscReceiptNumberAsc(
+                                            receipt.getCompanyId(), remittance.getId()).size());
+                        });
             }
         });
     }

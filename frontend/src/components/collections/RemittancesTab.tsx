@@ -56,6 +56,7 @@ export function RemittancesTab() {
   const newButton = <button className="button button-primary" type="button" onClick={() => setEditing('new')}><Plus size={17} />{c('Nueva remesa', 'New remittance')}</button>
 
   return <>
+    <div className="inline-note" role="note">{c('Una remesa agrupa recibos para su cobro. PERA registra su gestión, pero no conecta con el banco ni genera el fichero bancario. La presentación y el abono se registran manualmente.', 'A remittance groups receipts for collection. PERA records its management, but does not connect to the bank or generate a bank file. Presentation and settlement are recorded manually.')}</div>
     <section className="panel table-panel">
       <TableToolbar value="" onChange={() => undefined} placeholder="" hideSearch>
         <select aria-label={t('sales.filterStatus')} value={status} onChange={(event) => setStatus(event.target.value as RemittanceStatus | '')}><option value="">{t('sales.allStatuses')}</option>{remittanceStatuses.map((item) => <option key={item} value={item}>{pick(remittanceStatusLabels[item], language)}</option>)}</select>
@@ -65,7 +66,7 @@ export function RemittancesTab() {
       {loading ? <LoadingState /> : data && data.content.length > 0 ? <>
         <div className="table-scroll"><table>
           <TableCaption es="Remesas" en="Remittances" />
-          <thead><tr><th>{c('Remesa', 'Remittance')}</th><th>{c('Cuenta', 'Account')}</th><th>{c('Creada', 'Created')}</th><th>{c('Enviada', 'Sent')}</th><th>{c('Abonada', 'Settled')}</th><th>{c('Recibos', 'Receipts')}</th><th>{t('sales.status')}</th><th className="align-right">{t('sales.total')}</th></tr></thead>
+          <thead><tr><th>{c('Remesa', 'Remittance')}</th><th>{c('Cuenta', 'Account')}</th><th>{c('Creada', 'Created')}</th><th>{c('Presentada', 'Presented')}</th><th>{c('Abonada', 'Settled')}</th><th>{c('Recibos', 'Receipts')}</th><th>{t('sales.status')}</th><th className="align-right">{t('sales.total')}</th></tr></thead>
           <tbody>{data.content.map((remittance) => <tr key={remittance.id} className="clickable-row" onClick={() => setSelected(remittance)}>
             <td><strong className="document-number">{remittance.remittanceNumber}</strong></td>
             <td>{remittance.bankAccount}</td>
@@ -86,7 +87,7 @@ export function RemittancesTab() {
         <div className="detail-summary">
           <div><small>{t('sales.total')}</small><strong className="detail-total">{formatCurrency(selected.totalAmount, selected.currencyCode, locale)}</strong><span>{selected.receipts.length === 1 ? c('1 recibo', '1 receipt') : c(`${selected.receipts.length} recibos`, `${selected.receipts.length} receipts`)}</span></div>
           <div><small>{c('Creada', 'Created')}</small><strong>{formatDate(selected.creationDate, locale)}</strong><span>{selected.bankAccount}</span></div>
-          <div><small>{c('Enviada al banco', 'Sent to the bank')}</small><strong>{formatDate(selected.sentDate, locale)}</strong><span>{selected.status === 'DRAFT' ? c('Todavía en borrador', 'Still a draft') : ''}</span></div>
+          <div><small>{c('Presentación registrada', 'Presentation recorded')}</small><strong>{formatDate(selected.sentDate, locale)}</strong><span>{selected.status === 'DRAFT' ? c('Todavía en borrador', 'Still a draft') : c('Registro manual', 'Manual record')}</span></div>
           <div><small>{c('Abonada', 'Settled')}</small><strong>{formatDate(selected.settlementDate, locale)}</strong><span /></div>
         </div>
         <div className="table-scroll detail-lines"><table>
@@ -98,16 +99,16 @@ export function RemittancesTab() {
         {(selected.status === 'DRAFT' || selected.status === 'SENT') && <div className="modal-action-strip">
           <button type="button" className="button button-danger" onClick={() => void cancelRemittance(selected)}><Ban size={17} />{c('Anular remesa', 'Cancel remittance')}</button>
           {selected.status === 'DRAFT' && <button type="button" className="button button-secondary" onClick={() => { setEditing(selected); setSelected(null) }}><Pencil size={17} />{c('Editar', 'Edit')}</button>}
-          {selected.status === 'DRAFT' && <button type="button" className="button button-primary" onClick={() => setDateAction('send')}><Send size={17} />{c('Enviar al banco', 'Send to the bank')}</button>}
+          {selected.status === 'DRAFT' && <button type="button" className="button button-primary" onClick={() => setDateAction('send')}><Send size={17} />{c('Registrar presentación', 'Record presentation')}</button>}
           {selected.status === 'SENT' && <button type="button" className="button button-primary" onClick={() => setDateAction('settle')}><CheckCircle2 size={17} />{c('Registrar abono', 'Record settlement')}</button>}
         </div>}
       </div>}
     </Modal>
-    <Modal open={selected !== null && dateAction !== null} title={dateAction === 'send' ? c('Enviar al banco', 'Send to the bank') : c('Registrar abono del banco', 'Record bank settlement')} description={dateAction === 'send' ? c('Los recibos dejan de poder cobrarse por otra vía. Esta versión no genera el fichero para el banco.', 'The receipts can no longer be collected another way. This version does not generate the bank file.') : c('Se dan por cobrados los recibos que no hayan venido devueltos.', 'Receipts that were not returned are marked as collected.')} onClose={() => setDateAction(null)}>
+    <Modal open={selected !== null && dateAction !== null} title={dateAction === 'send' ? c('Registrar presentación', 'Record presentation') : c('Registrar abono del banco', 'Record bank settlement')} description={dateAction === 'send' ? c('Registra la fecha de una presentación realizada fuera de PERA. Esta acción no envía nada al banco ni cobra los recibos; los marca como remesados y bloquea su cobro por otra vía. Si estás probando, solo cambiarás los datos de PERA.', 'Record the date of a presentation made outside PERA. This action sends nothing to the bank and does not collect receipts; it marks them as remitted and blocks collection by other means. If you are testing, only PERA data will change.') : c('Confirma este registro cuando hayas comprobado el abono del banco. Se dan por cobrados los recibos que no hayan venido devueltos.', 'Confirm this record after checking the bank settlement. Receipts that were not returned are marked as collected.')} onClose={() => setDateAction(null)}>
       {selected && dateAction && <RemittanceDateForm remittance={selected} action={dateAction} onCancel={() => setDateAction(null)} onDone={(result) => {
         close()
         if (result.invoiceUpdated === false) notify(c('Abono registrado. No se pudo actualizar el estado de cobro de alguna factura en Ventas: revísalo allí.', 'Settlement recorded. The payment status of some invoice could not be updated in Sales: review it there.'), 'error')
-        else notify(dateAction === 'send' ? c('Remesa enviada al banco.', 'Remittance sent to the bank.') : c('Abono registrado: recibos cobrados.', 'Settlement recorded: receipts collected.'))
+        else notify(dateAction === 'send' ? c('Presentación registrada en PERA. No se ha enviado nada al banco.', 'Presentation recorded in PERA. Nothing has been sent to the bank.') : c('Abono registrado: recibos cobrados.', 'Settlement recorded: receipts collected.'))
       }} />}
     </Modal>
     <Modal open={editing !== null} title={editing === 'new' || editing === null ? c('Nueva remesa', 'New remittance') : c(`Editar ${editing.remittanceNumber}`, `Edit ${editing.remittanceNumber}`)} description={c('Elige los recibos pendientes que se presentan juntos al banco.', 'Choose the pending receipts presented to the bank together.')} onClose={() => setEditing(null)} size="large">
@@ -130,8 +131,8 @@ function RemittanceDateForm({ remittance, action, onCancel, onDone }: { remittan
   }
 
   return <form onSubmit={submit}><div className="form-grid">
-    <Field label={action === 'send' ? c('Fecha de envío', 'Sending date') : c('Fecha de abono', 'Settlement date')} htmlFor="remittance-date" required wide><input id="remittance-date" type="date" min={action === 'send' ? remittance.creationDate : remittance.sentDate ?? undefined} value={date} onChange={(event) => setDate(event.target.value)} required /></Field>
-  </div>{error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={action === 'send' ? c('Enviar al banco', 'Send to the bank') : c('Registrar abono', 'Record settlement')} /></form>
+    <Field label={action === 'send' ? c('Fecha de presentación', 'Presentation date') : c('Fecha de abono', 'Settlement date')} htmlFor="remittance-date" required wide><input id="remittance-date" type="date" min={action === 'send' ? remittance.creationDate : remittance.sentDate ?? undefined} value={date} onChange={(event) => setDate(event.target.value)} required /></Field>
+  </div>{error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={action === 'send' ? c('Registrar presentación', 'Record presentation') : c('Registrar abono', 'Record settlement')} /></form>
 }
 
 function RemittanceForm({ remittance, onCancel, onSaved }: { remittance: Remittance | null; onCancel: () => void; onSaved: () => void }) {

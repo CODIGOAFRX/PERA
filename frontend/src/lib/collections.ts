@@ -6,7 +6,7 @@ type Label = [es: string, en: string]
 export const receiptStatuses: ReceiptStatus[] = ['PENDING', 'REMITTED', 'COLLECTED', 'RETURNED', 'CANCELLED']
 export const receiptStatusLabels: Record<ReceiptStatus, Label> = {
   PENDING: ['Pendiente', 'Pending'],
-  REMITTED: ['En el banco', 'At the bank'],
+  REMITTED: ['Remesado', 'Remitted'],
   COLLECTED: ['Cobrado', 'Collected'],
   RETURNED: ['Devuelto', 'Returned'],
   CANCELLED: ['Anulado', 'Cancelled'],
@@ -26,7 +26,7 @@ export const collectionMethodLabels: Record<CollectionMethod, Label> = {
 export const remittanceStatuses: RemittanceStatus[] = ['DRAFT', 'SENT', 'SETTLED', 'PARTIALLY_RETURNED', 'CANCELLED']
 export const remittanceStatusLabels: Record<RemittanceStatus, Label> = {
   DRAFT: ['Borrador', 'Draft'],
-  SENT: ['Enviada al banco', 'Sent to the bank'],
+  SENT: ['Presentación registrada', 'Presentation recorded'],
   SETTLED: ['Abonada', 'Settled'],
   PARTIALLY_RETURNED: ['Con devoluciones', 'With returns'],
   CANCELLED: ['Anulada', 'Cancelled'],

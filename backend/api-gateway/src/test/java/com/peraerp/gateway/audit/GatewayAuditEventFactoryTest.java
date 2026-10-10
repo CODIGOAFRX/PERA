@@ -13,6 +13,19 @@ class GatewayAuditEventFactoryTest {
     private final GatewayAuditEventFactory factory = new GatewayAuditEventFactory();
 
     @Test
+    void financeOwnsSuccessfulRemittanceAuditButGatewayKeepsFailures() {
+        var claims = Map.<String, Object>of("company_id", UUID.randomUUID().toString());
+        for (String path : new String[]{"/api/v1/remittances", "/api/v1/remittances/123/send",
+                "/api/v1/remittances/123/settle", "/api/v1/remittances/123/cancel"}) {
+            assertThat(factory.create(claims, HttpMethod.POST, path, 200, "corr", Instant.now(), 1)).isEmpty();
+            assertThat(factory.create(claims, HttpMethod.POST, path, 422, "corr", Instant.now(), 1))
+                    .get().extracting(GatewayAuditEvent::outcome).isEqualTo("FAILURE");
+        }
+        assertThat(factory.create(claims, HttpMethod.PUT, "/api/v1/remittances/123", 200, "corr", Instant.now(), 1)).isEmpty();
+        assertThat(factory.create(claims, HttpMethod.POST, "/api/v1/receipts/123/collect", 200, "corr", Instant.now(), 1)).isPresent();
+    }
+
+    @Test
     void createsTenantScopedMutationWithoutRequestBody() {
         UUID companyId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();

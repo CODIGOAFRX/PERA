@@ -94,16 +94,17 @@ it('creates a remittance with the selected pending receipts', async () => {
   expect(JSON.parse(String(init?.body))).toMatchObject({ bankAccount: 'ES00 2222', notes: null, receiptIds: ['r2'] })
 })
 
-it('sends a draft remittance to the bank on the chosen date', async () => {
+it('records presentation without claiming a bank transmission', async () => {
   view()
   fireEvent.click(await screen.findByRole('button', { name: 'Remesas' }))
   fireEvent.click(await screen.findByText('REM-2026-0001'))
-  fireEvent.click(await screen.findByRole('button', { name: 'Enviar al banco' }))
-  const dialog = await screen.findByRole('dialog', { name: 'Enviar al banco' })
-  fireEvent.change(within(dialog).getByLabelText(/^Fecha de envío/), { target: { value: '2026-10-02' } })
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar al banco' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Registrar presentación' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Registrar presentación' })
+  expect(dialog).toHaveTextContent('Esta acción no envía nada al banco ni cobra los recibos')
+  fireEvent.change(within(dialog).getByLabelText(/^Fecha de presentación/), { target: { value: '2026-10-02' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Registrar presentación' }))
 
-  expect(await screen.findByText('Remesa enviada al banco.')).toBeInTheDocument()
+  expect(await screen.findByText('Presentación registrada en PERA. No se ha enviado nada al banco.')).toBeInTheDocument()
   const [[, init]] = calls('POST', '/api/v1/remittances/m1/send')
   expect(JSON.parse(String(init?.body))).toEqual({ date: '2026-10-02' })
 })

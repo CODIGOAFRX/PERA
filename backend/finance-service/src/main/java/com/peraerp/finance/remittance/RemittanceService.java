@@ -35,15 +35,17 @@ public class RemittanceService {
     private final CollectionNumbering numbering;
     private final InvoiceCollectionTracker tracker;
     private final CurrentCompanyProvider companyProvider;
+    private final RemittanceAuditRecorder audit;
 
     public RemittanceService(RemittanceRepository repository, ReceiptRepository receipts,
                              CollectionNumbering numbering, InvoiceCollectionTracker tracker,
-                             CurrentCompanyProvider companyProvider) {
+                             CurrentCompanyProvider companyProvider, RemittanceAuditRecorder audit) {
         this.repository = repository;
         this.receipts = receipts;
         this.numbering = numbering;
         this.tracker = tracker;
         this.companyProvider = companyProvider;
+        this.audit = audit;
     }
 
     @Transactional
@@ -56,6 +58,7 @@ public class RemittanceService {
                 singleCurrency(selected), creationDate, normalize(request.notes())));
         assign(remittance, selected);
         remittance.updateDraft(remittance.getBankAccount(), remittance.getNotes(), total(selected));
+        audit.record("CREATE", remittance, null, selected.size());
         return response(remittance, selected, null);
     }
 
@@ -82,6 +85,7 @@ public class RemittanceService {
             receipts.flush();
             List<Receipt> all = receiptsOf(remittance);
             remittance.updateDraft(request.bankAccount().trim(), normalize(request.notes()), total(all));
+            audit.record("UPDATE", remittance, RemittanceStatus.DRAFT, all.size());
             return response(remittance, all, null);
         } catch (IllegalStateException exception) {
             throw new BusinessRuleException(exception.getMessage());
@@ -101,17 +105,19 @@ public class RemittanceService {
         return response(remittance, receiptsOf(remittance), null);
     }
 
-    /** Presenta la remesa al banco: sus recibos dejan de estar disponibles para cobrarse por otra vía. */
+    /** Registra una presentación hecha fuera de PERA; no transmite nada al banco. */
     @Transactional
     public RemittanceResponse send(UUID id, LocalDate sentDate) {
         Remittance remittance = require(id);
         List<Receipt> all = receiptsOf(remittance);
+        RemittanceStatus previousStatus = remittance.getStatus();
         try {
             remittance.send(sentDate);
             all.forEach(Receipt::markRemitted);
         } catch (IllegalStateException exception) {
             throw new BusinessRuleException(exception.getMessage());
         }
+        audit.record("SEND", remittance, previousStatus, all.size());
         return response(remittance, all, null);
     }
 
@@ -122,6 +128,7 @@ public class RemittanceService {
         List<Receipt> all = receiptsOf(remittance);
         List<Receipt> presented = all.stream().filter(receipt -> receipt.getStatus() == ReceiptStatus.REMITTED).toList();
         boolean hasReturns = all.stream().anyMatch(receipt -> receipt.getStatus() == ReceiptStatus.RETURNED);
+        RemittanceStatus previousStatus = remittance.getStatus();
         try {
             remittance.settle(settlementDate, hasReturns);
             for (Receipt receipt : presented) {
@@ -132,6 +139,7 @@ public class RemittanceService {
             throw new BusinessRuleException(exception.getMessage());
         }
         boolean invoiceUpdated = tracker.refreshInvoices(remittance.getCompanyId(), presented);
+        audit.record("SETTLE", remittance, previousStatus, all.size());
         return response(remittance, all, invoiceUpdated);
     }
 
@@ -140,6 +148,7 @@ public class RemittanceService {
     public RemittanceResponse cancel(UUID id) {
         Remittance remittance = require(id);
         List<Receipt> all = receiptsOf(remittance);
+        RemittanceStatus previousStatus = remittance.getStatus();
         try {
             remittance.cancel();
             all.stream()
@@ -149,6 +158,7 @@ public class RemittanceService {
         } catch (IllegalStateException exception) {
             throw new BusinessRuleException(exception.getMessage());
         }
+        audit.record("CANCEL", remittance, previousStatus, all.size());
         return response(remittance, List.of(), null);
     }
 

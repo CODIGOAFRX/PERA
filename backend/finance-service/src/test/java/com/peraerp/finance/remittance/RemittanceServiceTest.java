@@ -58,6 +58,7 @@ class RemittanceServiceTest {
     @Mock CollectionSequenceRepository sequences;
     @Mock InvoicePaymentNotifier notifier;
     @Mock CurrentCompanyProvider companyProvider;
+    @Mock RemittanceAuditRecorder audit;
 
     private final Map<UUID, Remittance> remittances = new HashMap<>();
     private final List<Receipt> stored = new ArrayList<>();
@@ -71,7 +72,7 @@ class RemittanceServiceTest {
         companyId = UUID.randomUUID();
         documentId = UUID.randomUUID();
         service = new RemittanceService(repository, receipts, new CollectionNumbering(sequences),
-                new InvoiceCollectionTracker(dueDates, receipts, notifier), companyProvider);
+                new InvoiceCollectionTracker(dueDates, receipts, notifier), companyProvider, audit);
         when(companyProvider.requireCompanyId()).thenReturn(companyId);
         when(notifier.notify(any(), any())).thenReturn(true);
         when(sequences.findForUpdate(eq(companyId), eq(CollectionSequence.REMITTANCE), anyInt()))
@@ -137,6 +138,7 @@ class RemittanceServiceTest {
 
         RemittanceResponse sent = service.send(draft.id(), DAY.plusDays(1));
         assertThat(sent.status()).isEqualTo(RemittanceStatus.SENT);
+        verify(audit).record(eq("SEND"), any(Remittance.class), eq(RemittanceStatus.DRAFT), eq(2));
         assertThat(first.getStatus()).isEqualTo(ReceiptStatus.REMITTED);
         assertThatThrownBy(() -> service.settle(draft.id(), DAY)).isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("anterior");
@@ -150,6 +152,7 @@ class RemittanceServiceTest {
         assertThat(first.getCollectionDate()).isEqualTo(DAY.plusDays(3));
         assertThat(dueDateById.get(first.getDueDateId()).getStatus()).isEqualTo(DueDateStatus.PAID);
         verify(notifier).notify(documentId, InvoicePaymentStatus.PAID);
+        verify(audit).record(eq("SETTLE"), any(Remittance.class), eq(RemittanceStatus.SENT), eq(2));
     }
 
     @Test

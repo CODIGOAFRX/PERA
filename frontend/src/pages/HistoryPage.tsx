@@ -11,7 +11,7 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { useTranslation } from '../i18n/I18nProvider'
 import { apiDownload, apiFetch, errorMessage } from '../lib/api'
-import { formatDateTime } from '../lib/format'
+import { formatCurrency, formatDateTime } from '../lib/format'
 import { saveBlob } from '../lib/download'
 import type { AlertConditionOperator, AlertItem, AlertRule, AlertRuleInput, AlertSeverity, AlertStatus, AuditEvent, AuditOutcome, PageResponse } from '../types/api'
 import { TableCaption } from '../components/TableCaption'
@@ -46,6 +46,7 @@ function EventHistory() {
   const [query, setQuery] = useState('')
   const [debounced, setDebounced] = useState('')
   const [outcome, setOutcome] = useState<AuditOutcome | ''>('')
+  const [resourceType, setResourceType] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [refresh, setRefresh] = useState(0)
@@ -53,7 +54,7 @@ function EventHistory() {
   const { notify } = useToast()
 
   useEffect(() => { const timer = window.setTimeout(() => setDebounced(query), 250); return () => window.clearTimeout(timer) }, [query])
-  useEffect(() => setPage(0), [debounced, outcome])
+  useEffect(() => setPage(0), [debounced, outcome, resourceType])
   useEffect(() => {
     const reloadWhenVisible = () => { if (!document.hidden) setRefresh((value) => value + 1) }
     const timer = window.setInterval(reloadWhenVisible, 15_000)
@@ -71,18 +72,20 @@ function EventHistory() {
     const params = new URLSearchParams({ page: String(page), size: '25' })
     if (debounced) params.set('q', debounced)
     if (outcome) params.set('outcome', outcome)
+    if (resourceType) params.set('resourceType', resourceType)
     apiFetch<PageResponse<AuditEvent>>(`/api/v1/history?${params}`)
       .then((response) => { if (active) { setData(response); setError('') } })
       .catch((cause) => { if (active) setError(errorMessage(cause)) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [page, debounced, outcome, refresh])
+  }, [page, debounced, outcome, resourceType, refresh])
 
   const download = async () => {
     try {
       const params = new URLSearchParams()
       if (debounced) params.set('q', debounced)
       if (outcome) params.set('outcome', outcome)
+      if (resourceType) params.set('resourceType', resourceType)
       const { blob, filename } = await apiDownload(`/api/v1/history/export?${params}`)
       saveBlob(blob, filename)
       notify(t('history.exported'))
@@ -91,12 +94,16 @@ function EventHistory() {
 
   return <section className="panel table-panel">
     <TableToolbar value={query} onChange={setQuery} placeholder={t('history.search')}>
+      <select aria-label={language === 'es' ? 'Filtrar por recurso' : 'Filter by resource'} value={resourceType} onChange={(event) => setResourceType(event.target.value)}>
+        <option value="">{language === 'es' ? 'Todos los recursos' : 'All resources'}</option>
+        {['REMITTANCE', 'RECEIPT', 'CASH_REGISTER', 'CASH_SESSION', 'SALES_DOCUMENT', 'QUOTE', 'PURCHASE_DOCUMENT', 'STOCK_MOVEMENT', 'SALES_DELIVERY', 'SHIPMENT', 'CLAIM', 'CUSTOMER', 'SUPPLIER', 'PRODUCT', 'USER', 'ACCOUNTING'].map((resource) => <option key={resource} value={resource}>{auditResourceLabel(resource, language)}</option>)}
+      </select>
       <select aria-label={t('history.filterOutcome')} value={outcome} onChange={(event) => setOutcome(event.target.value as AuditOutcome | '')}><option value="">{t('history.allOutcomes')}</option>{outcomes.map((item) => <option key={item} value={item}>{t(`history.outcome.${item}`)}</option>)}</select>
       <button className="button button-secondary button-small" type="button" onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={15} />{t('history.refresh')}</button>
       <button className="button button-secondary button-small" type="button" onClick={download}><Download size={15} />{t('history.export')}</button>
     </TableToolbar>
     {error && <div className="inline-error">{error}</div>}
-    {loading ? <LoadingState /> : data && data.content.length ? <><div className="table-scroll"><table><TableCaption es="Historial de actividad" en="Activity history" /><thead><tr><th>{t('history.when')}</th><th>{t('history.event')}</th><th>{t('history.actor')}</th><th>{t('history.resource')}</th><th>{t('history.result')}</th><th><span className="visually-hidden">{t('common.actions')}</span></th></tr></thead><tbody>{data.content.map((event) => <tr key={event.id}><td><strong>{formatDateTime(event.occurredAt, locale)}</strong></td><td><strong>{auditActionLabel(event, language)}</strong><small>{auditSummary(event, language)}</small></td><td>{event.actorName ?? t('history.system')}</td><td><strong>{auditResourceLabel(event.resourceType, language)}</strong><small>{event.resourceId ?? auditResourceFallback(language)}</small></td><td><StatusBadge tone={outcomeTone(event.outcome)}>{t(`history.outcome.${event.outcome}`)}</StatusBadge></td><td><button className="icon-button" type="button" onClick={() => setSelectedEvent(event)} aria-label={language === 'es' ? 'Más información técnica' : 'More technical information'} title={language === 'es' ? 'Más información' : 'More information'}><Info size={15} /></button></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('history.empty')} description={t('history.emptyDescription')} />}
+    {loading ? <LoadingState /> : data && data.content.length ? <><div className="table-scroll"><table><TableCaption es="Historial de actividad" en="Activity history" /><thead><tr><th>{t('history.when')}</th><th>{t('history.event')}</th><th>{t('history.actor')}</th><th>{t('history.resource')}</th><th>{t('history.result')}</th><th><span className="visually-hidden">{t('common.actions')}</span></th></tr></thead><tbody>{data.content.map((event) => <tr key={event.id}><td><strong>{formatDateTime(event.occurredAt, locale)}</strong></td><td><strong>{auditActionLabel(event, language)}</strong><small>{auditSummary(event, language)}</small></td><td>{auditActor(event, language)}</td><td><strong>{auditResourceLabel(event.resourceType, language)}</strong><small>{auditReference(event, language)}</small></td><td><StatusBadge tone={outcomeTone(event.outcome)}>{t(`history.outcome.${event.outcome}`)}</StatusBadge></td><td><button className="icon-button" type="button" onClick={() => setSelectedEvent(event)} aria-label={language === 'es' ? 'Más información técnica' : 'More technical information'} title={language === 'es' ? 'Más información' : 'More information'}><Info size={15} /></button></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('history.empty')} description={t('history.emptyDescription')} />}
     <Modal open={selectedEvent !== null} title={selectedEvent ? auditActionLabel(selectedEvent, language) : ''} description={selectedEvent ? formatDateTime(selectedEvent.occurredAt, locale) : ''} onClose={() => setSelectedEvent(null)}>
       {selectedEvent && <AuditTechnicalDetail event={selectedEvent} language={language} />}
     </Modal>
@@ -108,15 +115,18 @@ function AuditTechnicalDetail({ event, language }: { event: AuditEvent; language
   return <div className="audit-detail">
     <p>{auditSummary(event, language)}</p>
     <dl>
-      <div><dt>{c('Persona', 'Person')}</dt><dd>{event.actorName ?? c('Sistema', 'System')}</dd></div>
+      <div><dt>{c('Persona', 'Person')}</dt><dd>{auditActor(event, language)}</dd></div>
       <div><dt>{c('Resultado', 'Outcome')}</dt><dd>{event.outcome}</dd></div>
-      <div><dt>{c('Recurso', 'Resource')}</dt><dd>{auditResourceLabel(event.resourceType, language)} · {event.resourceId ?? '—'}</dd></div>
+      <div><dt>{c('Recurso', 'Resource')}</dt><dd>{auditResourceLabel(event.resourceType, language)} · {auditReference(event, language)}</dd></div>
+      {event.resourceType === 'REMITTANCE' && typeof event.metadata.totalAmount === 'number' && <div><dt>{c('Importe', 'Amount')}</dt><dd>{formatCurrency(event.metadata.totalAmount, String(event.metadata.currencyCode ?? 'EUR'), language === 'es' ? 'es-ES' : 'en-GB')}</dd></div>}
+      {event.resourceType === 'REMITTANCE' && typeof event.metadata.receiptCount === 'number' && <div><dt>{c('Recibos', 'Receipts')}</dt><dd>{event.metadata.receiptCount}</dd></div>}
     </dl>
     <details>
       <summary>{c('Información técnica', 'Technical information')}</summary>
       <dl>
         <div><dt>{c('Servicio', 'Service')}</dt><dd>{event.sourceService}</dd></div>
         <div><dt>{c('Tipo interno', 'Internal type')}</dt><dd>{event.eventType}</dd></div>
+        <div><dt>{c('Identificador del recurso', 'Resource identifier')}</dt><dd>{event.resourceId ?? '—'}</dd></div>
         <div><dt>{c('Correlación', 'Correlation')}</dt><dd>{event.correlationId ?? '—'}</dd></div>
       </dl>
       <pre>{JSON.stringify(event.metadata, null, 2)}</pre>
@@ -133,6 +143,17 @@ function normalizedAuditAction(action: string): string {
 
 function auditActionLabel(event: AuditEvent, language: string): string {
   const action = normalizedAuditAction(event.action)
+  if (event.resourceType === 'REMITTANCE') {
+    if (event.outcome !== 'SUCCESS') {
+      const attempts: Record<string, [string, string]> = { SEND: ['Intento de presentación', 'Presentation attempt'], SETTLE: ['Intento de abono', 'Settlement attempt'], CANCEL: ['Intento de anulación', 'Cancellation attempt'] }
+      if (attempts[action]) return attempts[action][language === 'es' ? 0 : 1]
+    }
+    const labels: Record<string, [string, string]> = {
+      SEND: ['Presentación registrada', 'Presentation recorded'], SETTLE: ['Abono registrado', 'Settlement recorded'],
+      RETURN: ['Devolución registrada', 'Return recorded'], RECOVER_STATE: ['Estado previo recuperado', 'Previous state recovered'],
+    }
+    if (labels[action]) return labels[action][language === 'es' ? 0 : 1]
+  }
   const labels: Record<string, [string, string]> = {
     CREATE: ['Creación', 'Created'], UPDATE: ['Actualización', 'Updated'], DELETE: ['Eliminación', 'Deleted'],
     CONVERT: ['Conversión', 'Converted'], UPDATE_PAYMENT_STATUS: ['Cambio de cobro', 'Payment status changed'],
@@ -174,12 +195,21 @@ function auditResourceLabel(resource: string, language: string): string {
 function auditSummary(event: AuditEvent, language: string): string {
   const resource = auditResourceLabel(event.resourceType, language).toLocaleLowerCase(language === 'es' ? 'es-ES' : 'en-GB')
   const action = normalizedAuditAction(event.action)
+  if (event.outcome !== 'SUCCESS') return language === 'es' ? `Intento sin completar: ${auditActionLabel(event, language)}` : `Uncompleted attempt: ${auditActionLabel(event, language)}`
+  if (event.resourceType === 'REMITTANCE') {
+    if (action === 'SEND') return language === 'es' ? 'Se registró la presentación en PERA; sin transmisión bancaria' : 'Presentation was recorded in PERA; no bank transmission'
+    if (action === 'SETTLE') return language === 'es' ? 'Se registró el abono y se cobraron los recibos no devueltos' : 'Settlement was recorded and receipts not returned were collected'
+    if (action === 'RETURN') return language === 'es' ? 'Se registró la devolución de un recibo de la remesa' : 'A returned receipt in the remittance was recorded'
+    if (action === 'RECOVER_STATE') return language === 'es' ? 'Fotografía del estado anterior; no consta el autor de la operación original' : 'Snapshot of the previous state; the original actor is unknown'
+  }
   const es: Record<string, string> = { CREATE: `Se creó ${resource}`, UPDATE: `Se actualizó ${resource}`, DELETE: `Se eliminó ${resource}`, CONVERT: `Se convirtió ${resource}`, UPDATE_PAYMENT_STATUS: `Se cambió el estado de cobro de ${resource}`, SEND: `Se envió ${resource}`, ACCEPT: `Se aceptó ${resource}`, REJECT: `Se rechazó ${resource}`, ISSUE: `Se emitió ${resource}`, DISPATCH: `Se registró la salida de ${resource}`, DELIVER: `Se registró la entrega de ${resource}`, CANCEL: `Se canceló ${resource}`, IMPORT: `Se importaron registros en ${resource}`, POST_ACCOUNTING: 'Se contabilizó un movimiento' }
   const en: Record<string, string> = { CREATE: `${resource} was created`, UPDATE: `${resource} was updated`, DELETE: `${resource} was deleted`, CONVERT: `${resource} was converted`, UPDATE_PAYMENT_STATUS: `Payment status changed for ${resource}`, SEND: `${resource} was sent`, ACCEPT: `${resource} was accepted`, REJECT: `${resource} was rejected`, ISSUE: `${resource} was issued`, DISPATCH: `${resource} was dispatched`, DELIVER: `${resource} was delivered`, CANCEL: `${resource} was cancelled`, IMPORT: `Records were imported into ${resource}`, POST_ACCOUNTING: 'A movement was posted to accounts' }
   return (language === 'es' ? es : en)[action] ?? `${auditActionLabel(event, language)} · ${resource}`
 }
 
 function auditResourceFallback(language: string) { return language === 'es' ? 'Sin identificador' : 'No identifier' }
+function auditReference(event: AuditEvent, language: string) { return typeof event.metadata.remittanceNumber === 'string' ? event.metadata.remittanceNumber : event.resourceId ?? auditResourceFallback(language) }
+function auditActor(event: AuditEvent, language: string) { return event.metadata.historicalActorUnknown === true ? (language === 'es' ? 'Autor anterior desconocido' : 'Previous actor unknown') : event.actorName ?? (language === 'es' ? 'Sistema' : 'System') }
 
 function AlertInbox() {
   const { locale, t } = useTranslation()
