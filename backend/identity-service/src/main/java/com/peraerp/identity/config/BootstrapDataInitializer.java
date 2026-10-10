@@ -39,8 +39,9 @@ public class BootstrapDataInitializer implements ApplicationRunner {
             "workflows:read", "workflows:manage", "workflows:execute",
             "logistics:read", "logistics:write", "logistics:manage", "logistics:dispatch",
             "freight:read", "freight:write",
-            "inventory:read", "inventory:write", "purchases:read", "purchases:write",
+            "inventory:read", "inventory:write", "inventory:scan", "purchases:read", "purchases:write",
             "claims:read", "claims:write", "agenda:read", "agenda:write", "commissions:read", "commissions:write",
+            "pos:read", "pos:sell",
             "history:read", "history:export", "alerts:read", "alerts:manage", "alerts:acknowledge",
             "license:read", "license:manage"
     );
@@ -54,18 +55,24 @@ public class BootstrapDataInitializer implements ApplicationRunner {
                     "accounting:read", "accounting:write",
                     "company-settings:read", "numbering:read", "verifactu:read", "currencies:read",
                     "pricing:read", "taxes:read", "claims:read", "claims:write", "agenda:read", "agenda:write",
-                    "commissions:read", "commissions:write")),
+                    "commissions:read", "commissions:write", "pos:read")),
             new RoleDefinition("LOGISTICS", "Logística y procesos", List.of(
                     "customers:read", "suppliers:read", "suppliers:write", "products:read",
                     "company-settings:read", "currencies:read", "workflows:read", "workflows:manage",
                     "workflows:execute", "logistics:read", "logistics:write", "logistics:manage",
                     "logistics:dispatch", "freight:read", "freight:write",
-                    "inventory:read", "inventory:write", "purchases:read", "purchases:write",
-                    "claims:read", "claims:write", "agenda:read", "agenda:write")),
+                    "inventory:read", "inventory:write", "inventory:scan", "purchases:read", "purchases:write",
+                    "claims:read", "claims:write", "agenda:read", "agenda:write", "packaging:read")),
             new RoleDefinition("CATALOG", "Catálogo y maestros", List.of(
                     "customers:read", "products:read", "products:write", "company-settings:read",
                     "currencies:read", "taxes:read", "taxes:write", "pricing:read", "pricing:write",
-                    "packaging:read", "packaging:write", "agenda:read", "agenda:write"))
+                    "packaging:read", "packaging:write", "agenda:read", "agenda:write")),
+            // Perfiles de puesto: solo ven su aplicación (el TPV o el almacén desde el móvil). Leen
+            // productos y los datos de la empresa para identificar artículos e imprimir tickets y etiquetas.
+            new RoleDefinition("CASHIER", "Caja (TPV)", List.of(
+                    "pos:sell", "products:read", "company-settings:read")),
+            new RoleDefinition("WAREHOUSE", "Almacén (operario)", List.of(
+                    "inventory:read", "inventory:scan", "products:read", "packaging:read", "company-settings:read"))
     );
 
     private final CompanyRepository companyRepository;
@@ -120,6 +127,10 @@ public class BootstrapDataInitializer implements ApplicationRunner {
         ensureDemoUser(company, roles.get("ECONOMY"), "economia", "Equipo de economía", "economia@pera-erp.local", false);
         ensureDemoUser(company, roles.get("LOGISTICS"), "logistica", "Equipo de logística", "logistica@pera-erp.local", false);
         ensureDemoUser(company, roles.get("CATALOG"), "catalogo", "Equipo de catálogo", "catalogo@pera-erp.local", false);
+        ensureDemoUser(company, roles.get("CASHIER"), "cajero1", "Lucía Martín · Caja", "cajero1@pera-erp.local", false);
+        ensureDemoUser(company, roles.get("CASHIER"), "cajero2", "Andrés Gil · Caja", "cajero2@pera-erp.local", false);
+        ensureDemoUser(company, roles.get("WAREHOUSE"), "almacen1", "Iván Rojas · Almacén", "almacen1@pera-erp.local", false);
+        ensureDemoUser(company, roles.get("WAREHOUSE"), "almacen2", "Sara Pino · Almacén", "almacen2@pera-erp.local", false);
     }
 
     private void ensureDemoUser(Company company, Role role, String username, String displayName, String email,

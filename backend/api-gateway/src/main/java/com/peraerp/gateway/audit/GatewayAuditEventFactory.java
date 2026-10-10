@@ -64,7 +64,8 @@ class GatewayAuditEventFactory {
                 case "RESOLVE" -> "RESOLVE";
                 case "DISPATCH" -> "DISPATCH";
                 case "DELIVER" -> "DELIVER";
-                case "CANCEL" -> "CANCEL";
+                case "CANCEL", "VOID" -> "CANCEL";
+                case "REFUND" -> "RETURN";
                 case "UPLOAD" -> "UPLOAD";
                 case "IMPORT" -> "IMPORT";
                 case "POST" -> "accounting".equals(segments.get(apiIndex)) ? "POST_ACCOUNTING" : methodAction(method);
@@ -111,6 +112,7 @@ class GatewayAuditEventFactory {
             case "remittances" -> "REMITTANCE";
             case "cash-registers" -> "CASH_REGISTER";
             case "cash-sessions" -> "CASH_SESSION";
+            case "pos" -> "POS";
             case "accounting" -> "ACCOUNTING";
             default -> segment.replace('-', '_').toUpperCase(Locale.ROOT);
         };

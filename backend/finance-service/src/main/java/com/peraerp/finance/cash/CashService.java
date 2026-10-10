@@ -140,6 +140,44 @@ public class CashService {
         return response(session, existing);
     }
 
+    /** Bloquea la sesión abierta: los tickets de una caja se cobran y se numeran de uno en uno. */
+    @Transactional
+    public CashSession lockOpenSession(UUID companyId, UUID sessionId) {
+        return requireOpenSession(sessionId, companyId);
+    }
+
+    /**
+     * Anota el efectivo de un ticket del TPV en la sesión ya bloqueada por quien llama. Una salida
+     * (devolución o anulación) no puede dejar la caja en negativo.
+     */
+    @Transactional
+    public void recordPosMovement(CashSession session, CashMovementType type, BigDecimal amount, UUID ticketId,
+                                  String concept) {
+        if (type != CashMovementType.POS_SALE && type != CashMovementType.POS_REFUND) {
+            throw new IllegalArgumentException("Solo se anotan aquí movimientos del TPV.");
+        }
+        if (amount.signum() <= 0) {
+            return;
+        }
+        if (!type.isInflow() && balanceOf(session).compareTo(amount) < 0) {
+            throw new BusinessRuleException("No hay efectivo suficiente en la caja para devolver "
+                    + amount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() + " €.");
+        }
+        movements.save(new CashMovement(session.getCompanyId(), session.getId(), Instant.now(), type, amount,
+                ticketId, null, concept));
+    }
+
+    /** Efectivo que debería haber ahora en la caja de la sesión. */
+    @Transactional(readOnly = true)
+    public BigDecimal balanceOf(CashSession session) {
+        return balance(session, movementsOf(session));
+    }
+
+    @Transactional(readOnly = true)
+    public List<CashMovement> sessionMovements(CashSession session) {
+        return movementsOf(session);
+    }
+
     private CashSession requireOpenSession(UUID sessionId, UUID companyId) {
         CashSession session = sessions.findForUpdate(sessionId, companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sesión de caja", sessionId));

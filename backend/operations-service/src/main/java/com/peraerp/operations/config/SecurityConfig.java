@@ -50,6 +50,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/carriers/**", "/api/v1/vehicles/**",
                                 "/api/v1/delivery-routes/**", "/api/v1/shipments/**")
                         .hasAnyAuthority("logistics:write", "logistics:manage")
+                        // Punto interno: lo llama finance-service con la clave de servicio, que comprueba el controlador.
+                        .requestMatchers(HttpMethod.POST, "/internal/v1/inventory/pos-sync").permitAll()
+                        // El operario de almacén registra entradas y retiradas desde el móvil sin poder ajustar ni traspasar.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/stock-movements/scan")
+                        .hasAnyAuthority("inventory:scan", "inventory:write")
                         .requestMatchers(HttpMethod.GET, "/api/v1/warehouses/**", "/api/v1/stock-levels/**",
                                 "/api/v1/stock-movements/**", "/api/v1/sales-deliveries/**")
                         .hasAuthority("inventory:read")

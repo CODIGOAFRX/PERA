@@ -39,6 +39,8 @@ public class Product extends CompanyScopedEntity {
     private BigDecimal taxRate;
     @Column(nullable = false)
     private boolean active = true;
+    @Column(length = 64)
+    private String barcode;
 
     protected Product() {}
 
@@ -108,4 +110,7 @@ public class Product extends CompanyScopedEntity {
     public BigDecimal getBasePrice() { return basePrice; }
     public BigDecimal getTaxRate() { return taxRate; }
     public boolean isActive() { return active; }
+    public String getBarcode() { return barcode; }
+
+    public void changeBarcode(String barcode) { this.barcode = barcode; }
 }

@@ -43,7 +43,9 @@ export function decodeAccessToken(token: string | null): AuthIdentity | null {
     const encoded = token.split('.')[1]
     if (!encoded) return null
     const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/')
-    const payload = JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '='))) as Record<string, unknown>
+    // atob devuelve bytes: hay que leerlos como UTF-8 o «Lucía» y «Administración» salen con caracteres rotos.
+    const binary = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '='))
+    const payload = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0)))) as Record<string, unknown>
     if (typeof payload.exp === 'number' && payload.exp <= Date.now() / 1000) return null
     if (typeof payload.sub !== 'string' || typeof payload.username !== 'string') return null
     return {

@@ -1,4 +1,4 @@
-import { BadgePercent, Banknote, BookOpenCheck, Boxes, CalendarDays, MessageSquareWarning, Building2, Cable, FileCheck2, FileText, History as HistoryIcon, LayoutDashboard, PackageSearch, Printer, ReceiptText, Settings, ShieldCheck, ShoppingCart, SlidersHorizontal, Truck, UserCog, Users, type LucideIcon } from 'lucide-react'
+import { BadgePercent, Banknote, BookOpenCheck, Boxes, CalendarDays, ChartColumnBig, MonitorSmartphone, ScanBarcode, Tags, MessageSquareWarning, Building2, Cable, FileCheck2, FileText, History as HistoryIcon, LayoutDashboard, PackageSearch, Printer, ReceiptText, Settings, ShieldCheck, ShoppingCart, SlidersHorizontal, Truck, UserCog, Users, type LucideIcon } from 'lucide-react'
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 import type { UserRoleCode } from '../auth/AuthContext'
 import type { TranslationKey } from '../i18n/catalogs'
@@ -27,6 +27,10 @@ const QuotesPage = lazy(() => import('../pages/QuotesPage').then((module) => ({ 
 const ReportsPage = lazy(() => import('../pages/ReportsPage').then((module) => ({ default: module.ReportsPage })))
 const SuppliersPage = lazy(() => import('../pages/SuppliersPage').then((module) => ({ default: module.SuppliersPage })))
 const UsersPage = lazy(() => import('../pages/UsersPage').then((module) => ({ default: module.UsersPage })))
+const PosPage = lazy(() => import('../pages/PosPage').then((module) => ({ default: module.PosPage })))
+const PosControlPage = lazy(() => import('../pages/PosControlPage').then((module) => ({ default: module.PosControlPage })))
+const WarehouseScannerPage = lazy(() => import('../pages/WarehouseScannerPage').then((module) => ({ default: module.WarehouseScannerPage })))
+const LabelsPage = lazy(() => import('../pages/LabelsPage').then((module) => ({ default: module.LabelsPage })))
 
 export type NavigationGroup = 'general' | 'masterData' | 'operations'
 
@@ -35,6 +39,8 @@ export interface AppRoute {
   path: string
   component: ComponentType | LazyExoticComponent<ComponentType>
   allowedRoles?: UserRoleCode[]
+  /** Aplicación a pantalla completa, sin la barra lateral (TPV y almacén desde el móvil). */
+  standalone?: boolean
   navigation: {
     labelKey: TranslationKey
     group: NavigationGroup
@@ -44,7 +50,7 @@ export interface AppRoute {
 }
 
 export const appRoutes: AppRoute[] = [
-  { id: 'dashboard', path: '/', component: DashboardPage, navigation: { labelKey: 'nav.dashboard', group: 'general', groupLabelKey: 'nav.group.general', icon: LayoutDashboard } },
+  { id: 'dashboard', path: '/', component: DashboardPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY', 'LOGISTICS', 'CATALOG'], navigation: { labelKey: 'nav.dashboard', group: 'general', groupLabelKey: 'nav.group.general', icon: LayoutDashboard } },
   { id: 'reports', path: '/impresion', component: ReportsPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY', 'LOGISTICS', 'CATALOG'], navigation: { labelKey: 'nav.printing', group: 'general', groupLabelKey: 'nav.group.general', icon: Printer } },
   { id: 'customers', path: '/clientes', component: CustomersPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.customers', group: 'masterData', groupLabelKey: 'nav.group.masterData', icon: Users } },
   { id: 'suppliers', path: '/proveedores', component: SuppliersPage, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS'], navigation: { labelKey: 'nav.suppliers', group: 'masterData', groupLabelKey: 'nav.group.masterData', icon: Building2 } },
@@ -53,6 +59,10 @@ export const appRoutes: AppRoute[] = [
   { id: 'quotes', path: '/presupuestos', component: QuotesPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.quotes', group: 'operations', groupLabelKey: 'nav.group.operations', icon: FileCheck2 } },
   { id: 'sales', path: '/ventas', component: SalesPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.sales', group: 'operations', groupLabelKey: 'nav.group.operations', icon: FileText } },
   { id: 'purchases', path: '/compras', component: PurchasesPage, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS'], navigation: { labelKey: 'nav.purchases', group: 'operations', groupLabelKey: 'nav.group.operations', icon: ShoppingCart } },
+  { id: 'pos', path: '/tpv', component: PosPage, standalone: true, allowedRoles: ['OWNER', 'ADMIN', 'CASHIER'], navigation: { labelKey: 'nav.pos', group: 'operations', groupLabelKey: 'nav.group.operations', icon: MonitorSmartphone } },
+  { id: 'posControl', path: '/ventas-tpv', component: PosControlPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.posControl', group: 'operations', groupLabelKey: 'nav.group.operations', icon: ChartColumnBig } },
+  { id: 'warehouseApp', path: '/almacen-movil', component: WarehouseScannerPage, standalone: true, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS', 'WAREHOUSE'], navigation: { labelKey: 'nav.warehouseApp', group: 'operations', groupLabelKey: 'nav.group.operations', icon: ScanBarcode } },
+  { id: 'labels', path: '/etiquetas', component: LabelsPage, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS', 'CATALOG', 'WAREHOUSE'], navigation: { labelKey: 'nav.labels', group: 'operations', groupLabelKey: 'nav.group.operations', icon: Tags } },
   { id: 'inventory', path: '/almacen', component: InventoryPage, allowedRoles: ['OWNER', 'ADMIN', 'LOGISTICS'], navigation: { labelKey: 'nav.inventory', group: 'operations', groupLabelKey: 'nav.group.operations', icon: PackageSearch } },
   { id: 'finance', path: '/finanzas', component: FinancePage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.finance', group: 'operations', groupLabelKey: 'nav.group.operations', icon: ReceiptText } },
   { id: 'commissions', path: '/comisiones', component: CommissionsPage, allowedRoles: ['OWNER', 'ADMIN', 'ECONOMY'], navigation: { labelKey: 'nav.commissions', group: 'operations', groupLabelKey: 'nav.group.operations', icon: BadgePercent } },
@@ -71,6 +81,17 @@ export const appRoutes: AppRoute[] = [
 export function isRouteAllowed(route: AppRoute, roles: readonly UserRoleCode[]) {
   if (!route.allowedRoles) return true
   return route.allowedRoles.some((allowed) => roles.some((role) => role.toUpperCase() === allowed.toUpperCase()))
+}
+
+/**
+ * Pantalla de entrada según el perfil. Quien solo es cajero entra al TPV y quien solo es operario
+ * de almacén, a la aplicación del móvil; el resto, al resumen.
+ */
+export function homePathFor(roles: readonly UserRoleCode[]) {
+  const upper = roles.map((role) => role.toUpperCase())
+  if (upper.length > 0 && upper.every((role) => role === 'CASHIER')) return '/tpv'
+  if (upper.length > 0 && upper.every((role) => role === 'WAREHOUSE')) return '/almacen-movil'
+  return '/'
 }
 
 export function matchAppRoute(path: string) {

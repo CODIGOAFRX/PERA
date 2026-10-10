@@ -12,9 +12,9 @@ Se ha generado leyendo el código fuente: el menú, los formularios (`FORMS\*.SC
 
 | Estado | Opciones | Qué significa |
 |---|---|---|
-| Hecho | 36 (24 %) | PERA ya lo hace. |
+| Hecho | 37 (25 %) | PERA ya lo hace. |
 | Parcial | 41 (27 %) | PERA lo hace en parte; falta lo que dice la nota. |
-| Pendiente | 29 (19 %) | Falta en PERA y es del núcleo común. |
+| Pendiente | 28 (19 %) | Falta en PERA y es del núcleo común. |
 | Extensión vidrio | 20 (13 %) | Propio del vidrio: va en la extensión de vidrio (bloque 7). |
 | Revisar | 16 (11 %) | Hay que abrir la pantalla y ver qué hace antes de decidir. |
 | No aplica | 8 (5 %) | Mantenimiento propio de Visual FoxPro o de cómo guarda los datos; PERA no lo necesita. |
@@ -119,7 +119,7 @@ Lo más grande no está en el menú sino en las pantallas a las que llaman, sobr
 | De Artículos › Tarifas de Artículos | `form:listado_tarifas` | 855 | Parcial | Centro de impresión /impresion; menos variantes. |
 | De Artículos › Varios de Artículos | `form:listado_articulos` | 7274 | Parcial | Centro de impresión /impresion. |
 | De Artículos › Varios de Almacén | `form:listado_articulos_almacen` | 9414 | Parcial | Existencias y diario en /almacen. |
-| De Artículos › Etiquetas Artículos | `form:imprime_etiquetas_articulos` | 2755 | Pendiente | Etiquetas (bloque 6). |
+| De Artículos › Etiquetas Artículos | `form:imprime_etiquetas_articulos` | 2755 | Hecho | /etiquetas: código de barras o QR, logo, tamaños de rollo y A4 (doc 28). |
 | De Documentos › De Clientes › Documentos NO Facturas | `prg:listado_documentos_clientes` | 9 | Parcial | Centro de impresión /impresion. |
 | De Documentos › De Clientes › Facturas | `prg:listado_facturas_clientes` | 9 | Parcial | Centro de impresión /impresion. |
 | De Documentos › De Proveedores › Documentos NO Facturas | `prg:listado_documentos_proveedores` | 9 | Parcial |  |

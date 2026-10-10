@@ -110,6 +110,8 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/pera_finance
       SALES_SERVICE_URL: http://sales-service:8083
       ACTIVITY_SERVICE_URL: http://activity-service:8086
+      MASTER_DATA_SERVICE_URL: http://master-data-service:8082
+      OPERATIONS_SERVICE_URL: http://operations-service:8085
     expose: ["8084"]
 
   operations-service:
@@ -123,6 +125,7 @@ services:
       SERVER_PORT: 8085
       DB_URL: jdbc:postgresql://postgres:5432/pera_operations
       SALES_SERVICE_URL: http://sales-service:8083
+      FINANCE_SERVICE_URL: http://finance-service:8084
       PERA_INVENTORY_SALES_SYNC_ENABLED: ${PERA_INVENTORY_SALES_SYNC_ENABLED:-true}
       PERA_INVENTORY_SALES_SYNC_DELAY: ${PERA_INVENTORY_SALES_SYNC_DELAY:-PT1M}
       PERA_SHIPMENT_DOCUMENT_STORAGE_ROOT: /data/shipment-documents

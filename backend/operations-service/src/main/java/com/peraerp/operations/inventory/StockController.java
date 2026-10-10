@@ -18,6 +18,7 @@ import java.util.UUID;
 import static com.peraerp.operations.inventory.InventoryDtos.StockAdjustmentRequest;
 import static com.peraerp.operations.inventory.InventoryDtos.StockLevelResponse;
 import static com.peraerp.operations.inventory.InventoryDtos.StockMovementResponse;
+import static com.peraerp.operations.inventory.InventoryDtos.StockScanRequest;
 import static com.peraerp.operations.inventory.InventoryDtos.StockTransferRequest;
 
 @RestController
@@ -45,9 +46,16 @@ public class StockController {
                                                         @RequestParam(required = false) Instant occurredFrom,
                                                         @RequestParam(required = false) Instant occurredTo,
                                                         @RequestParam(required = false) String query,
+                                                        @RequestParam(defaultValue = "false") boolean mine,
                                                         Pageable pageable) {
         return PageResponse.from(service.searchMovements(warehouseId, productId, type, occurredFrom, occurredTo,
-                query, pageable));
+                query, mine, pageable));
+    }
+
+    @PostMapping("/api/v1/stock-movements/scan")
+    @ResponseStatus(HttpStatus.CREATED)
+    StockMovementResponse scan(@Valid @RequestBody StockScanRequest request) {
+        return service.scan(request);
     }
 
     @PostMapping("/api/v1/stock-movements/adjustments")

@@ -147,6 +147,7 @@ function roleLabel(role: string, language: 'es' | 'en') {
   const labels: Record<string, [string, string]> = {
     OWNER: ['Propietario', 'Owner'], ADMIN: ['Administrador', 'Administrator'], ECONOMY: ['Economía', 'Economy'],
     LOGISTICS: ['Logística', 'Logistics'], CATALOG: ['Catálogo', 'Catalogue'],
+    CASHIER: ['Caja', 'Cashier'], WAREHOUSE: ['Almacén', 'Warehouse'],
   }
   return labels[role]?.[language === 'es' ? 0 : 1] ?? role
 }

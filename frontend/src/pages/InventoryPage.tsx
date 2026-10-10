@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Ban, Boxes, ClipboardList, PackageCheck, Pencil, Plus, SlidersHorizontal, Truck, Warehouse as WarehouseIcon } from 'lucide-react'
+import { Activity, ArrowLeftRight, Ban, Boxes, ClipboardList, PackageCheck, Pencil, Plus, ScanBarcode, SlidersHorizontal, Tags, Truck, Warehouse as WarehouseIcon } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useConfirm } from '../components/ConfirmDialog'
 import { EmptyState, LoadingState } from '../components/DataState'
@@ -16,8 +16,11 @@ import { useTranslation } from '../i18n/I18nProvider'
 import { apiFetch, errorMessage } from '../lib/api'
 import { formatCurrency, formatDate, formatDateTime, formatNumber } from '../lib/format'
 import type { FlatPage, PageResponse, Product, SalesDelivery, SalesDeliveryStatus, StockLevel, StockMovement, StockMovementType, UnitOfMeasure, Warehouse } from '../types/api'
+import { InventoryActivity } from '../components/InventoryActivity'
+import { reasonLabel } from '../lib/stockReasons'
+import { Link } from '../routing/Router'
 
-type Tab = 'stock' | 'movements' | 'deliveries' | 'warehouses'
+type Tab = 'stock' | 'movements' | 'deliveries' | 'warehouses' | 'activity'
 type Editor = { kind: 'adjustment'; level?: StockLevel } | { kind: 'transfer'; level?: StockLevel } | { kind: 'warehouse'; item?: Warehouse } | { kind: 'delivery'; delivery: SalesDelivery }
 type InventoryRow = StockLevel | StockMovement | SalesDelivery | Warehouse
 
@@ -74,6 +77,7 @@ export function InventoryPage() {
 
   useEffect(() => setPage(0), [tab, debouncedQuery, warehouseId, movementType, onlyInStock, deliveryStatus])
   useEffect(() => {
+    if (tab === 'activity') { setLoading(false); return }
     let active = true
     setLoading(true)
     const params = new URLSearchParams({ page: String(page), size: '15' })
@@ -120,6 +124,8 @@ export function InventoryPage() {
 
   return <div className="page-stack">
     <PageHeader eyebrow={c('Aprovisionamiento', 'Procurement')} title={c('Almacén', 'Inventory')} description={c('Existencias por almacén, diario de movimientos, ajustes y traspasos.', 'Stock by warehouse, movement journal, adjustments and transfers.')} icon={Boxes} actions={<>
+      <Link className="button button-secondary" to="/almacen-movil"><ScanBarcode size={17} />{c('Almacén móvil', 'Mobile warehouse')}</Link>
+      <Link className="button button-secondary" to="/etiquetas"><Tags size={17} />{c('Etiquetas', 'Labels')}</Link>
       <button className="button button-secondary" type="button" disabled={activeWarehouses.length < 2} onClick={() => setEditor({ kind: 'transfer' })}><ArrowLeftRight size={17} />{c('Traspaso', 'Transfer')}</button>
       <button className="button button-secondary" type="button" disabled={activeWarehouses.length === 0} onClick={() => setEditor({ kind: 'adjustment' })}><SlidersHorizontal size={17} />{c('Ajuste', 'Adjustment')}</button>
       <button className="button button-primary" type="button" onClick={() => setEditor({ kind: 'warehouse' })}><Plus size={17} />{c('Nuevo almacén', 'New warehouse')}</button>
@@ -128,11 +134,12 @@ export function InventoryPage() {
     <nav className="workspace-tabs" aria-label={c('Áreas de almacén', 'Inventory areas')}>
       <button type="button" className={tab === 'stock' ? 'active' : ''} onClick={() => changeTab('stock')}><Boxes size={15} />{c('Existencias', 'Stock')}</button>
       <button type="button" className={tab === 'movements' ? 'active' : ''} onClick={() => changeTab('movements')}><ClipboardList size={15} />{c('Diario de almacén', 'Movement journal')}</button>
+      <button type="button" className={tab === 'activity' ? 'active' : ''} onClick={() => changeTab('activity')}><Activity size={15} />{c('Actividad del día', 'Daily activity')}</button>
       <button type="button" className={tab === 'deliveries' ? 'active' : ''} onClick={() => changeTab('deliveries')}><Truck size={15} />{c('Salidas de venta', 'Sales issues')}</button>
       <button type="button" className={tab === 'warehouses' ? 'active' : ''} onClick={() => changeTab('warehouses')}><WarehouseIcon size={15} />{c('Almacenes', 'Warehouses')}</button>
     </nav>
 
-    <section className="panel table-panel">
+    {tab === 'activity' ? <InventoryActivity warehouses={warehouses} /> : <section className="panel table-panel">
       <TableToolbar value={query} onChange={setQuery} placeholder={tab === 'warehouses' ? c('Buscar almacén', 'Search warehouse') : tab === 'deliveries' ? c('Buscar por documento o cliente', 'Search by document or customer') : tab === 'movements' ? c('Buscar por producto o documento', 'Search by product or document') : c('Buscar producto', 'Search product')}>
         {(tab === 'stock' || tab === 'movements') && warehouseFilter}
         {tab === 'deliveries' && <select aria-label={t('sales.filterStatus')} value={deliveryStatus} onChange={(event) => setDeliveryStatus(event.target.value as SalesDeliveryStatus | '')}><option value="">{t('sales.allStatuses')}</option>{deliveryStatuses.map((item) => <option key={item} value={item}>{deliveryLabels[item][language === 'es' ? 0 : 1]}</option>)}</select>}
@@ -160,7 +167,7 @@ export function InventoryPage() {
           </table>}
           {tab === 'movements' && <table>
             <TableCaption es="Diario de almacén" en="Movement journal" />
-            <thead><tr><th>{t('sales.date')}</th><th>{c('Movimiento', 'Movement')}</th><th>{t('sales.product')}</th><th>{c('Almacén', 'Warehouse')}</th><th className="align-right">{t('sales.quantity')}</th><th className="align-right">{c('Saldo', 'Balance')}</th><th className="align-right">{c('Coste unitario', 'Unit cost')}</th><th>{c('Origen', 'Source')}</th></tr></thead>
+            <thead><tr><th>{t('sales.date')}</th><th>{c('Movimiento', 'Movement')}</th><th>{t('sales.product')}</th><th>{c('Almacén', 'Warehouse')}</th><th className="align-right">{t('sales.quantity')}</th><th className="align-right">{c('Saldo', 'Balance')}</th><th className="align-right">{c('Coste unitario', 'Unit cost')}</th><th>{c('Origen', 'Source')}</th><th>{c('Quién', 'Who')}</th></tr></thead>
             <tbody>{(rows as StockMovement[]).map((movement) => <tr key={movement.id}>
               <td>{formatDateTime(movement.occurredAt, locale)}</td>
               <td><StatusBadge tone={movementTone(movement.type)}>{movementLabels[movement.type][language === 'es' ? 0 : 1]}</StatusBadge></td>
@@ -169,14 +176,15 @@ export function InventoryPage() {
               <td className="align-right"><strong>{inbound(movement.type) ? '+' : '−'}{formatNumber(movement.quantity, locale, 6)}</strong></td>
               <td className="align-right">{formatNumber(movement.balanceAfter, locale, 6)}</td>
               <td className="align-right">{movement.unitCost === null ? '—' : formatCurrency(movement.unitCost, movement.costCurrencyCode ?? 'EUR', locale)}</td>
-              <td>{movement.sourceNumber || movement.note || '—'}{movement.sourceNumber && movement.note && <small>{movement.note}</small>}</td>
+              <td>{movement.sourceNumber || (movement.reasonCode ? reasonLabel(movement.reasonCode, language) : movement.note) || '—'}{(movement.sourceNumber || movement.reasonCode) && movement.note && <small>{movement.note}</small>}{movement.sourceType === 'SCAN' && <small>{c('Desde el móvil', 'From mobile')}</small>}{movement.sourceType === 'POS_TICKET' && <small>TPV</small>}</td>
+              <td>{movement.performedByName || <span className="pos-muted">{c('Automático', 'Automatic')}</span>}</td>
             </tr>)}</tbody>
           </table>}
           {tab === 'deliveries' && <table>
             <TableCaption es="Salidas de venta" en="Sales issues" />
             <thead><tr><th>{c('Documento', 'Document')}</th><th>{t('sales.customer')}</th><th>{t('sales.date')}</th><th>{c('Salida de almacén', 'Stock issue')}</th><th>{c('Almacén', 'Warehouse')}</th><th>{c('Detalle', 'Detail')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead>
             <tbody>{(rows as SalesDelivery[]).map((delivery) => <tr key={delivery.id}>
-              <td><strong className="document-number">{delivery.sourceNumber}</strong><small>{delivery.sourceType === 'INVOICE' ? c('Factura sin albarán', 'Invoice without delivery note') : c('Albarán', 'Delivery note')}</small></td>
+              <td><strong className="document-number">{delivery.sourceNumber}</strong><small>{delivery.sourceType === 'INVOICE' ? c('Factura sin albarán', 'Invoice without delivery note') : delivery.sourceType === 'POS_TICKET' ? c('Ticket del TPV', 'POS ticket') : delivery.sourceType === 'POS_RETURN' ? c('Devolución en el TPV', 'POS refund') : c('Albarán', 'Delivery note')}</small></td>
               <td><strong>{delivery.customerName}</strong>{delivery.customerCode && <small>{delivery.customerCode}</small>}</td>
               <td>{formatDate(delivery.sourceDate, locale)}</td>
               <td><StatusBadge tone={deliveryTone[delivery.status]}>{deliveryLabels[delivery.status][language === 'es' ? 0 : 1]}</StatusBadge></td>
@@ -199,7 +207,7 @@ export function InventoryPage() {
         </div>
         <Pagination page={data.page} totalPages={data.totalPages} totalElements={data.totalElements} onChange={setPage} />
       </>}
-    </section>
+    </section>}
 
     <Modal open={editor !== null} title={editor?.kind === 'adjustment' ? c('Ajuste de existencias', 'Stock adjustment') : editor?.kind === 'delivery' ? c(`Dar salida a ${editor.delivery.sourceNumber}`, `Issue ${editor.delivery.sourceNumber}`) : editor?.kind === 'transfer' ? c('Traspaso entre almacenes', 'Transfer between warehouses') : editor?.item ? c('Editar almacén', 'Edit warehouse') : c('Nuevo almacén', 'New warehouse')}
       description={editor?.kind === 'adjustment' ? c('Corrige las existencias tras un recuento, una rotura o una merma. Queda anotado en el diario.', 'Correct the stock after a count, a breakage or a loss. It is recorded in the journal.') : editor?.kind === 'delivery' ? c('Elige el almacén del que sale la mercancía de esta venta.', 'Choose the warehouse the goods of this sale leave from.') : editor?.kind === 'transfer' ? c('Mueve existencias de un almacén a otro.', 'Move stock from one warehouse to another.') : c('Lugar donde se guarda la mercancía.', 'Place where goods are kept.')}

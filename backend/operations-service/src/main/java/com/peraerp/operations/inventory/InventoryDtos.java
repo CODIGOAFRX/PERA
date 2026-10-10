@@ -48,14 +48,16 @@ public final class InventoryDtos {
                                         String productName, String unitOfMeasure, StockMovementType type,
                                         BigDecimal quantity, BigDecimal balanceAfter, BigDecimal unitCost,
                                         String costCurrencyCode, Instant occurredAt, StockSourceType sourceType,
-                                        UUID sourceId, String sourceNumber, String note) {
+                                        UUID sourceId, String sourceNumber, String note, String performedByName,
+                                        StockReason reasonCode) {
         static StockMovementResponse from(StockMovement movement) {
             return new StockMovementResponse(movement.getId(), movement.getWarehouseId(), movement.getProductId(),
                     movement.getProductCodeSnapshot(), movement.getProductNameSnapshot(),
                     movement.getUnitOfMeasureSnapshot(), movement.getType(), movement.getQuantity(),
                     movement.getBalanceAfter(), movement.getUnitCost(), movement.getCostCurrencyCode(),
                     movement.getOccurredAt(), movement.getSourceType(), movement.getSourceId(),
-                    movement.getSourceNumberSnapshot(), movement.getNote());
+                    movement.getSourceNumberSnapshot(), movement.getNote(), movement.getPerformedByName(),
+                    movement.getReasonCode());
         }
     }
 
@@ -69,6 +71,26 @@ public final class InventoryDtos {
             @NotNull StockMovementType type,
             @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 13, fraction = 6) BigDecimal quantity,
             @NotBlank @Size(max = 500) String note
+    ) {
+    }
+
+    public enum ScanDirection { IN, OUT }
+
+    /**
+     * Entrada o retirada desde la aplicación de almacén. Sin almacén se usa el predeterminado. La
+     * referencia la genera el móvil: si la red falla y se reintenta, no se duplica.
+     */
+    public record StockScanRequest(
+            UUID warehouseId,
+            @NotNull UUID productId,
+            @NotBlank @Size(max = 100) String productCode,
+            @NotBlank @Size(max = 300) String productName,
+            @NotBlank @Size(max = 30) String unitOfMeasure,
+            @NotNull ScanDirection direction,
+            @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 13, fraction = 6) BigDecimal quantity,
+            @NotNull StockReason reason,
+            @Size(max = 500) String note,
+            UUID clientReference
     ) {
     }
 

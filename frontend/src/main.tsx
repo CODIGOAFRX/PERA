@@ -7,6 +7,7 @@ import { I18nProvider } from './i18n/I18nProvider'
 import { RouterProvider } from './routing/Router'
 import App from './App'
 import './styles/index.css'
+import './styles/apps.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

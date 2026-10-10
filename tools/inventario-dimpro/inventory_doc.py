@@ -88,7 +88,7 @@ STATUS = {
  'Listados > De Artículos > Tarifas de Artículos': (P, 'Centro de impresión /impresion; menos variantes.'),
  'Listados > De Artículos > Varios de Artículos': (P, 'Centro de impresión /impresion.'),
  'Listados > De Artículos > Varios de Almacén': (P, 'Existencias y diario en /almacen.'),
- 'Listados > De Artículos > Etiquetas Artículos': (N, 'Etiquetas (bloque 6).'),
+ 'Listados > De Artículos > Etiquetas Artículos': (H, '/etiquetas: código de barras o QR, logo, tamaños de rollo y A4 (doc 28).'),
  'Listados > De Documentos > De Clientes > Documentos NO Facturas': (P, 'Centro de impresión /impresion.'),
  'Listados > De Documentos > De Clientes > Facturas': (P, 'Centro de impresión /impresion.'),
  'Listados > De Documentos > De Proveedores > Documentos NO Facturas': (P, ''),

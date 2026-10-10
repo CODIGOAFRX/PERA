@@ -39,7 +39,7 @@ mvn -f backend/pom.xml verify
 cd frontend && npm test && npm run build
 ```
 
-Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el puerto 15432, gateway en 8080, frontend en 5173) y `scripts/stop-local.ps1` lo para. Usuarios de demostración: `admin`, `administracion`, `economia`, `logistica` y `catalogo`, con la contraseña de desarrollo del script. Con la aplicación arrancada en Windows no se puede reempaquetar (los JAR están bloqueados): parar antes de `mvn verify`.
+Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el puerto 15432, gateway en 8080, frontend en 5173) y `scripts/stop-local.ps1` lo para. Usuarios de demostración: `admin`, `administracion`, `economia`, `logistica` y `catalogo`, más `cajero1`/`cajero2` (TPV) y `almacen1`/`almacen2` (almacén móvil), con la contraseña de desarrollo del script. Datos de tienda para probarlos: `node scripts/seed-demo-tpv-almacen.mjs`. Con la aplicación arrancada en Windows no se puede reempaquetar (los JAR están bloqueados): parar antes de `mvn verify`.
 
 ## Decisiones tomadas
 
@@ -58,6 +58,7 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Pendiente de decidir
 
+- **TPV y Veri*Factu:** los tickets del TPV son facturas simplificadas y aún no generan registro Veri*Factu ni asiento. Decidir si se integran en la cadena de Ventas antes de usar el TPV con una empresa real.
 - **Veri*Factu en producción:** antes de la primera empresa real, declaración responsable de PERA como sistema informático de facturación y revisión de un asesor fiscal. Siguiente fase técnica: subsanación y anulación, y validación del NIF del cliente en la AEAT.
 
 - **Facturación automática (bloque 3):** si una factura puede agrupar varios albaranes. Hoy la conversión es uno a uno y las facturas van encadenadas en Veri*Factu.
@@ -65,6 +66,20 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 - **Secretos por defecto:** los servicios arrancan con claves públicas si falta la variable de entorno (JWT, clave interna, contraseña de los usuarios demo). Falta decidir si deben negarse a arrancar.
 
 ## Registro de entregas
+
+### v20261010.Pedro.2 — TPV, almacén móvil, etiquetas y listados por periodo
+
+- **TPV** `/tpv` sobre las cajas de Cartera ([docs/28](docs/28-tpv-almacen-movil-etiquetas-listados.md)): selector de caja, venta con escáner/cámara, cobro en efectivo, tarjeta o mixto con cambio, ticket de 80 mm, aparcados, anulación, devoluciones, entradas y salidas de efectivo, arqueo por billetes e informes X/Z. Finance `V7`. Las ventas descuentan existencias con la sincronización de salidas de Operations (aviso inmediato y lectura periódica).
+- **Ventas TPV** `/ventas-tpv`: seguimiento por día, hora, caja, cajero, artículo, IVA y turnos.
+- **Almacén móvil** `/almacen-movil`: añadir/retirar escaneando (barras o QR, cámara o lector Bluetooth) o a mano, por unidades o embalajes, con motivo. Los movimientos guardan autor y motivo; pestaña «Actividad del día» en Almacén. Operations `V11`.
+- **Etiquetas** `/etiquetas`: código de barras o QR, logo, tamaños de rollo y A4. Código de barras en el artículo (master-data `V12`) y búsqueda por escáner.
+- **Listados** mensuales, trimestrales y anuales; informes nuevos de cobros pagados/pendientes, deuda por cliente, ventas TPV y movimientos de almacén.
+- Perfiles nuevos `CASHIER` y `WAREHOUSE` (entran directo a su aplicación) y usuarios demo; `scripts/seed-demo-tpv-almacen.mjs`.
+- **Arreglos:** el listado de documentos de Ventas daba 500 al filtrar por fechas; los nombres con acentos salían rotos en la interfaz (decodificación del token).
+
+### v20261010.Pedro — auditoría duradera de remesas
+
+- Trabajo de la sesión anterior que quedó sin subir ([docs/27](docs/27-remesas-auditoria-y-revision.md)): auditoría de remesas en la misma transacción de Finanzas con publicación a Activity y reintentos (`V5`), recuperación de estados previos sin inventar actor (`V6`), «Registrar presentación» sin transmisión bancaria e Historial con búsqueda de remesas. Incluye `docs/AGENTS-HANDOFF-2026-10-10.md`.
 
 ### v20261009.Raul.7 — inventario de DimproCristalWin
 
@@ -136,5 +151,5 @@ Rama `migracion-dimprocristalwin` subida a GitHub por primera vez (sin PR, sin t
 | 3. Facturación automática y cierre | Pendiente de decisiones |
 | 4. Comerciales, comisiones y grupos de cliente | Hecho (sin cobradores) |
 | 5. Reclamaciones y agenda | Hecho |
-| 6. Plantillas de documento y etiquetas | Pendiente |
+| 6. Plantillas de documento y etiquetas | Etiquetas hechas; plantillas pendientes |
 | 7. Extensión de vidrio | Pendiente |

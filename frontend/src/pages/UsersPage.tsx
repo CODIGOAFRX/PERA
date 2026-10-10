@@ -129,6 +129,7 @@ function roleLabel(code: string, language: 'es' | 'en') {
   const labels: Record<string, [string, string]> = {
     OWNER: ['Propietario', 'Owner'], ADMIN: ['Administrador', 'Administrator'], ECONOMY: ['Economía', 'Economy'],
     LOGISTICS: ['Logística y procesos', 'Logistics and workflows'], CATALOG: ['Catálogo y maestros', 'Catalogue and master data'],
+    CASHIER: ['Caja (TPV)', 'Cashier (POS)'], WAREHOUSE: ['Almacén (operario)', 'Warehouse (operator)'],
   }
   return labels[code]?.[language === 'es' ? 0 : 1] ?? code
 }
@@ -140,6 +141,8 @@ function roleDescription(code: string, language: 'es' | 'en') {
     ECONOMY: ['Clientes, presupuestos, ventas, comisiones, finanzas, cartera, caja, reclamaciones y agenda.', 'Customers, quotes, sales, commissions, finance, collections, cash, claims and agenda.'],
     LOGISTICS: ['Proveedores, compras, almacén, rutas, expediciones, procesos, reclamaciones y agenda.', 'Suppliers, purchases, inventory, routes, shipments, workflows, claims and agenda.'],
     CATALOG: ['Productos, precios, impuestos y embalajes.', 'Products, pricing, taxes and packaging.'],
+    CASHIER: ['Solo el TPV: abrir y cerrar caja, cobrar, devolver y arquear.', 'POS only: open and close the till, charge, refund and count cash.'],
+    WAREHOUSE: ['Solo la aplicación de almacén: añadir y retirar mercancía escaneando, y etiquetas.', 'Warehouse app only: add and remove stock by scanning, and labels.'],
   }
   return descriptions[code]?.[language === 'es' ? 0 : 1] ?? code
 }

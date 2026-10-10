@@ -1,6 +1,10 @@
 package com.peraerp.operations.inventory;
 
 import com.peraerp.operations.config.CurrentCompanyProvider;
+import com.peraerp.operations.config.CurrentUserProvider;
+import com.peraerp.operations.inventory.InventoryDtos.ScanDirection;
+import com.peraerp.operations.inventory.InventoryDtos.StockScanRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
 import org.springframework.data.domain.Page;
@@ -26,20 +30,37 @@ public class StockService {
     public record StockPosting(UUID warehouseId, UUID productId, String productCode, String productName,
                                String unitOfMeasure, StockMovementType type, BigDecimal quantity,
                                BigDecimal unitCost, String costCurrencyCode, StockSourceType sourceType,
-                               UUID sourceId, String sourceNumber, String note) {
+                               UUID sourceId, String sourceNumber, String note, StockReason reason,
+                               UUID clientReference) {
+        public StockPosting(UUID warehouseId, UUID productId, String productCode, String productName,
+                            String unitOfMeasure, StockMovementType type, BigDecimal quantity, BigDecimal unitCost,
+                            String costCurrencyCode, StockSourceType sourceType, UUID sourceId, String sourceNumber,
+                            String note) {
+            this(warehouseId, productId, productCode, productName, unitOfMeasure, type, quantity, unitCost,
+                    costCurrencyCode, sourceType, sourceId, sourceNumber, note, null, null);
+        }
     }
 
     private final StockLevelRepository levelRepository;
     private final StockMovementRepository movementRepository;
     private final WarehouseRepository warehouseRepository;
     private final CurrentCompanyProvider companyProvider;
+    private final CurrentUserProvider userProvider;
 
+    @Autowired
     public StockService(StockLevelRepository levelRepository, StockMovementRepository movementRepository,
-                        WarehouseRepository warehouseRepository, CurrentCompanyProvider companyProvider) {
+                        WarehouseRepository warehouseRepository, CurrentCompanyProvider companyProvider,
+                        CurrentUserProvider userProvider) {
         this.levelRepository = levelRepository;
         this.movementRepository = movementRepository;
         this.warehouseRepository = warehouseRepository;
         this.companyProvider = companyProvider;
+        this.userProvider = userProvider;
+    }
+
+    public StockService(StockLevelRepository levelRepository, StockMovementRepository movementRepository,
+                        WarehouseRepository warehouseRepository, CurrentCompanyProvider companyProvider) {
+        this(levelRepository, movementRepository, warehouseRepository, companyProvider, null);
     }
 
     @Transactional(readOnly = true)
@@ -57,6 +78,15 @@ public class StockService {
     public Page<StockMovementResponse> searchMovements(UUID warehouseId, UUID productId, StockMovementType type,
                                                        Instant occurredFrom, Instant occurredTo, String query,
                                                        Pageable pageable) {
+        return searchMovements(warehouseId, productId, type, occurredFrom, occurredTo, query, false, pageable);
+    }
+
+    /** Con {@code mine}, solo los movimientos del usuario de la sesión ("lo que he hecho hoy"). */
+    @Transactional(readOnly = true)
+    public Page<StockMovementResponse> searchMovements(UUID warehouseId, UUID productId, StockMovementType type,
+                                                       Instant occurredFrom, Instant occurredTo, String query,
+                                                       boolean mine, Pageable pageable) {
+        UUID performedBy = mine && userProvider != null ? userProvider.requireUser().id() : null;
         if (occurredFrom != null && occurredTo != null && occurredTo.isBefore(occurredFrom)) {
             throw new BusinessRuleException("El final del intervalo de búsqueda no puede ser anterior al inicio.");
         }
@@ -64,7 +94,7 @@ public class StockService {
         String normalizedQuery = normalize(query);
         return movementRepository.search(companyId, warehouseId != null, warehouseId, productId != null, productId,
                         type != null, type, occurredFrom != null, occurredFrom, occurredTo != null, occurredTo,
-                        normalizedQuery != null, normalizedQuery == null ? "" : normalizedQuery, pageable)
+                        performedBy != null, performedBy, normalizedQuery != null, normalizedQuery == null ? "" : normalizedQuery, pageable)
                 .map(StockMovementResponse::from);
     }
 
@@ -78,6 +108,36 @@ public class StockService {
                 request.productId(), request.productCode(), request.productName(), request.unitOfMeasure(),
                 request.type(), request.quantity(), null, null, StockSourceType.MANUAL, null, null,
                 request.note().trim())));
+    }
+
+    /**
+     * Entrada o retirada desde el móvil. Una salida no puede dejar existencias negativas: si el
+     * operario retira más de lo que consta, se le avisa para que revise el recuento.
+     */
+    @Transactional
+    public StockMovementResponse scan(StockScanRequest request) {
+        UUID companyId = companyProvider.requireCompanyId();
+        if (request.clientReference() != null) {
+            var existing = movementRepository.findByCompanyIdAndClientReference(companyId, request.clientReference());
+            if (existing.isPresent()) {
+                return StockMovementResponse.from(existing.get());
+            }
+        }
+        StockMovementType type = request.direction() == ScanDirection.IN
+                ? StockMovementType.ADJUSTMENT_IN : StockMovementType.ADJUSTMENT_OUT;
+        if (!request.reason().allows(type)) {
+            throw new BusinessRuleException(type.isInbound()
+                    ? "Ese motivo es de retirada; elige un motivo de entrada."
+                    : "Ese motivo es de entrada; elige un motivo de retirada.");
+        }
+        UUID warehouseId = request.warehouseId() != null ? request.warehouseId()
+                : warehouseRepository.findByCompanyIdAndDefaultWarehouseTrue(companyId).filter(Warehouse::isActive)
+                .map(Warehouse::getId)
+                .orElseThrow(() -> new BusinessRuleException("No hay un almacén predeterminado activo; elige uno."));
+        return StockMovementResponse.from(post(companyId, new StockPosting(warehouseId, request.productId(),
+                request.productCode(), request.productName(), request.unitOfMeasure(), type, request.quantity(), null,
+                null, StockSourceType.SCAN, null, null, normalize(request.note()), request.reason(),
+                request.clientReference())));
     }
 
     @Transactional
@@ -134,9 +194,15 @@ public class StockService {
             throw new BusinessRuleException(exception.getMessage());
         }
         levelRepository.save(level);
+        // Quien registra el apunte queda anotado; la lectura periódica de ventas no tiene usuario.
+        var user = userProvider == null ? java.util.Optional.<CurrentUserProvider.CurrentUser>empty()
+                : userProvider.findUser();
         return movementRepository.save(new StockMovement(level, posting.type(), posting.quantity(), balance,
                 posting.unitCost(), posting.unitCost() == null ? null : posting.costCurrencyCode(), Instant.now(),
-                posting.sourceType(), posting.sourceId(), posting.sourceNumber(), posting.note()));
+                posting.sourceType(), posting.sourceId(), posting.sourceNumber(), posting.note())
+                .attribute(user.map(CurrentUserProvider.CurrentUser::id).orElse(null),
+                        user.map(CurrentUserProvider.CurrentUser::name).orElse(null), posting.reason(),
+                        posting.clientReference()));
     }
 
     private String normalize(String value) {

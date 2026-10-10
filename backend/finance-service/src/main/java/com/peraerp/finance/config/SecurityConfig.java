@@ -16,6 +16,12 @@ public class SecurityConfig {
     @Bean SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.csrf(AbstractHttpConfigurer::disable).authorizeHttpRequests(a -> a
                 .requestMatchers("/actuator/health/**","/v3/api-docs/**","/swagger-ui/**","/swagger-ui.html").permitAll()
+                // Punto interno del inventario: comprueba la clave de servicio en el propio controlador.
+                .requestMatchers(HttpMethod.GET, "/internal/v1/inventory/pos-tickets").permitAll()
+                // TPV: el cajero vende y consulta tickets; las cifras de venta son para quien supervisa.
+                .requestMatchers(HttpMethod.GET, "/api/v1/pos/stats/**").hasAuthority("pos:read")
+                .requestMatchers(HttpMethod.GET, "/api/v1/pos/**").hasAnyAuthority("pos:read", "pos:sell")
+                .requestMatchers("/api/v1/pos/**").hasAuthority("pos:sell")
                 .requestMatchers(HttpMethod.GET, "/api/v1/currencies/**", "/api/v1/exchange-rates/**")
                     .hasAuthority("currencies:read")
                 .requestMatchers("/api/v1/currency-conversions/**").hasAuthority("currencies:read")

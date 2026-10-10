@@ -59,26 +59,54 @@ public interface CommercialDocumentRepository extends JpaRepository<CommercialDo
                                                   @Param("fromDate") LocalDate fromDate,
                                                   @Param("toDate") LocalDate toDate);
 
+    /*
+     * Los filtros opcionales van con una marca booleana: con «:x is null» PostgreSQL no puede
+     * deducir el tipo de un parámetro nulo y la consulta fallaba (error 500) al combinar fechas
+     * sin cliente, por ejemplo en los informes de cobros por periodo.
+     */
+    default Page<CommercialDocument> search(UUID companyId, String query, DocumentType type, DocumentStatus status,
+                                            UUID customerId, LocalDate fromDate, LocalDate toDate,
+                                            Pageable pageable) {
+        return searchFiltered(companyId, query, type != null, type, status != null, status, customerId != null,
+                customerId, fromDate != null, fromDate, toDate != null, toDate, pageable);
+    }
+
     @Query("select d from CommercialDocument d where d.companyId = :companyId " +
             "and (:query = '' or lower(d.documentNumber) like concat('%', lower(:query), '%') " +
             "or lower(d.customerCodeSnapshot) like concat('%', lower(:query), '%') " +
             "or lower(d.customerNameSnapshot) like concat('%', lower(:query), '%')) " +
-            "and (:type is null or d.type = :type) and (:status is null or d.status = :status) " +
-            "and (:customerId is null or d.customerId = :customerId) " +
-            "and (:fromDate is null or d.issueDate >= :fromDate) and (:toDate is null or d.issueDate <= :toDate)")
-    Page<CommercialDocument> search(@Param("companyId") UUID companyId, @Param("query") String query,
-                                    @Param("type") DocumentType type,
-                                    @Param("status") DocumentStatus status, @Param("customerId") UUID customerId,
-                                    @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate,
-                                    Pageable pageable);
+            "and (:filterType = false or d.type = :type) and (:filterStatus = false or d.status = :status) " +
+            "and (:filterCustomer = false or d.customerId = :customerId) " +
+            "and (:filterFrom = false or d.issueDate >= :fromDate) and (:filterTo = false or d.issueDate <= :toDate)")
+    Page<CommercialDocument> searchFiltered(@Param("companyId") UUID companyId, @Param("query") String query,
+                                            @Param("filterType") boolean filterType, @Param("type") DocumentType type,
+                                            @Param("filterStatus") boolean filterStatus,
+                                            @Param("status") DocumentStatus status,
+                                            @Param("filterCustomer") boolean filterCustomer,
+                                            @Param("customerId") UUID customerId,
+                                            @Param("filterFrom") boolean filterFrom, @Param("fromDate") LocalDate fromDate,
+                                            @Param("filterTo") boolean filterTo, @Param("toDate") LocalDate toDate,
+                                            Pageable pageable);
+
+    default Page<CommercialDocument> searchQuotes(UUID companyId, QuoteStatus status, UUID customerId,
+                                                  LocalDate fromDate, LocalDate toDate, Pageable pageable) {
+        return searchQuotesFiltered(companyId, status != null, status, customerId != null, customerId,
+                fromDate != null, fromDate, toDate != null, toDate, pageable);
+    }
 
     @Query("select d from CommercialDocument d where d.companyId = :companyId and d.type = com.peraerp.sales.document.DocumentType.QUOTE " +
-            "and (:status is null or d.quoteStatus = :status) and (:customerId is null or d.customerId = :customerId) " +
-            "and (:fromDate is null or d.issueDate >= :fromDate) and (:toDate is null or d.issueDate <= :toDate)")
-    Page<CommercialDocument> searchQuotes(@Param("companyId") UUID companyId, @Param("status") QuoteStatus status,
-                                          @Param("customerId") UUID customerId,
-                                          @Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate,
-                                          Pageable pageable);
+            "and (:filterStatus = false or d.quoteStatus = :status) " +
+            "and (:filterCustomer = false or d.customerId = :customerId) " +
+            "and (:filterFrom = false or d.issueDate >= :fromDate) and (:filterTo = false or d.issueDate <= :toDate)")
+    Page<CommercialDocument> searchQuotesFiltered(@Param("companyId") UUID companyId,
+                                                  @Param("filterStatus") boolean filterStatus,
+                                                  @Param("status") QuoteStatus status,
+                                                  @Param("filterCustomer") boolean filterCustomer,
+                                                  @Param("customerId") UUID customerId,
+                                                  @Param("filterFrom") boolean filterFrom,
+                                                  @Param("fromDate") LocalDate fromDate,
+                                                  @Param("filterTo") boolean filterTo, @Param("toDate") LocalDate toDate,
+                                                  Pageable pageable);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update CommercialDocument d set d.quoteStatus = com.peraerp.sales.document.QuoteStatus.EXPIRED, " +

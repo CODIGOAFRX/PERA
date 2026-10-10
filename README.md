@@ -31,7 +31,7 @@ cp infra/.env.example infra/.env
 docker compose --env-file infra/.env -f infra/docker-compose.yml up --build
 ```
 
-La aplicación queda en `http://localhost:5173`. Los cinco usuarios de demostración comparten la contraseña inicial definida en `PERA_BOOTSTRAP_ADMIN_PASSWORD` (en local la fija `scripts/start-local.ps1`; con Docker, `infra/.env`). Cámbiala desde **Usuarios** tras el primer acceso:
+La aplicación queda en `http://localhost:5173`. Los usuarios de demostración comparten la contraseña inicial definida en `PERA_BOOTSTRAP_ADMIN_PASSWORD` (en local la fija `scripts/start-local.ps1`; con Docker, `infra/.env`). Cámbiala desde **Usuarios** tras el primer acceso:
 
 | Usuario | Perfil | Acceso principal |
 |---|---|---|
@@ -40,6 +40,10 @@ La aplicación queda en `http://localhost:5173`. Los cinco usuarios de demostrac
 | `economia` | Economía | Clientes, presupuestos, ventas, finanzas, cartera y caja |
 | `logistica` | Logística | Proveedores, compras, almacén, logística y procesos |
 | `catalogo` | Catálogo | Productos, precios, impuestos y embalajes |
+| `cajero1`, `cajero2` | Caja (TPV) | Solo el TPV: entran directamente a elegir caja |
+| `almacen1`, `almacen2` | Almacén (operario) | Solo la aplicación de almacén del móvil y etiquetas |
+
+Artículos de tienda, existencias y ventas del día para probar el TPV y el almacén: `node scripts/seed-demo-tpv-almacen.mjs` con el entorno arrancado ([doc 28](docs/28-tpv-almacen-movil-etiquetas-listados.md)).
 
 ### Windows sin Docker
 

@@ -1,4 +1,4 @@
-import { Boxes, FileUp, Pencil, Plus } from 'lucide-react'
+import { Barcode, Boxes, FileUp, Pencil, Plus, Tags } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
 import { Field, FormActions, FormErrors, useFormErrors } from '../components/Form'
@@ -17,6 +17,8 @@ import { unitKey } from '../i18n/businessLabels'
 import { useTranslation } from '../i18n/I18nProvider'
 import type { PageResponse, Product, ProductInput, UnitOfMeasure } from '../types/api'
 import { TableCaption } from '../components/TableCaption'
+import { internalEan13, isValidEan13 } from '../lib/barcode'
+import { Link } from '../routing/Router'
 
 const units = Object.keys(unitKey) as UnitOfMeasure[]
 
@@ -74,13 +76,14 @@ export function CatalogPage() {
   const saved = () => { setEditing(null); setRefresh((value) => value + 1); notify(t('catalog.saved')) }
   return <div className="page-stack">
     <PageHeader eyebrow={t('masterData.eyebrow')} title={t('catalog.title')} description={t('catalog.description')} icon={Boxes} actions={<>
+      <Link className="button button-secondary" to="/etiquetas"><Tags size={17} />{c('Etiquetas', 'Labels')}</Link>
       <button className="button button-secondary" type="button" onClick={() => setImporting(true)}><FileUp size={17} />{c('Importar', 'Import')}</button>
       <button className="button button-primary" type="button" onClick={() => setEditing('new')}><Plus size={17} />{t('catalog.new')}</button>
     </>} />
     <section className="panel table-panel">
       <TableToolbar value={query} onChange={setQuery} placeholder={t('catalog.search')} />
       {error && <div className="inline-error">{error}</div>}
-      {loading ? <LoadingState /> : data && data.content.length > 0 ? <><div className="table-scroll"><table><TableCaption es="Productos" en="Products" /><thead><tr><th>{t('field.code')}</th><th>{t('catalog.product')}</th><th>{t('catalog.unit')}</th><th>{t('catalog.basePrice')}</th><th>{t('catalog.tax')}</th><th>{t('field.status')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead><tbody>{data.content.map((product) => <tr key={product.id}><td><span className="code-cell">{product.code}</span></td><td><strong>{product.name}</strong>{product.description && <small>{product.description}</small>}</td><td>{t(unitKey[product.unitOfMeasure])}</td><td><strong>{formatCurrency(product.basePrice, baseCurrency, locale)}</strong></td><td>{formatNumber(product.taxRate, locale)} %</td><td><StatusBadge tone={product.active ? 'success' : 'neutral'}>{product.active ? t('common.active') : t('common.inactive')}</StatusBadge></td><td><button className="icon-button" type="button" onClick={() => setEditing(product)} aria-label={t('catalog.editAria', { name: product.name })}><Pencil size={16} /></button></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('catalog.empty')} description={query ? t('common.noResults') : t('catalog.emptyDescription')} action={!query && <button className="button button-secondary" type="button" onClick={() => setEditing('new')}>{t('catalog.create')}</button>} />}
+      {loading ? <LoadingState /> : data && data.content.length > 0 ? <><div className="table-scroll"><table><TableCaption es="Productos" en="Products" /><thead><tr><th>{t('field.code')}</th><th>{t('catalog.product')}</th><th>{t('catalog.unit')}</th><th>{t('catalog.basePrice')}</th><th>{t('catalog.tax')}</th><th>{t('field.status')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead><tbody>{data.content.map((product) => <tr key={product.id}><td><span className="code-cell">{product.code}</span>{product.barcode && <small className="barcode-cell"><Barcode size={12} aria-hidden="true" />{product.barcode}</small>}</td><td><strong>{product.name}</strong>{product.description && <small>{product.description}</small>}</td><td>{t(unitKey[product.unitOfMeasure])}</td><td><strong>{formatCurrency(product.basePrice, baseCurrency, locale)}</strong></td><td>{formatNumber(product.taxRate, locale)} %</td><td><StatusBadge tone={product.active ? 'success' : 'neutral'}>{product.active ? t('common.active') : t('common.inactive')}</StatusBadge></td><td><Link className="icon-button" to={`/etiquetas?producto=${product.id}`} aria-label={c(`Etiqueta de ${product.name}`, `Label for ${product.name}`)} title={c('Imprimir etiqueta', 'Print label')}><Tags size={16} /></Link><button className="icon-button" type="button" onClick={() => setEditing(product)} aria-label={t('catalog.editAria', { name: product.name })}><Pencil size={16} /></button></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('catalog.empty')} description={query ? t('common.noResults') : t('catalog.emptyDescription')} action={!query && <button className="button button-secondary" type="button" onClick={() => setEditing('new')}>{t('catalog.create')}</button>} />}
     </section>
     <Modal open={editing !== null} title={editing === 'new' ? t('catalog.new') : t('catalog.edit')} description={t('catalog.modalDescription')} onClose={() => setEditing(null)}>{editing && <ProductForm key={editing === 'new' ? 'new' : editing.id} product={editing === 'new' ? null : editing} onCancel={() => setEditing(null)} onSaved={saved} />}</Modal>
     <MasterDataImportModal open={importing} entityName={c('artículos', 'products')} basePath="/api/v1/products" onClose={() => setImporting(false)} onImported={(count) => { setRefresh((value) => value + 1); notify(c(`${count} artículos importados.`, `${count} products imported.`)) }} />
@@ -100,6 +103,7 @@ function ProductForm({ product, onCancel, onSaved }: { product: Product | null; 
     productTypeId: product?.productTypeId ?? '', productGroupId: product?.productGroupId ?? '',
     taxCodeId: product?.taxCodeId ?? '', unitOfMeasure: product?.unitOfMeasure ?? 'UNIT' as UnitOfMeasure,
     basePrice: String(product?.basePrice ?? 0), taxRate: String(product?.taxRate ?? 21), active: product?.active ?? true,
+    barcode: product?.barcode ?? '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -148,6 +152,7 @@ function ProductForm({ product, onCancel, onSaved }: { product: Product | null; 
       taxCodeId: form.taxCodeId || null, familyId: product?.familyId ?? null,
       categoryId: product?.categoryId ?? null, unitOfMeasure: form.unitOfMeasure,
       basePrice: Number(form.basePrice), taxRate: Number(form.taxRate), active: form.active,
+      barcode: form.barcode.trim(),
     }
     try { await apiFetch<Product>(product ? `/api/v1/products/${product.id}` : '/api/v1/products', { method: product ? 'PUT' : 'POST', body: JSON.stringify(payload) }); onSaved() }
     catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) }
@@ -168,6 +173,7 @@ function ProductForm({ product, onCancel, onSaved }: { product: Product | null; 
     <Field label={t('catalog.unitOfMeasure')} htmlFor="product-unit" name="unitOfMeasure" required><select id="product-unit" value={form.unitOfMeasure} onChange={(event) => update('unitOfMeasure', event.target.value)}>{units.map((unit) => <option key={unit} value={unit}>{t(unitKey[unit])}</option>)}</select></Field>
     <Field label={t('catalog.basePrice')} htmlFor="product-price" name="basePrice" required><input id="product-price" type="number" min="0" step="0.0001" value={form.basePrice} onChange={(event) => update('basePrice', event.target.value)} required /></Field>
     <Field label={t('catalog.taxPercentage')} htmlFor="product-tax" name="taxRate" required hint={form.taxCodeId ? c('Se deriva del código fiscal seleccionado.', 'Derived from the selected tax code.') : undefined}><input id="product-tax" type="number" min="0" max="100" step="0.01" value={form.taxRate} disabled={Boolean(form.taxCodeId)} onChange={(event) => update('taxRate', event.target.value)} required /></Field>
+    <Field label={c('Código de barras', 'Barcode')} htmlFor="product-barcode" name="barcode" hint={form.barcode && /^\d{13}$/.test(form.barcode.trim()) && !isValidEan13(form.barcode.trim()) ? c('El dígito de control no cuadra: revisa el número (se guardará como código interno).', 'The check digit does not match: check the number (it will be stored as an internal code).') : c('El EAN del fabricante o uno interno. Lo leen el TPV y el almacén.', 'The manufacturer EAN or an internal one. Read by the POS and the warehouse.')}><div className="input-with-action"><input id="product-barcode" value={form.barcode} maxLength={64} inputMode="numeric" onChange={(event) => update('barcode', event.target.value)} /><button type="button" className="button button-ghost button-small" onClick={() => update('barcode', internalEan13(Date.now() % 10_000_000_000))}><Barcode size={15} />{c('Generar', 'Generate')}</button></div></Field>
     <Field label={t('field.status')} htmlFor="product-active" name="active"><label className="switch-row" htmlFor="product-active"><input id="product-active" type="checkbox" checked={form.active} onChange={(event) => update('active', event.target.checked)} /><span>{t('catalog.active')}</span></label></Field>
     <Field label={t('field.description')} htmlFor="product-description" name="description" wide><textarea id="product-description" rows={3} value={form.description} onChange={(event) => update('description', event.target.value)} /></Field>
   </div>{error && <div className="form-error" role="alert">{error}</div>}<FormActions onCancel={onCancel} saving={saving} submitLabel={product ? t('catalog.saveChanges') : t('catalog.create')} /></FormErrors></form>

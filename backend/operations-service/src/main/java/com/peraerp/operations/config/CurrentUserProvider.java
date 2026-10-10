@@ -28,6 +28,19 @@ public class CurrentUserProvider {
         throw new AuthenticationFailedException("El token no identifica a un usuario válido.");
     }
 
+    /** Usuario de la petición si lo hay. Las lecturas periódicas en segundo plano no tienen. */
+    public java.util.Optional<CurrentUser> findUser() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof Jwt)) {
+            return java.util.Optional.empty();
+        }
+        try {
+            return java.util.Optional.of(requireUser());
+        } catch (AuthenticationFailedException exception) {
+            return java.util.Optional.empty();
+        }
+    }
+
     private static String firstPresent(String first, String second) {
         return first != null && !first.isBlank() ? first.trim() : second == null || second.isBlank() ? null : second.trim();
     }

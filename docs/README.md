@@ -23,6 +23,7 @@
 - 25 · [Comisiones de los comerciales](25-comisiones.md)
 - 26 · [Inventario de DimproCristalWin frente a PERA](26-inventario-dimprocristalwin.md)
 - 27 · [Remesas, auditoría y revisión funcional](27-remesas-auditoria-y-revision.md)
+- 28 · [TPV, almacén desde el móvil, etiquetas y listados por periodo](28-tpv-almacen-movil-etiquetas-listados.md)
 
 Notas de sesión: [traspaso de contexto del 23-09-2026](TRASPASO-CONTEXTO-2026-09-23.md).
 

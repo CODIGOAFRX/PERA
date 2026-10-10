@@ -25,6 +25,15 @@ public interface CashSessionRepository extends JpaRepository<CashSession, UUID> 
 
     boolean existsByCompanyIdAndCashRegisterIdAndStatus(UUID companyId, UUID cashRegisterId, CashSessionStatus status);
 
+    Optional<CashSession> findFirstByCompanyIdAndCashRegisterIdAndStatusOrderByClosedAtDesc(
+            UUID companyId, UUID cashRegisterId, CashSessionStatus status);
+
+    /** Sesiones abiertas en un intervalo y las que siguen abiertas, para el seguimiento del TPV. */
+    @Query("select s from CashSession s where s.companyId = :companyId and ((s.openedAt >= :from and s.openedAt < :to) "
+            + "or s.status = com.peraerp.finance.cash.CashSessionStatus.OPEN) order by s.openedAt asc")
+    java.util.List<CashSession> findForPeriod(@Param("companyId") UUID companyId, @Param("from") java.time.Instant from,
+                                             @Param("to") java.time.Instant to);
+
     @Query("select s from CashSession s where s.companyId = :companyId " +
             "and (:filterRegister = false or s.cashRegisterId = :cashRegisterId) " +
             "and (:filterStatus = false or s.status = :status)")

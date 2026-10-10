@@ -50,7 +50,7 @@ public final class CashDtos {
 
     public record CashMovementResponse(UUID id, Instant occurredAt, CashMovementType type, BigDecimal amount,
                                        BigDecimal signedAmount, UUID receiptId, String concept) {
-        static CashMovementResponse from(CashMovement movement) {
+        public static CashMovementResponse from(CashMovement movement) {
             return new CashMovementResponse(movement.getId(), movement.getOccurredAt(), movement.getType(),
                     movement.getAmount(), movement.signedAmount(), movement.getReceiptId(), movement.getConcept());
         }

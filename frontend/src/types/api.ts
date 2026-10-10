@@ -251,6 +251,8 @@ export interface Product {
   taxRate: number
   active: boolean
   createdAt: string
+  /** Código de barras (EAN-13, UPC o interno) que leen el TPV y el almacén. */
+  barcode?: string | null
 }
 
 export interface ProductInput {
@@ -266,6 +268,8 @@ export interface ProductInput {
   basePrice: number
   taxRate: number
   active: boolean
+  /** Sin enviar se conserva el guardado; vacío lo quita. */
+  barcode?: string | null
 }
 
 export type DocumentType = 'QUOTE' | 'SALES_ORDER' | 'DELIVERY_NOTE' | 'INVOICE' | 'RECTIFYING_INVOICE' | 'WORK_ORDER'
@@ -586,10 +590,13 @@ export interface StockMovement {
   unitCost: number | null
   costCurrencyCode: string | null
   occurredAt: string
-  sourceType: 'MANUAL' | 'TRANSFER' | 'PURCHASE_DOCUMENT' | 'SALES_DOCUMENT'
+  sourceType: 'MANUAL' | 'TRANSFER' | 'PURCHASE_DOCUMENT' | 'SALES_DOCUMENT' | 'POS_TICKET' | 'SCAN'
   sourceId: string | null
   sourceNumber: string | null
   note: string | null
+  /** Quién registró el movimiento; vacío en los anteriores a guardarlo y en los automáticos. */
+  performedByName?: string | null
+  reasonCode?: string | null
 }
 
 export type SalesDeliveryStatus = 'PENDING' | 'POSTED' | 'NOT_APPLICABLE' | 'REVERSED' | 'DISMISSED'

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { ToastProvider } from '../components/Toast'
 import { I18nProvider } from '../i18n/I18nProvider'
+import { RouterProvider } from '../routing/Router'
 import { InventoryPage } from './InventoryPage'
 
 const { api } = vi.hoisted(() => ({ api: vi.fn() }))
@@ -24,7 +25,7 @@ beforeEach(() => {
   })
 })
 
-const view = () => render(<I18nProvider><ToastProvider><InventoryPage /></ToastProvider></I18nProvider>)
+const view = () => render(<I18nProvider><RouterProvider><ToastProvider><InventoryPage /></ToastProvider></RouterProvider></I18nProvider>)
 const calls = (method: string, path: string) => api.mock.calls.filter(([url, init]) => url === path && init?.method === method)
 
 it('shows the stock per warehouse and only products in stock by default', async () => {

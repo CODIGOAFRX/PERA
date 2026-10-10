@@ -1,5 +1,5 @@
 import {
-  Boxes, Building2, Check, FileCheck2, FileText, HandCoins,
+  Boxes, Building2, Check, ClipboardList, FileCheck2, FileText, HandCoins, MonitorSmartphone, Scale,
   ListFilter, Printer, RefreshCw, Search, Settings2, Users, type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -13,11 +13,16 @@ import { useTranslation } from '../i18n/I18nProvider'
 import { apiFetch, errorMessage } from '../lib/api'
 import { formatCurrency, formatDate, formatDateTime, formatNumber } from '../lib/format'
 import { TableCaption } from '../components/TableCaption'
+import { ReportPeriodPicker } from '../components/ReportPeriodPicker'
+import { localIsoDate } from '../lib/date'
+import { browserTimeZone, type PosTicket } from '../lib/pos'
+import { reasonLabel } from '../lib/stockReasons'
+import { movementOrigin } from '../components/InventoryActivity'
 import type {
-  CommercialDocument, Customer, DueDate, PageResponse, Product, Supplier,
+  CommercialDocument, Customer, DueDate, FlatPage, PageResponse, Product, StockMovement, Supplier,
 } from '../types/api'
 
-export type ReportModuleId = 'customers' | 'suppliers' | 'products' | 'quotes' | 'sales' | 'receivables'
+export type ReportModuleId = 'customers' | 'suppliers' | 'products' | 'quotes' | 'sales' | 'receivables' | 'collections' | 'debtors' | 'posTickets' | 'stockMovements'
 export type ReportValue = string | number | boolean | null
 export type ReportRow = { id: string; currency?: string; [key: string]: ReportValue | undefined }
 
@@ -40,7 +45,7 @@ interface ReportModule {
   fields: ReportField[]
   defaultSort: string
   defaultDirection: SortDirection
-  filterKind: 'master' | 'quotes' | 'sales' | 'receivables'
+  filterKind: 'master' | 'quotes' | 'sales' | 'receivables' | 'collections' | 'debtors' | 'pos' | 'stock'
 }
 
 type SortDirection = 'asc' | 'desc'
@@ -52,6 +57,8 @@ interface ReportFilters {
   type: string
   fromDate: string
   toDate: string
+  /** Nombre del periodo elegido con los atajos (p. ej. «Trimestre 3 · 2026»). */
+  period: string
 }
 
 interface ReportSnapshot {
@@ -69,7 +76,7 @@ interface CompanyPrintSettings {
   displayName: string
 }
 
-const emptyFilters: ReportFilters = { query: '', active: '', status: '', type: '', fromDate: '', toDate: '' }
+const emptyFilters: ReportFilters = { query: '', active: '', status: '', type: '', fromDate: '', toDate: '', period: '' }
 const administrators: UserRoleCode[] = ['OWNER', 'ADMIN']
 
 const reportModules: ReportModule[] = [
@@ -133,6 +140,58 @@ const reportModules: ReportModule[] = [
       field('paidAmount', 'Cobrado', 'Paid', 'currency', true, true),
       field('outstandingAmount', 'Pendiente', 'Outstanding', 'currency', true, true),
       field('paymentStatus', 'Estado de cobro', 'Payment status', 'status', true),
+    ],
+  },
+  {
+    id: 'collections', icon: ClipboardList, label: ['Cobros: pagados y pendientes', 'Collections: paid and unpaid'],
+    description: ['Recibos por vencimiento: quién ha pagado, quién no y qué está vencido.', 'Receipts by due date: who paid, who did not and what is overdue.'],
+    roles: [...administrators, 'ECONOMY'], defaultSort: 'dueDate', defaultDirection: 'asc', filterKind: 'collections',
+    fields: [
+      field('receiptNumber', 'Recibo', 'Receipt', 'text', true), field('documentNumber', 'Factura', 'Invoice', 'text', true),
+      field('customerCode', 'Código cliente', 'Customer code', 'text'), field('customerName', 'Cliente', 'Customer', 'text', true),
+      field('dueDate', 'Vencimiento', 'Due date', 'date', true), field('collectionState', 'Situación', 'Situation', 'status', true),
+      field('daysOverdue', 'Días vencido', 'Days overdue', 'number', true), field('amount', 'Importe', 'Amount', 'currency', true, true),
+      field('paidAmount', 'Cobrado', 'Collected', 'currency', true, true), field('pendingAmount', 'Pendiente', 'Pending', 'currency', true, true),
+      field('collectionDate', 'Fecha de cobro', 'Collection date', 'date'), field('collectionMethod', 'Forma de cobro', 'Collection method', 'status'),
+      field('returnReason', 'Motivo de devolución', 'Return reason', 'text'), field('currency', 'Moneda', 'Currency', 'text'),
+    ],
+  },
+  {
+    id: 'debtors', icon: Scale, label: ['Deuda por cliente', 'Debt by customer'],
+    description: ['Facturado, cobrado, pendiente y vencido de cada cliente en el periodo.', 'Invoiced, collected, pending and overdue for each customer in the period.'],
+    roles: [...administrators, 'ECONOMY'], defaultSort: 'outstandingAmount', defaultDirection: 'desc', filterKind: 'debtors',
+    fields: [
+      field('customerCode', 'Código cliente', 'Customer code', 'text', true), field('customerName', 'Cliente', 'Customer', 'text', true),
+      field('invoiceCount', 'Facturas', 'Invoices', 'number', true), field('totalAmount', 'Facturado', 'Invoiced', 'currency', true, true),
+      field('paidAmount', 'Cobrado', 'Collected', 'currency', true, true), field('outstandingAmount', 'Pendiente', 'Pending', 'currency', true, true),
+      field('overdueAmount', 'Vencido', 'Overdue', 'currency', true, true), field('oldestDueDate', 'Vencimiento más antiguo', 'Oldest due date', 'date', true),
+      field('currency', 'Moneda', 'Currency', 'text'),
+    ],
+  },
+  {
+    id: 'posTickets', icon: MonitorSmartphone, label: ['Ventas TPV', 'POS sales'],
+    description: ['Tickets y devoluciones de caja con forma de pago e impuestos.', 'Till tickets and refunds with payment method and taxes.'],
+    roles: [...administrators, 'ECONOMY'], defaultSort: 'issuedAt', defaultDirection: 'desc', filterKind: 'pos',
+    fields: [
+      field('number', 'Ticket', 'Ticket', 'text', true), field('issuedAt', 'Fecha y hora', 'Date and time', 'datetime', true),
+      field('kind', 'Tipo', 'Type', 'status', true), field('registerName', 'Caja', 'Till', 'text', true), field('cashierName', 'Cajero', 'Cashier', 'text', true),
+      field('paymentMethod', 'Forma de pago', 'Payment method', 'status', true), field('customerName', 'Cliente', 'Customer', 'text'),
+      field('lineCount', 'Líneas', 'Lines', 'number'), field('taxBaseAmount', 'Base imponible', 'Tax base', 'currency', false, true),
+      field('taxAmount', 'IVA', 'VAT', 'currency', false, true), field('totalAmount', 'Total', 'Total', 'currency', true, true),
+      field('status', 'Estado', 'Status', 'status', true), field('originalTicketNumber', 'Ticket devuelto', 'Refunded ticket', 'text'),
+    ],
+  },
+  {
+    id: 'stockMovements', icon: Boxes, label: ['Movimientos de almacén', 'Stock movements'],
+    description: ['Entradas, salidas, mermas, ventas del TPV y escaneos con su autor y motivo.', 'Entries, exits, losses, POS sales and scans with author and reason.'],
+    roles: [...administrators, 'LOGISTICS'], defaultSort: 'occurredAt', defaultDirection: 'desc', filterKind: 'stock',
+    fields: [
+      field('occurredAt', 'Fecha y hora', 'Date and time', 'datetime', true), field('productCode', 'Código', 'Code', 'text', true),
+      field('productName', 'Producto', 'Product', 'text', true), field('warehouse', 'Almacén', 'Warehouse', 'text'),
+      field('type', 'Movimiento', 'Movement', 'status', true), field('quantity', 'Cantidad', 'Quantity', 'number', true, true),
+      field('balanceAfter', 'Saldo', 'Balance', 'number'), field('origin', 'Origen', 'Origin', 'text', true),
+      field('reason', 'Motivo', 'Reason', 'text', true), field('document', 'Documento', 'Document', 'text'),
+      field('performedBy', 'Quién', 'Who', 'text', true), field('note', 'Nota', 'Note', 'text'),
     ],
   },
 ]
@@ -227,7 +286,7 @@ export function ReportsPage() {
     if (!selectedModule || fieldKeys.length === 0) { setError(c.selectionRequired); return }
     setLoading(true); setError('')
     try {
-      const loaded = await loadReportRows(selectedModule.id, filters, settings.baseCurrency)
+      const loaded = await loadReportRows(selectedModule.id, filters, settings.baseCurrency, language)
       const searched = filterRows(loaded, filters.query)
       const rows = sortReportRows(searched, sortKey, direction, locale)
       setSnapshot({ moduleId: selectedModule.id, title: reportTitle.trim() || label(selectedModule.label, language), titleCustomized, fieldKeys, rows, generatedAt: new Date().toISOString(), filters: { ...filters } })
@@ -300,8 +359,13 @@ export function ReportsPage() {
               {selectedModule.filterKind === 'master' && <Field label={c.status} htmlFor="report-active"><select id="report-active" value={filters.active} onChange={(event) => setFilters((current) => ({ ...current, active: event.target.value }))}><option value="">{c.activeAll}</option><option value="true">{c.active}</option><option value="false">{c.inactive}</option></select></Field>}
               {selectedModule.filterKind === 'quotes' && <Field label={c.status} htmlFor="report-status"><select id="report-status" value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="">{c.allStatuses}</option>{['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'CONVERTED'].map((value) => <option key={value} value={value}>{statusLabel(value, language)}</option>)}</select></Field>}
               {selectedModule.filterKind === 'sales' && <><Field label={c.type} htmlFor="report-type"><select id="report-type" value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}><option value="">{c.allTypes}</option>{['SALES_ORDER', 'DELIVERY_NOTE', 'INVOICE', 'RECTIFYING_INVOICE', 'WORK_ORDER'].map((value) => <option key={value} value={value}>{statusLabel(value, language)}</option>)}</select></Field><Field label={c.status} htmlFor="report-status"><select id="report-status" value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="">{c.allStatuses}</option>{['DRAFT', 'CONFIRMED', 'CONVERTED', 'CANCELLED'].map((value) => <option key={value} value={value}>{statusLabel(value, language)}</option>)}</select></Field></>}
+              {selectedModule.filterKind === 'collections' && <Field label={c.status} htmlFor="report-status"><select id="report-status" value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="">{c.allStatuses}</option>{['PAID', 'UNPAID', 'OVERDUE', 'RETURNED'].map((value) => <option key={value} value={value}>{statusLabel(value, language)}</option>)}</select></Field>}
+              {selectedModule.filterKind === 'debtors' && <Field label={c.status} htmlFor="report-status"><select id="report-status" value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="">{language === 'es' ? 'Todos los clientes con facturas' : 'All customers with invoices'}</option><option value="UNPAID">{language === 'es' ? 'Solo con deuda pendiente' : 'Only with pending debt'}</option><option value="OVERDUE">{language === 'es' ? 'Solo con deuda vencida' : 'Only with overdue debt'}</option></select></Field>}
+              {selectedModule.filterKind === 'pos' && <Field label={c.type} htmlFor="report-type"><select id="report-type" value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}><option value="">{c.allTypes}</option>{['SALE', 'REFUND'].map((value) => <option key={value} value={value}>{statusLabel(value, language)}</option>)}</select></Field>}
+              {selectedModule.filterKind === 'stock' && <Field label={c.type} htmlFor="report-type"><select id="report-type" value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}><option value="">{c.allTypes}</option>{['PURCHASE_RECEIPT', 'PURCHASE_REVERSAL', 'SALES_ISSUE', 'SALES_RETURN', 'ADJUSTMENT_IN', 'ADJUSTMENT_OUT', 'TRANSFER_IN', 'TRANSFER_OUT'].map((value) => <option key={value} value={value}>{statusLabel(value, language)}</option>)}</select></Field>}
               {selectedModule.filterKind === 'receivables' && <Field label={c.status} htmlFor="report-status"><select id="report-status" value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}><option value="">{c.allStatuses}</option>{['PENDING', 'PARTIALLY_PAID'].map((value) => <option key={value} value={value}>{statusLabel(value, language)}</option>)}</select></Field>}
-              {selectedModule.filterKind !== 'master' && <><Field label={c.from} htmlFor="report-from"><input id="report-from" type="date" value={filters.fromDate} max={filters.toDate || undefined} onChange={(event) => setFilters((current) => ({ ...current, fromDate: event.target.value }))} /></Field><Field label={c.to} htmlFor="report-to"><input id="report-to" type="date" min={filters.fromDate || undefined} value={filters.toDate} onChange={(event) => setFilters((current) => ({ ...current, toDate: event.target.value }))} /></Field></>}
+              {selectedModule.filterKind !== 'master' && <ReportPeriodPicker key={selectedModule.id} language={language} onChange={(range, period) => setFilters((current) => ({ ...current, ...range, period }))} />}
+              {selectedModule.filterKind !== 'master' && <><Field label={c.from} htmlFor="report-from"><input id="report-from" type="date" value={filters.fromDate} max={filters.toDate || undefined} onChange={(event) => setFilters((current) => ({ ...current, fromDate: event.target.value, period: '' }))} /></Field><Field label={c.to} htmlFor="report-to"><input id="report-to" type="date" min={filters.fromDate || undefined} value={filters.toDate} onChange={(event) => setFilters((current) => ({ ...current, toDate: event.target.value, period: '' }))} /></Field></>}
               <Field label={c.sort} htmlFor="report-sort"><select id="report-sort" value={sortKey} onChange={(event) => setSortKey(event.target.value)}>{selectedModule.fields.map((item) => <option key={item.key} value={item.key}>{label(item.label, language)}</option>)}</select></Field>
               <Field label={c.direction} htmlFor="report-direction"><select id="report-direction" value={direction} onChange={(event) => setDirection(event.target.value as SortDirection)}><option value="asc">{c.ascending}</option><option value="desc">{c.descending}</option></select></Field>
             </div>
@@ -342,7 +406,7 @@ function ReportPreview({ snapshot, settings, language, locale, onPrint, onRefres
   </section>
 }
 
-async function loadReportRows(moduleId: ReportModuleId, filters: ReportFilters, baseCurrency: string): Promise<ReportRow[]> {
+async function loadReportRows(moduleId: ReportModuleId, filters: ReportFilters, baseCurrency: string, language: 'es' | 'en'): Promise<ReportRow[]> {
   if (moduleId === 'customers') {
     const items = await fetchAllPages<Customer>(withParameters('/api/v1/customers', { query: filters.query }))
     return items.filter((item) => filters.active === '' || String(item.active) === filters.active).map((item) => ({ id: item.id, currency: baseCurrency, createdAt: item.createdAt, code: item.code, legalName: item.legalName, tradeName: item.tradeName, taxId: item.taxId, phone: item.phone, email: item.email, creditLimit: item.creditLimit, riskWarningThreshold: item.riskWarningThreshold, riskPolicy: item.riskPolicy, observations: item.observations, active: item.active }))
@@ -363,6 +427,30 @@ async function loadReportRows(moduleId: ReportModuleId, filters: ReportFilters, 
     const items = await fetchAllPages<CommercialDocument>(withParameters('/api/v1/documents', { type: filters.type, status: filters.status, fromDate: filters.fromDate, toDate: filters.toDate }))
     return items.filter((item) => item.type !== 'QUOTE').map(documentRow)
   }
+  if (moduleId === 'collections') {
+    const receipts = await fetchAllPages<ReceiptRow>(withParameters('/api/v1/receipts', { dueFrom: filters.fromDate, dueTo: filters.toDate }))
+    return receipts.map((receipt) => collectionRow(receipt)).filter((row) => !filters.status || matchesCollectionFilter(row, filters.status))
+  }
+  if (moduleId === 'debtors') {
+    const invoices = await fetchAllPages<CommercialDocument>(withParameters('/api/v1/documents', { type: 'INVOICE', fromDate: filters.fromDate, toDate: filters.toDate }))
+    const issued = invoices.filter((invoice) => invoice.status !== 'DRAFT' && invoice.status !== 'CANCELLED')
+    const withDueDates = await mapConcurrent(issued, 8, async (invoice) => ({ invoice, dueDates: await apiFetch<DueDate[]>(`/api/v1/due-dates?documentId=${encodeURIComponent(invoice.id)}`) }))
+    return debtorRows(withDueDates, localIsoDate()).filter((row) => filters.status === 'OVERDUE' ? Number(row.overdueAmount) > 0 : filters.status === 'UNPAID' ? Number(row.outstandingAmount) > 0 : true)
+  }
+  if (moduleId === 'posTickets') {
+    const tickets = await fetchAllPages<PosTicket>(withParameters('/api/v1/pos/tickets', { from: filters.fromDate, to: filters.toDate, kind: filters.type, timeZone: browserTimeZone() }))
+    return tickets.map((ticket) => posTicketRow(ticket))
+  }
+  if (moduleId === 'stockMovements') {
+    const from = filters.fromDate ? new Date(`${filters.fromDate}T00:00:00`).toISOString() : ''
+    const toDate = filters.toDate ? new Date(`${filters.toDate}T00:00:00`) : null
+    if (toDate) toDate.setDate(toDate.getDate() + 1)
+    const [movements, warehouses] = await Promise.all([
+      fetchAllFlatPages<StockMovement>(withParameters('/api/v1/stock-movements', { occurredFrom: from, occurredTo: toDate ? toDate.toISOString() : '', type: filters.type })),
+      apiFetch<FlatPage<{ id: string; code: string }>>('/api/v1/warehouses?size=200').then((page) => page.content).catch(() => []),
+    ])
+    return movements.map((movement) => stockMovementRow(movement, warehouses.find((item) => item.id === movement.warehouseId)?.code ?? '', language))
+  }
   const invoices = await fetchAllPages<CommercialDocument>(withParameters('/api/v1/documents', { type: 'INVOICE', fromDate: filters.fromDate, toDate: filters.toDate }))
   const candidates = invoices.filter((invoice) => invoice.paymentStatus !== 'PAID' && invoice.paymentStatus !== 'NOT_APPLICABLE' && (!filters.status || invoice.paymentStatus === filters.status))
   const rows = await mapConcurrent(candidates, 8, async (invoice) => receivableRow(invoice, await apiFetch<DueDate[]>(`/api/v1/due-dates?documentId=${encodeURIComponent(invoice.id)}`)))
@@ -380,6 +468,97 @@ export function receivableRow(invoice: CommercialDocument, dueDates: DueDate[]):
   const outstandingAmount = activeDueDates.length ? activeDueDates.reduce((total, item) => total + Math.max(0, Number(item.amount) - Number(item.paidAmount)), 0) : invoice.paymentStatus === 'PAID' ? 0 : Number(invoice.totalAmount)
   const nextDueDate = unpaid.map((item) => item.dueDate).sort()[0] ?? invoice.dueDate
   return { id: invoice.id, number: invoice.number, customerCode: invoice.customerCode, customerName: invoice.customerName, issueDate: invoice.issueDate, dueDate: nextDueDate, currency: invoice.currency, totalAmount: invoice.totalAmount, paidAmount, outstandingAmount, paymentStatus: invoice.paymentStatus }
+}
+
+interface ReceiptRow {
+  id: string; receiptNumber: string; customerCode: string | null; customerName: string; documentNumber: string
+  amount: number; currencyCode: string; dueDate: string; status: 'PENDING' | 'REMITTED' | 'COLLECTED' | 'RETURNED' | 'CANCELLED'
+  collectionDate: string | null; collectionMethod: string | null; returnReason: string | null
+}
+
+/** Situación de un recibo para el listado de cobros: cobrado, pendiente, vencido o devuelto. */
+export function collectionRow(receipt: ReceiptRow, today = localIsoDate()): ReportRow {
+  const paid = receipt.status === 'COLLECTED'
+  const open = receipt.status === 'PENDING' || receipt.status === 'REMITTED'
+  const overdueDays = open && receipt.dueDate < today ? Math.round((new Date(`${today}T00:00:00`).getTime() - new Date(`${receipt.dueDate}T00:00:00`).getTime()) / 86_400_000) : 0
+  const state = receipt.status === 'CANCELLED' ? 'CANCELLED' : receipt.status === 'RETURNED' ? 'RETURNED' : paid ? 'PAID' : overdueDays > 0 ? 'OVERDUE' : receipt.status === 'REMITTED' ? 'REMITTED' : 'UNPAID'
+  return {
+    id: receipt.id, receiptNumber: receipt.receiptNumber, documentNumber: receipt.documentNumber, customerCode: receipt.customerCode,
+    customerName: receipt.customerName, dueDate: receipt.dueDate, collectionState: state, daysOverdue: overdueDays || null,
+    amount: receipt.status === 'CANCELLED' ? 0 : Number(receipt.amount), paidAmount: paid ? Number(receipt.amount) : 0,
+    pendingAmount: open || receipt.status === 'RETURNED' ? Number(receipt.amount) : 0, collectionDate: receipt.collectionDate,
+    collectionMethod: receipt.collectionMethod, returnReason: receipt.returnReason, currency: receipt.currencyCode,
+  }
+}
+
+function matchesCollectionFilter(row: ReportRow, filter: string) {
+  if (filter === 'PAID') return row.collectionState === 'PAID'
+  if (filter === 'OVERDUE') return row.collectionState === 'OVERDUE'
+  if (filter === 'RETURNED') return row.collectionState === 'RETURNED'
+  return row.collectionState === 'UNPAID' || row.collectionState === 'OVERDUE' || row.collectionState === 'REMITTED' || row.collectionState === 'RETURNED'
+}
+
+/** Deuda agregada por cliente a partir de sus facturas y vencimientos. */
+export function debtorRows(items: Array<{ invoice: CommercialDocument; dueDates: DueDate[] }>, today = localIsoDate()): ReportRow[] {
+  const byCustomer = new Map<string, ReportRow & { totalAmount: number; paidAmount: number; outstandingAmount: number; overdueAmount: number; invoiceCount: number }>()
+  for (const { invoice, dueDates } of items) {
+    const row = receivableRow(invoice, dueDates)
+    const active = dueDates.filter((item) => item.status !== 'CANCELLED')
+    const overdue = active.length
+      ? active.filter((item) => item.dueDate < today).reduce((sum, item) => sum + Math.max(0, Number(item.amount) - Number(item.paidAmount)), 0)
+      : invoice.paymentStatus !== 'PAID' && (invoice.dueDate ?? invoice.issueDate) < today ? Number(invoice.totalAmount) : 0
+    const key = `${invoice.customerCode ?? invoice.customerName}|${invoice.currency}`
+    const current = byCustomer.get(key) ?? { id: key, customerCode: invoice.customerCode, customerName: invoice.customerName, currency: invoice.currency, invoiceCount: 0, totalAmount: 0, paidAmount: 0, outstandingAmount: 0, overdueAmount: 0, oldestDueDate: null }
+    current.invoiceCount += 1
+    current.totalAmount += Number(invoice.totalAmount)
+    current.paidAmount += Number(row.paidAmount ?? 0)
+    current.outstandingAmount += Number(row.outstandingAmount ?? 0)
+    current.overdueAmount += overdue
+    if (Number(row.outstandingAmount ?? 0) > 0 && row.dueDate && (!current.oldestDueDate || String(row.dueDate) < String(current.oldestDueDate))) current.oldestDueDate = row.dueDate
+    byCustomer.set(key, current)
+  }
+  return [...byCustomer.values()].map((row) => ({ ...row, totalAmount: round(row.totalAmount), paidAmount: round(row.paidAmount), outstandingAmount: round(row.outstandingAmount), overdueAmount: round(row.overdueAmount) }))
+}
+
+function posTicketRow(ticket: PosTicket): ReportRow {
+  const sign = ticket.kind === 'REFUND' ? -1 : 1
+  const counted = ticket.status === 'VOIDED' ? 0 : sign
+  return {
+    id: ticket.id, number: ticket.number, issuedAt: ticket.issuedAt, kind: ticket.kind, registerName: ticket.registerName,
+    cashierName: ticket.cashierName, paymentMethod: ticket.paymentMethod, customerName: ticket.customerName,
+    lineCount: ticket.lines.length, taxBaseAmount: counted * Number(ticket.taxBaseAmount), taxAmount: counted * Number(ticket.taxAmount),
+    totalAmount: counted * Number(ticket.totalAmount), status: ticket.status, originalTicketNumber: ticket.originalTicketNumber, currency: ticket.currencyCode,
+  }
+}
+
+function stockMovementRow(movement: StockMovement, warehouse: string, language: 'es' | 'en'): ReportRow {
+  const inbound = ['PURCHASE_RECEIPT', 'ADJUSTMENT_IN', 'TRANSFER_IN', 'SALES_RETURN'].includes(movement.type)
+  return {
+    id: movement.id, occurredAt: movement.occurredAt, productCode: movement.productCode, productName: movement.productName, warehouse,
+    type: movement.type, quantity: (inbound ? 1 : -1) * Number(movement.quantity), balanceAfter: Number(movement.balanceAfter),
+    origin: movementOrigin(movement, language), reason: reasonLabel(movement.reasonCode, language) || null,
+    document: movement.sourceNumber, performedBy: movement.performedByName ?? null, note: movement.note,
+  }
+}
+
+const round = (value: number) => Math.round(value * 100) / 100
+
+/** Listados de operations-service: devuelven la página plana ({content, totalPages}). */
+async function fetchAllFlatPages<T>(path: string): Promise<T[]> {
+  const url = new URL(path, window.location.origin)
+  const rows: T[] = []
+  let page = 0
+  let totalPages = 1
+  do {
+    url.searchParams.set('page', String(page))
+    url.searchParams.set('size', '500')
+    const response = await apiFetch<FlatPage<T>>(`${url.pathname}${url.search}`)
+    rows.push(...response.content)
+    totalPages = response.totalPages
+    page += 1
+    if (page > 100) throw new Error('El informe supera el límite operativo de 50.000 registros.')
+  } while (page < totalPages)
+  return rows
 }
 
 export function sortReportRows(rows: ReportRow[], key: string, direction: SortDirection, locale: string): ReportRow[] {
@@ -458,6 +637,11 @@ function statusLabel(value: string, language: 'es' | 'en') {
     SALES_ORDER: ['Pedido de venta', 'Sales order'], DELIVERY_NOTE: ['Albarán', 'Delivery note'], INVOICE: ['Factura', 'Invoice'], RECTIFYING_INVOICE: ['Factura rectificativa', 'Corrective invoice'], WORK_ORDER: ['Parte de trabajo', 'Work order'], QUOTE: ['Presupuesto', 'Quote'],
     UNIT: ['Unidad', 'Unit'], METER: ['Metro', 'Metre'], SQUARE_METER: ['Metro cuadrado', 'Square metre'], CUBIC_METER: ['Metro cúbico', 'Cubic metre'], KILOGRAM: ['Kilogramo', 'Kilogram'], LITER: ['Litro', 'Litre'], HOUR: ['Hora', 'Hour'],
     WARN: ['Avisar', 'Warn'], REQUIRE_CONFIRMATION: ['Requiere confirmación', 'Requires confirmation'], BLOCK: ['Bloquear', 'Block'],
+    UNPAID: ['Pendiente', 'Unpaid'], OVERDUE: ['Vencido', 'Overdue'], RETURNED: ['Devuelto', 'Returned'], REMITTED: ['En remesa', 'In remittance'],
+    COLLECTED: ['Cobrado', 'Collected'], SALE: ['Venta', 'Sale'], REFUND: ['Devolución', 'Refund'], COMPLETED: ['Completado', 'Completed'], VOIDED: ['Anulado', 'Voided'],
+    CASH: ['Efectivo', 'Cash'], CARD: ['Tarjeta', 'Card'], MIXED: ['Mixto', 'Mixed'], BANK_TRANSFER: ['Transferencia', 'Bank transfer'], DIRECT_DEBIT: ['Domiciliación', 'Direct debit'], CHEQUE: ['Cheque', 'Cheque'], OTHER: ['Otro', 'Other'],
+    PURCHASE_RECEIPT: ['Entrada de compra', 'Purchase receipt'], PURCHASE_REVERSAL: ['Anulación de compra', 'Purchase reversal'], ADJUSTMENT_IN: ['Entrada / ajuste', 'Entry / adjustment'], ADJUSTMENT_OUT: ['Salida / ajuste', 'Exit / adjustment'],
+    TRANSFER_IN: ['Traspaso recibido', 'Transfer in'], TRANSFER_OUT: ['Traspaso enviado', 'Transfer out'], SALES_ISSUE: ['Salida de venta', 'Sales issue'], SALES_RETURN: ['Devolución de venta', 'Sales return'],
   }
   return values[value]?.[language === 'es' ? 0 : 1] ?? value
 }
@@ -468,8 +652,9 @@ function filterDescription(filters: ReportFilters, module: ReportModule, languag
   if (filters.active) values.push(filters.active === 'true' ? copy[language].active : copy[language].inactive)
   if (filters.status) values.push(`${copy[language].status}: ${statusLabel(filters.status, language)}`)
   if (filters.type) values.push(`${copy[language].type}: ${statusLabel(filters.type, language)}`)
-  if (filters.fromDate) values.push(`${copy[language].from}: ${formatDate(filters.fromDate, language === 'es' ? 'es-ES' : 'en-GB')}`)
-  if (filters.toDate) values.push(`${copy[language].to}: ${formatDate(filters.toDate, language === 'es' ? 'es-ES' : 'en-GB')}`)
+  if (filters.fromDate && !filters.period) values.push(`${copy[language].from}: ${formatDate(filters.fromDate, language === 'es' ? 'es-ES' : 'en-GB')}`)
+  if (filters.period) values.push(`${language === 'es' ? 'Periodo' : 'Period'}: ${filters.period}`)
+  else if (filters.toDate) values.push(`${copy[language].to}: ${formatDate(filters.toDate, language === 'es' ? 'es-ES' : 'en-GB')}`)
   if (!values.length && module.filterKind === 'receivables') return language === 'es' ? 'Todas las facturas con saldo pendiente.' : 'All invoices with an outstanding balance.'
   return values.join(' · ') || copy[language].noFilters
 }

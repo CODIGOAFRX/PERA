@@ -63,6 +63,7 @@ public class ProductService {
                 request.description(), productTypeId, request.productGroupId(), request.taxCodeId(),
                 request.familyId(), request.categoryId(), request.unitOfMeasure(), request.basePrice(),
                 effectiveTaxRate);
+        product.changeBarcode(resolveBarcode(companyId, null, request.barcode(), null));
         return ProductResponse.from(repository.save(product));
     }
 
@@ -96,7 +97,43 @@ public class ProductService {
         product.update(request.name().trim(), request.description(), productTypeId, request.productGroupId(),
                 request.taxCodeId(), request.familyId(), request.categoryId(), request.unitOfMeasure(),
                 request.basePrice(), effectiveTaxRate, request.active());
+        product.changeBarcode(resolveBarcode(product.getCompanyId(), product.getId(), request.barcode(),
+                product.getBarcode()));
         return ProductResponse.from(product);
+    }
+
+    @Transactional(readOnly = true)
+    public ProductResponse lookup(String scannedCode) {
+        String code = scannedCode == null ? "" : scannedCode.trim();
+        if (code.isEmpty()) {
+            throw new BusinessRuleException("Indica el código leído.");
+        }
+        UUID companyId = companyProvider.requireCompanyId();
+        return repository.findFirstByCompanyIdAndBarcodeIgnoreCase(companyId, code)
+                .or(() -> repository.findFirstByCompanyIdAndCodeIgnoreCase(companyId, code))
+                .map(ProductResponse::from)
+                .orElseThrow(() -> new ResourceNotFoundException("Artículo con el código", code));
+    }
+
+    /**
+     * Nulo conserva el código de barras actual (formularios y clientes antiguos no lo envían) y una
+     * cadena vacía lo quita. Dos artículos de la empresa no pueden compartir código de barras.
+     */
+    private String resolveBarcode(UUID companyId, UUID productId, String requested, String current) {
+        if (requested == null) {
+            return current;
+        }
+        String barcode = requested.trim();
+        if (barcode.isEmpty()) {
+            return null;
+        }
+        repository.findFirstByCompanyIdAndBarcodeIgnoreCase(companyId, barcode)
+                .filter(other -> !other.getId().equals(productId))
+                .ifPresent(other -> {
+                    throw new BusinessRuleException("El código de barras " + barcode + " ya es del artículo "
+                            + other.getCode() + ".");
+                });
+        return barcode;
     }
 
     private UUID resolveProductType(UUID companyId, UUID requestedTypeId, UUID productGroupId) {

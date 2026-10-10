@@ -59,6 +59,8 @@ class SalesDeliveryServiceTest {
     @Mock StockMovementRepository movementRepository;
     @Mock StockService stockService;
     @Mock CurrentCompanyProvider companyProvider;
+    @Mock PosTicketSyncRepository posSyncRepository;
+    @Mock PosTicketDeliveryClient posClient;
 
     private final Map<UUID, SalesDelivery> deliveries = new HashMap<>();
     private final Map<UUID, List<SalesDeliveryLine>> linesByDelivery = new HashMap<>();
@@ -282,6 +284,47 @@ class SalesDeliveryServiceTest {
         assertThat(posted.status()).isEqualTo(SalesDeliveryStatus.POSTED);
         assertThat(posted.lines()).hasSize(1);
         assertThatThrownBy(() -> service.dismiss(delivery.getId())).isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    void aPointOfSaleTicketGoesOutOfStockAndAReturnComesBackIn() {
+        SalesDeliveryService withPos = new SalesDeliveryService(repository, lineRepository, syncRepository, client,
+                warehouseRepository, levelRepository, movementRepository, stockService, companyProvider,
+                posSyncRepository, posClient);
+        when(posSyncRepository.findByCompanyId(companyId)).thenReturn(Optional.of(new PosTicketSync(companyId, STARTED)));
+        when(client.findUpdatedSince(eq(companyId), any())).thenReturn(Optional.of(List.of()));
+        stock(tracked, "10");
+        SalesDeliverySnapshot ticket = new SalesDeliverySnapshot(UUID.randomUUID(), "T2026-CAJA1-000001",
+                "POS_TICKET", "COMPLETED", LocalDate.of(2026, 10, 10), null, "TPV CAJA1", STARTED.plusSeconds(60),
+                List.of(line(1, tracked, "P-1", "2")));
+        SalesDeliverySnapshot refund = new SalesDeliverySnapshot(UUID.randomUUID(), "D2026-CAJA1-000001",
+                "POS_RETURN", "COMPLETED", LocalDate.of(2026, 10, 10), null, "TPV CAJA1", STARTED.plusSeconds(120),
+                List.of(line(1, tracked, "P-1", "1")));
+        when(posClient.findUpdatedSince(eq(companyId), any())).thenReturn(Optional.of(List.of(ticket, refund)));
+
+        withPos.synchronize(companyId);
+
+        ArgumentCaptor<StockPosting> posting = ArgumentCaptor.forClass(StockPosting.class);
+        verify(stockService, times(2)).post(eq(companyId), posting.capture());
+        assertThat(posting.getAllValues()).extracting(StockPosting::type)
+                .containsExactlyInAnyOrder(StockMovementType.SALES_ISSUE, StockMovementType.SALES_RETURN);
+        assertThat(posting.getAllValues()).extracting(StockPosting::sourceType)
+                .containsOnly(StockSourceType.POS_TICKET);
+        assertThat(deliveries.values()).extracting(SalesDelivery::getStatus).containsOnly(SalesDeliveryStatus.POSTED);
+    }
+
+    @Test
+    void theFirstPointOfSaleReadOnlyStartsCounting() {
+        SalesDeliveryService withPos = new SalesDeliveryService(repository, lineRepository, syncRepository, client,
+                warehouseRepository, levelRepository, movementRepository, stockService, companyProvider,
+                posSyncRepository, posClient);
+        when(posSyncRepository.findByCompanyId(companyId)).thenReturn(Optional.empty());
+        when(client.findUpdatedSince(eq(companyId), any())).thenReturn(Optional.of(List.of()));
+
+        withPos.synchronize(companyId);
+
+        verify(posSyncRepository).save(any(PosTicketSync.class));
+        verify(posClient, never()).findUpdatedSince(any(), any());
     }
 
     private StockLevel stock(UUID productId, String quantity) {

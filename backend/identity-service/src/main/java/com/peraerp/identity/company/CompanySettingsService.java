@@ -32,7 +32,7 @@ public class CompanySettingsService {
     @Transactional
     public CompanySettingsResponse findCurrent() {
         UUID companyId = companyProvider.requireCompanyId();
-        return CompanySettingsResponse.from(requireOrCreate(companyId));
+        return CompanySettingsResponse.from(requireOrCreate(companyId), companyRepository.findById(companyId).orElse(null));
     }
 
     @Transactional
@@ -47,7 +47,7 @@ public class CompanySettingsService {
                 nullable(request.replyToEmail()), nullable(request.phone()), nullable(request.website()),
                 nullable(request.addressLine1()), nullable(request.addressLine2()), nullable(request.postalCode()),
                 nullable(request.city()), nullable(request.region()));
-        return CompanySettingsResponse.from(settings);
+        return CompanySettingsResponse.from(settings, companyRepository.findById(companyId).orElse(null));
     }
 
     private CompanySettings requireOrCreate(UUID companyId) {

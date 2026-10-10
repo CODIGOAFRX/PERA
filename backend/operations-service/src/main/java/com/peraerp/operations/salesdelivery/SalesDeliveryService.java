@@ -13,6 +13,7 @@ import com.peraerp.operations.inventory.Warehouse;
 import com.peraerp.operations.inventory.WarehouseRepository;
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -61,12 +62,27 @@ public class SalesDeliveryService {
     private final StockMovementRepository movementRepository;
     private final StockService stockService;
     private final CurrentCompanyProvider companyProvider;
+    private final PosTicketSyncRepository posSyncRepository;
+    private final PosTicketDeliveryClient posClient;
 
     public SalesDeliveryService(SalesDeliveryRepository repository, SalesDeliveryLineRepository lineRepository,
                                 SalesDeliverySyncRepository syncRepository, SalesDeliveryClient client,
                                 WarehouseRepository warehouseRepository, StockLevelRepository levelRepository,
                                 StockMovementRepository movementRepository, StockService stockService,
                                 CurrentCompanyProvider companyProvider) {
+        this(repository, lineRepository, syncRepository, client, warehouseRepository, levelRepository,
+                movementRepository, stockService, companyProvider, null, null);
+    }
+
+    @Autowired
+    public SalesDeliveryService(SalesDeliveryRepository repository, SalesDeliveryLineRepository lineRepository,
+                                SalesDeliverySyncRepository syncRepository, SalesDeliveryClient client,
+                                WarehouseRepository warehouseRepository, StockLevelRepository levelRepository,
+                                StockMovementRepository movementRepository, StockService stockService,
+                                CurrentCompanyProvider companyProvider, PosTicketSyncRepository posSyncRepository,
+                                PosTicketDeliveryClient posClient) {
+        this.posSyncRepository = posSyncRepository;
+        this.posClient = posClient;
         this.repository = repository;
         this.lineRepository = lineRepository;
         this.syncRepository = syncRepository;
@@ -83,31 +99,66 @@ public class SalesDeliveryService {
         synchronize(companyProvider.requireCompanyId());
     }
 
-    /** Lee las entregas nuevas de Ventas y reintenta las que seguían pendientes. Es idempotente. */
+    /**
+     * Lee las entregas nuevas de Ventas y los tickets nuevos del TPV, y reintenta las salidas que
+     * seguían pendientes. Es idempotente.
+     */
     @Transactional
     public void synchronize(UUID companyId) {
+        boolean salesRead = readSales(companyId);
+        boolean posRead = readPointOfSale(companyId);
+        if (!salesRead && !posRead) {
+            return;
+        }
+        Warehouse defaultWarehouse = warehouseRepository.findByCompanyIdAndDefaultWarehouseTrue(companyId)
+                .filter(Warehouse::isActive).orElse(null);
+        for (SalesDelivery pending : repository.findAllByCompanyIdAndStatusOrderBySourceDateAscCreatedAtAsc(
+                companyId, SalesDeliveryStatus.PENDING)) {
+            tryPost(pending, defaultWarehouse);
+        }
+    }
+
+    private boolean readSales(UUID companyId) {
         Optional<SalesDeliverySync> existing = syncRepository.findByCompanyId(companyId);
         if (existing.isEmpty()) {
             // Primera vez: se empieza a contar desde ahora. El histórico de ventas no se descuenta.
             syncRepository.save(new SalesDeliverySync(companyId, Instant.now()));
-            return;
+            return false;
         }
         SalesDeliverySync sync = existing.get();
         Optional<List<SalesDeliverySnapshot>> snapshots = client.findUpdatedSince(companyId,
                 sync.getLastSourceUpdate().minus(OVERLAP));
         if (snapshots.isEmpty()) {
-            return;
+            return false;
         }
-        Warehouse defaultWarehouse = warehouseRepository.findByCompanyIdAndDefaultWarehouseTrue(companyId)
-                .filter(Warehouse::isActive).orElse(null);
         for (SalesDeliverySnapshot snapshot : snapshots.get()) {
             apply(companyId, snapshot);
             sync.advanceTo(snapshot.updatedAt());
         }
-        for (SalesDelivery pending : repository.findAllByCompanyIdAndStatusOrderBySourceDateAscCreatedAtAsc(
-                companyId, SalesDeliveryStatus.PENDING)) {
-            tryPost(pending, defaultWarehouse);
+        return true;
+    }
+
+    /** Lo mismo con los tickets del TPV, con su propia marca de lectura. */
+    private boolean readPointOfSale(UUID companyId) {
+        if (posClient == null || posSyncRepository == null) {
+            return false;
         }
+        Optional<PosTicketSync> existing = posSyncRepository.findByCompanyId(companyId);
+        if (existing.isEmpty()) {
+            posSyncRepository.save(new PosTicketSync(companyId, Instant.now()));
+            return false;
+        }
+        PosTicketSync sync = existing.get();
+        Optional<List<SalesDeliverySnapshot>> snapshots = posClient.findUpdatedSince(companyId,
+                sync.getLastSourceUpdate().minus(OVERLAP));
+        if (snapshots.isEmpty()) {
+            return false;
+        }
+        for (SalesDeliverySnapshot snapshot : snapshots.get()) {
+            apply(companyId, snapshot);
+            sync.advanceTo(snapshot.updatedAt());
+        }
+        return true;
     }
 
     @Transactional(readOnly = true)
@@ -198,6 +249,21 @@ public class SalesDeliveryService {
             delivery.reportProblem("No hay un almacén predeterminado activo desde el que dar la salida.");
             return;
         }
+        if (isPosReturn(delivery)) {
+            // Una devolución en el TPV vuelve a entrar en el almacén: no puede faltar nada.
+            for (Map.Entry<UUID, BigDecimal> entry : required.entrySet()) {
+                StockLevel level = levelRepository.findForUpdate(companyId, warehouse.getId(), entry.getKey())
+                        .orElse(null);
+                String code = level == null ? codes.get(entry.getKey()) : level.getProductCodeSnapshot();
+                String name = level == null ? codes.get(entry.getKey()) : level.getProductNameSnapshot();
+                String unit = level == null ? unitOf(companyId, entry.getKey()) : level.getUnitOfMeasureSnapshot();
+                stockService.post(companyId, new StockPosting(warehouse.getId(), entry.getKey(), code, name, unit,
+                        StockMovementType.SALES_RETURN, entry.getValue(), null, null, StockSourceType.POS_TICKET,
+                        delivery.getSourceDocumentId(), delivery.getSourceNumber(), "Devolución en el TPV"));
+            }
+            delivery.markPosted(warehouse.getId(), Instant.now());
+            return;
+        }
         Map<UUID, StockLevel> levels = new TreeMap<>();
         List<String> shortages = new ArrayList<>();
         for (Map.Entry<UUID, BigDecimal> entry : required.entrySet()) {
@@ -220,7 +286,7 @@ public class SalesDeliveryService {
             StockLevel level = levels.get(entry.getKey());
             stockService.post(companyId, new StockPosting(warehouse.getId(), entry.getKey(),
                     level.getProductCodeSnapshot(), level.getProductNameSnapshot(), level.getUnitOfMeasureSnapshot(),
-                    StockMovementType.SALES_ISSUE, entry.getValue(), null, null, StockSourceType.SALES_DOCUMENT,
+                    StockMovementType.SALES_ISSUE, entry.getValue(), null, null, stockSource(delivery),
                     delivery.getSourceDocumentId(), delivery.getSourceNumber(), null));
         }
         delivery.markPosted(warehouse.getId(), Instant.now());
@@ -230,11 +296,11 @@ public class SalesDeliveryService {
     private void reverse(SalesDelivery delivery) {
         UUID companyId = delivery.getCompanyId();
         for (StockMovement issue : movementRepository.findAllByCompanyIdAndSourceTypeAndSourceIdAndType(companyId,
-                StockSourceType.SALES_DOCUMENT, delivery.getSourceDocumentId(), StockMovementType.SALES_ISSUE)) {
+                stockSource(delivery), delivery.getSourceDocumentId(), StockMovementType.SALES_ISSUE)) {
             stockService.post(companyId, new StockPosting(issue.getWarehouseId(), issue.getProductId(),
                     issue.getProductCodeSnapshot(), issue.getProductNameSnapshot(), issue.getUnitOfMeasureSnapshot(),
                     StockMovementType.SALES_RETURN, issue.getQuantity(), null, null,
-                    StockSourceType.SALES_DOCUMENT, delivery.getSourceDocumentId(), delivery.getSourceNumber(),
+                    stockSource(delivery), delivery.getSourceDocumentId(), delivery.getSourceNumber(),
                     "Venta anulada"));
         }
         delivery.markReversed();
@@ -262,6 +328,21 @@ public class SalesDeliveryService {
                 lines(delivery).stream().map(line -> new SalesDeliveryLineResponse(line.getLineSequence(),
                         line.getProductId(), line.getProductCodeSnapshot(), line.getDescription(),
                         line.getQuantity())).toList());
+    }
+
+    private static boolean isPosReturn(SalesDelivery delivery) {
+        return "POS_RETURN".equals(delivery.getSourceType());
+    }
+
+    private static StockSourceType stockSource(SalesDelivery delivery) {
+        return delivery.getSourceType() != null && delivery.getSourceType().startsWith("POS_")
+                ? StockSourceType.POS_TICKET : StockSourceType.SALES_DOCUMENT;
+    }
+
+    /** Unidad con la que se lleva el producto en cualquier almacén, para dar entrada a una devolución. */
+    private String unitOf(UUID companyId, UUID productId) {
+        return levelRepository.findFirstByCompanyIdAndProductId(companyId, productId)
+                .map(StockLevel::getUnitOfMeasureSnapshot).orElse("UNIT");
     }
 
     private static String plain(BigDecimal value) {

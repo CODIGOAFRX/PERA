@@ -48,6 +48,15 @@ public class StockMovement extends CompanyScopedEntity {
     private String sourceNumberSnapshot;
     @Column(length = 500, updatable = false)
     private String note;
+    @Column(name = "performed_by", updatable = false)
+    private UUID performedBy;
+    @Column(name = "performed_by_name", length = 160, updatable = false)
+    private String performedByName;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reason_code", length = 30, updatable = false)
+    private StockReason reasonCode;
+    @Column(name = "client_reference", updatable = false)
+    private UUID clientReference;
 
     protected StockMovement() {
     }
@@ -73,6 +82,16 @@ public class StockMovement extends CompanyScopedEntity {
         this.note = note;
     }
 
+    /** Autor, motivo y referencia del dispositivo. Solo se fijan al crear el apunte. */
+    public StockMovement attribute(UUID performedBy, String performedByName, StockReason reasonCode,
+                                   UUID clientReference) {
+        this.performedBy = performedBy;
+        this.performedByName = performedByName;
+        this.reasonCode = reasonCode;
+        this.clientReference = clientReference;
+        return this;
+    }
+
     public UUID getWarehouseId() { return warehouseId; }
     public UUID getProductId() { return productId; }
     public String getProductCodeSnapshot() { return productCodeSnapshot; }
@@ -88,4 +107,8 @@ public class StockMovement extends CompanyScopedEntity {
     public UUID getSourceId() { return sourceId; }
     public String getSourceNumberSnapshot() { return sourceNumberSnapshot; }
     public String getNote() { return note; }
+    public UUID getPerformedBy() { return performedBy; }
+    public String getPerformedByName() { return performedByName; }
+    public StockReason getReasonCode() { return reasonCode; }
+    public UUID getClientReference() { return clientReference; }
 }

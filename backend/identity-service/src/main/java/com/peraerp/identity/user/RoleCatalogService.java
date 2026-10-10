@@ -10,7 +10,8 @@ import java.util.List;
 @Service
 public class RoleCatalogService {
 
-    private static final List<String> PROFILE_ORDER = List.of("OWNER", "ADMIN", "ECONOMY", "LOGISTICS", "CATALOG");
+    private static final List<String> PROFILE_ORDER = List.of("OWNER", "ADMIN", "ECONOMY", "LOGISTICS", "CATALOG",
+            "CASHIER", "WAREHOUSE");
 
     private final RoleRepository roleRepository;
     private final CurrentCompanyProvider companyProvider;

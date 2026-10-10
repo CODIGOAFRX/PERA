@@ -13,9 +13,12 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Optional<Product> findByIdAndCompanyId(UUID id, UUID companyId);
     boolean existsByCompanyIdAndCodeIgnoreCase(UUID companyId, String code);
     boolean existsByCompanyIdAndProductGroupId(UUID companyId, UUID productGroupId);
+    Optional<Product> findFirstByCompanyIdAndBarcodeIgnoreCase(UUID companyId, String barcode);
+    Optional<Product> findFirstByCompanyIdAndCodeIgnoreCase(UUID companyId, String code);
 
     @Query("select p from Product p where p.companyId = :companyId and (:query is null " +
             "or lower(p.code) like lower(concat('%', :query, '%')) " +
-            "or lower(p.name) like lower(concat('%', :query, '%')))")
+            "or lower(p.name) like lower(concat('%', :query, '%')) " +
+            "or lower(p.barcode) like lower(concat('%', :query, '%')))")
     Page<Product> search(@Param("companyId") UUID companyId, @Param("query") String query, Pageable pageable);
 }

@@ -14,6 +14,8 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
 
     boolean existsByCompanyIdAndWarehouseId(UUID companyId, UUID warehouseId);
 
+    java.util.Optional<StockMovement> findByCompanyIdAndClientReference(UUID companyId, UUID clientReference);
+
     List<StockMovement> findAllByCompanyIdAndSourceTypeAndSourceIdAndType(UUID companyId, StockSourceType sourceType,
                                                                           UUID sourceId, StockMovementType type);
 
@@ -23,6 +25,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
             "and (:filterType = false or m.type = :type) " +
             "and (:filterFrom = false or m.occurredAt >= :occurredFrom) " +
             "and (:filterTo = false or m.occurredAt < :occurredTo) " +
+            "and (:filterUser = false or m.performedBy = :performedBy) " +
             "and (:filterQuery = false or lower(m.productCodeSnapshot) like lower(concat('%', :query, '%')) " +
             "or lower(m.productNameSnapshot) like lower(concat('%', :query, '%')) " +
             "or lower(m.sourceNumberSnapshot) like lower(concat('%', :query, '%')))")
@@ -33,6 +36,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, UU
                                @Param("filterType") boolean filterType, @Param("type") StockMovementType type,
                                @Param("filterFrom") boolean filterFrom, @Param("occurredFrom") Instant occurredFrom,
                                @Param("filterTo") boolean filterTo, @Param("occurredTo") Instant occurredTo,
+                               @Param("filterUser") boolean filterUser, @Param("performedBy") UUID performedBy,
                                @Param("filterQuery") boolean filterQuery, @Param("query") String query,
                                Pageable pageable);
 }
