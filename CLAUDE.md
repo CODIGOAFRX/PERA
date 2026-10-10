@@ -67,6 +67,10 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Registro de entregas
 
+### v20261010.Raul — datos demo del TPV en una instalación nueva
+
+- `scripts/seed-demo-tpv-almacen.mjs` necesitaba las cajas `DEMO-CAJA-1` y `DEMO-CAJA-2`, que nada creaba: en un repositorio recién clonado no vendía ningún ticket. Ahora las crea si faltan.
+
 ### v20261010.Pedro.2 — TPV, almacén móvil, etiquetas y listados por periodo
 
 - **TPV** `/tpv` sobre las cajas de Cartera ([docs/28](docs/28-tpv-almacen-movil-etiquetas-listados.md)): selector de caja, venta con escáner/cámara, cobro en efectivo, tarjeta o mixto con cambio, ticket de 80 mm, aparcados, anulación, devoluciones, entradas y salidas de efectivo, arqueo por billetes e informes X/Z. Finance `V7`. Las ventas descuentan existencias con la sincronización de salidas de Operations (aviso inmediato y lectura periódica).

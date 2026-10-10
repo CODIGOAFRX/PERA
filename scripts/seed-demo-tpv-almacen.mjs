@@ -213,6 +213,15 @@ async function seedStock(admin, products) {
   return { central, secondary }
 }
 
+async function ensureRegisters(admin) {
+  const existing = await admin('GET', '/api/v1/cash-registers')
+  for (const [code, name] of [['DEMO-CAJA-1', 'Caja 1 (mostrador)'], ['DEMO-CAJA-2', 'Caja 2 (tienda)']]) {
+    if (existing.some((item) => item.code === code)) continue
+    await admin('POST', '/api/v1/cash-registers', { code, name, ownerName: null, active: true })
+    console.log(`Caja ${code} creada.`)
+  }
+}
+
 async function sellTickets(cashier, registerCode, products, count, openingAmount) {
   const registers = await cashier('GET', '/api/v1/pos/registers')
   const register = registers.find((item) => item.code === registerCode)
@@ -254,6 +263,9 @@ async function main() {
   // Abre la marca de lectura de tickets en el almacén antes de vender, para que estas ventas descuenten.
   await admin('GET', '/api/v1/sales-deliveries?size=1')
   await sleep(1500)
+
+  // En una instalación recién clonada las cajas demo no existen: se crean aquí, como haría el administrador en Cartera.
+  await ensureRegisters(admin)
 
   const cajero1 = client(await login('cajero1'))
   const caja1 = await sellTickets(cajero1, 'DEMO-CAJA-1', products, 14, 150)
