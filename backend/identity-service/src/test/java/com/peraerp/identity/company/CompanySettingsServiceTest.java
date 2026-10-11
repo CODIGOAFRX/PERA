@@ -94,6 +94,54 @@ class CompanySettingsServiceTest {
                 .hasMessageContaining("ISO 4217");
     }
 
+    @Test
+    void savesTheLegalNameAndTaxIdThatTicketsAndInvoicesPrint() {
+        Company company = new Company("DEMO", "PERA ERP Demo", "B00000000");
+        when(settingsRepository.findByCompanyId(companyId)).thenReturn(Optional.of(CompanySettings.defaults(companyId, "Demo")));
+        when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+
+        CompanySettingsResponse response = service.updateCurrent(fiscal(" Cristalería Ejemplo S.L. ", "b-75777847"));
+
+        assertThat(company.getName()).isEqualTo("Cristalería Ejemplo S.L.");
+        assertThat(company.getTaxId()).isEqualTo("B75777847");
+        assertThat(response.legalName()).isEqualTo("Cristalería Ejemplo S.L.");
+        assertThat(response.taxId()).isEqualTo("B75777847");
+        assertThat(company.isActive()).isTrue();
+    }
+
+    @Test
+    void rejectsAMistypedSpanishTaxIdAndAnEmptyLegalName() {
+        Company company = new Company("DEMO", "PERA ERP Demo", "B00000000");
+        when(settingsRepository.findByCompanyId(companyId)).thenReturn(Optional.of(CompanySettings.defaults(companyId, "Demo")));
+        when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+
+        assertThatThrownBy(() -> service.updateCurrent(fiscal("Cristalería Ejemplo S.L.", "B75777848")))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("dígito de control");
+        assertThatThrownBy(() -> service.updateCurrent(fiscal("  ", "B75777847")))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("razón social");
+        assertThat(company.getTaxId()).isEqualTo("B00000000");
+    }
+
+    @Test
+    void keepsLegalNameAndTaxIdWhenAnOlderClientDoesNotSendThem() {
+        Company company = new Company("DEMO", "Cristalería Ejemplo S.L.", "B75777847");
+        when(settingsRepository.findByCompanyId(companyId)).thenReturn(Optional.of(CompanySettings.defaults(companyId, "Demo")));
+        when(companyRepository.findById(companyId)).thenReturn(Optional.of(company));
+
+        service.updateCurrent(request(null, "Europe/Madrid", "EUR"));
+
+        assertThat(company.getName()).isEqualTo("Cristalería Ejemplo S.L.");
+        assertThat(company.getTaxId()).isEqualTo("B75777847");
+    }
+
+    private CompanySettingsRequest fiscal(String legalName, String taxId) {
+        CompanySettingsRequest base = request(null, "Europe/Madrid", "EUR");
+        return new CompanySettingsRequest(base.countryCode(), base.locale(), base.timezone(), base.baseCurrency(),
+                base.displayName(), null, null, null, base.contactEmail(), base.invoiceEmail(), base.replyToEmail(),
+                base.phone(), base.website(), base.addressLine1(), base.addressLine2(), base.postalCode(), base.city(),
+                base.region(), legalName, taxId);
+    }
+
     private CompanySettingsRequest request(String storageKey, String timezone, String currency) {
         return new CompanySettingsRequest("ES", "es-ES", timezone, currency, " PERA España ", storageKey,
                 storageKey == null ? null : "image/png", storageKey == null ? null : "a".repeat(64),

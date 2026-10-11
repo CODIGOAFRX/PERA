@@ -1,5 +1,6 @@
 package com.peraerp.masterdata.party;
 
+import com.peraerp.platform.domain.SpanishTaxIdValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;

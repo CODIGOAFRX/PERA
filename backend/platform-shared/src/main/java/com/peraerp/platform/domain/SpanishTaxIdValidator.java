@@ -1,4 +1,4 @@
-package com.peraerp.masterdata.party;
+package com.peraerp.platform.domain;
 
 import java.util.Locale;
 

@@ -67,6 +67,12 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Registro de entregas
 
+### v20261011.Raul — razón social y NIF de la empresa
+
+- **Arreglo:** los tickets del TPV y las facturas imprimen la razón social y el NIF de la empresa, pero no había forma de cambiarlos: se quedaban con los de relleno de la empresa demo («PERA ERP Demo», `B00000000`). Ahora se editan en Configuración › Empresa; el NIF español se comprueba con su dígito de control. Las peticiones antiguas que no los envían los conservan.
+- Configuración › Veri*Factu propone la razón social y el NIF de la empresa mientras no está configurado, y avisa si el NIF del obligado no coincide con el de la empresa.
+- El comprobador de NIF (`SpanishTaxIdValidator`) pasa de master-data a `platform-shared`, para usarlo en clientes y en la empresa sin duplicarlo.
+
 ### v20261011.Pedro — ubicación en el almacén y copiar código
 
 - **Ubicación** de cada artículo en cada almacén (pasillo, estante, cámara…), editable desde Almacén y desde el móvil del operario, y buscable. Migración `V12` de operations ([docs/28](docs/28-tpv-almacen-movil-etiquetas-listados.md)). El script de demo coloca los artículos de tienda.

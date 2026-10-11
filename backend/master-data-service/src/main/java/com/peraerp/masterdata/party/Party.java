@@ -2,6 +2,7 @@ package com.peraerp.masterdata.party;
 
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.CompanyScopedEntity;
+import com.peraerp.platform.domain.SpanishTaxIdValidator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

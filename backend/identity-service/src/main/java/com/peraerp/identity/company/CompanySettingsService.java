@@ -1,5 +1,6 @@
 package com.peraerp.identity.company;
 
+import com.peraerp.platform.domain.SpanishTaxIdValidator;
 import com.peraerp.identity.config.CurrentCompanyProvider;
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
@@ -47,7 +48,11 @@ public class CompanySettingsService {
                 nullable(request.replyToEmail()), nullable(request.phone()), nullable(request.website()),
                 nullable(request.addressLine1()), nullable(request.addressLine2()), nullable(request.postalCode()),
                 nullable(request.city()), nullable(request.region()));
-        return CompanySettingsResponse.from(settings, companyRepository.findById(companyId).orElse(null));
+        Company company = companyRepository.findById(companyId).orElse(null);
+        if (company != null && (request.legalName() != null || request.taxId() != null)) {
+            updateFiscalIdentity(company, request, settings.getCountryCode());
+        }
+        return CompanySettingsResponse.from(settings, company);
     }
 
     private CompanySettings requireOrCreate(UUID companyId) {
@@ -57,6 +62,28 @@ public class CompanySettingsService {
                     .orElseThrow(() -> new ResourceNotFoundException("Empresa", companyId));
             return settingsRepository.save(CompanySettings.defaults(companyId, company.getName()));
         });
+    }
+
+    /**
+     * Razón social y NIF de la empresa: salen en los tickets y en las facturas. La empresa demo se crea con
+     * valores de relleno y hasta ahora no había forma de cambiarlos desde la aplicación.
+     */
+    private void updateFiscalIdentity(Company company, CompanySettingsRequest request, String countryCode) {
+        String legalName = request.legalName() == null ? company.getName() : request.legalName().trim();
+        if (legalName.isEmpty()) {
+            throw new BusinessRuleException("La razón social no puede quedar vacía.");
+        }
+        String taxId = request.taxId() == null ? company.getTaxId() : normalizeTaxId(request.taxId());
+        // Solo se comprueba el dígito de control del NIF español; uno extranjero no tiene algoritmo común.
+        if (taxId != null && "ES".equals(countryCode) && !SpanishTaxIdValidator.isValid(taxId)) {
+            throw new BusinessRuleException("El NIF " + taxId + " no es válido: revisa el dígito de control.");
+        }
+        company.update(legalName, taxId, company.isActive());
+    }
+
+    private static String normalizeTaxId(String value) {
+        String normalized = value.trim().toUpperCase(Locale.ROOT).replace(" ", "").replace("-", "");
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private void validateReferenceData(CompanySettingsRequest request) {

@@ -39,6 +39,9 @@ interface CompanySettingsValue {
   postalCode: string | null
   city: string | null
   region: string | null
+  /** Razón social y NIF de la empresa: salen en tickets y facturas. */
+  legalName: string | null
+  taxId: string | null
   updatedAt: string
   version: number
 }
@@ -155,14 +158,15 @@ function CompanyPanel() {
     if (!form) return
     const { countryCode, locale, timezone, baseCurrency, displayName, logoStorageKey, logoContentType,
       logoSha256, contactEmail, invoiceEmail, replyToEmail, phone, website, addressLine1, addressLine2,
-      postalCode, city, region } = form
+      postalCode, city, region, legalName, taxId } = form
     setSaving(true)
     setError('')
     try {
       const updated = await apiFetch<CompanySettingsValue>('/api/v1/company-settings/current', {
         method: 'PUT', body: JSON.stringify({ countryCode, locale, timezone, baseCurrency, displayName,
           logoStorageKey, logoContentType, logoSha256, contactEmail, invoiceEmail, replyToEmail, phone,
-          website, addressLine1, addressLine2, postalCode, city, region }),
+          website, addressLine1, addressLine2, postalCode, city, region,
+          legalName: legalName ?? '', taxId: taxId ?? '' }),
       })
       setValue(updated)
       setForm(updated)
@@ -174,7 +178,7 @@ function CompanyPanel() {
   if (loading) return <section className="panel"><LoadingState /></section>
   if (!form) return <section className="panel"><EmptyState title={c('Sin parámetros', 'No settings')} description={error || c('No se pudo cargar la empresa.', 'The company could not be loaded.')} /></section>
   return <section className="panel settings-panel"><form onSubmit={save}><FormErrors value={formErrors.context}><div className="settings-logo-row"><div className="settings-logo-preview">{logoUrl ? <img src={logoUrl} alt={c('Logo de empresa', 'Company logo')} /> : <Building2 size={28} />}</div><div><strong>{c('Identidad visual', 'Visual identity')}</strong><p>{c('PNG, JPEG o WebP; máximo 2 MiB.', 'PNG, JPEG or WebP; 2 MiB maximum.')}</p><div className="row-actions"><label className="button button-secondary button-small"><Upload size={15} />{c('Subir logo', 'Upload logo')}<input className="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void upload(event.target.files?.[0])} /></label>{value?.logoSha256 && <button className="button button-danger button-small" type="button" onClick={() => void removeLogo()}><Trash2 size={14} />{c('Eliminar', 'Delete')}</button>}</div></div></div>
-    <div className="form-grid settings-form-grid"><Field label={c('Nombre visible', 'Display name')} htmlFor="company-display" name="displayName" required><input id="company-display" value={form.displayName} onChange={(event) => change('displayName', event.target.value)} required /></Field><Field label={c('País ISO', 'ISO country')} htmlFor="company-country" name="countryCode" required><input id="company-country" maxLength={2} value={form.countryCode} onChange={(event) => change('countryCode', event.target.value.toUpperCase())} required /></Field><Field label={c('Idioma regional', 'Locale')} htmlFor="company-locale" name="locale" required><input id="company-locale" value={form.locale} onChange={(event) => change('locale', event.target.value)} required /></Field><Field label={c('Zona horaria', 'Time zone')} htmlFor="company-zone" name="timezone" required><input id="company-zone" value={form.timezone} onChange={(event) => change('timezone', event.target.value)} required /></Field><Field label={c('Moneda base', 'Base currency')} htmlFor="company-currency" name="baseCurrency" required><input id="company-currency" maxLength={3} value={form.baseCurrency} onChange={(event) => change('baseCurrency', event.target.value.toUpperCase())} required /></Field><Field label={c('Teléfono', 'Phone')} htmlFor="company-phone" name="phone"><input id="company-phone" value={form.phone ?? ''} onChange={(event) => change('phone', event.target.value)} /></Field><Field label={c('Correo de contacto', 'Contact email')} htmlFor="company-contact" name="contactEmail"><input id="company-contact" type="email" value={form.contactEmail ?? ''} onChange={(event) => change('contactEmail', event.target.value)} /></Field><Field label={c('Correo de facturación', 'Invoice email')} htmlFor="company-invoice" name="invoiceEmail"><input id="company-invoice" type="email" value={form.invoiceEmail ?? ''} onChange={(event) => change('invoiceEmail', event.target.value)} /></Field><Field label={c('Correo de respuesta', 'Reply-to email')} htmlFor="company-reply" name="replyToEmail"><input id="company-reply" type="email" value={form.replyToEmail ?? ''} onChange={(event) => change('replyToEmail', event.target.value)} /></Field><Field label={c('Sitio web', 'Website')} htmlFor="company-web" name="website"><input id="company-web" type="url" value={form.website ?? ''} onChange={(event) => change('website', event.target.value)} /></Field><Field label={c('Dirección', 'Address')} htmlFor="company-address" name="addressLine1" wide><input id="company-address" value={form.addressLine1 ?? ''} onChange={(event) => change('addressLine1', event.target.value)} /></Field><Field label={c('Dirección adicional', 'Additional address')} htmlFor="company-address2" name="addressLine2" wide><input id="company-address2" value={form.addressLine2 ?? ''} onChange={(event) => change('addressLine2', event.target.value)} /></Field><Field label={c('Código postal', 'Postcode')} htmlFor="company-postal" name="postalCode"><input id="company-postal" value={form.postalCode ?? ''} onChange={(event) => change('postalCode', event.target.value)} /></Field><Field label={c('Ciudad', 'City')} htmlFor="company-city" name="city"><input id="company-city" value={form.city ?? ''} onChange={(event) => change('city', event.target.value)} /></Field><Field label={c('Provincia / región', 'Region')} htmlFor="company-region" name="region"><input id="company-region" value={form.region ?? ''} onChange={(event) => change('region', event.target.value)} /></Field></div>{error && <div className="form-error">{error}</div>}<div className="form-actions"><button className="button button-primary" disabled={saving}>{saving ? c('Guardando…', 'Saving…') : c('Guardar parámetros', 'Save settings')}</button></div></FormErrors></form></section>
+    <div className="form-grid settings-form-grid"><Field label={c('Razón social', 'Legal name')} htmlFor="company-legal-name" name="legalName" required hint={c('Sale en los tickets y en las facturas.', 'Printed on receipts and invoices.')}><input id="company-legal-name" value={form.legalName ?? ''} maxLength={180} onChange={(event) => change('legalName', event.target.value)} required /></Field><Field label="NIF" htmlFor="company-tax-id" name="taxId" hint={c('Se comprueba el dígito de control.', 'The check digit is verified.')}><input id="company-tax-id" value={form.taxId ?? ''} maxLength={30} onChange={(event) => change('taxId', event.target.value.toUpperCase())} /></Field><Field label={c('Nombre visible', 'Display name')} htmlFor="company-display" name="displayName" required><input id="company-display" value={form.displayName} onChange={(event) => change('displayName', event.target.value)} required /></Field><Field label={c('País ISO', 'ISO country')} htmlFor="company-country" name="countryCode" required><input id="company-country" maxLength={2} value={form.countryCode} onChange={(event) => change('countryCode', event.target.value.toUpperCase())} required /></Field><Field label={c('Idioma regional', 'Locale')} htmlFor="company-locale" name="locale" required><input id="company-locale" value={form.locale} onChange={(event) => change('locale', event.target.value)} required /></Field><Field label={c('Zona horaria', 'Time zone')} htmlFor="company-zone" name="timezone" required><input id="company-zone" value={form.timezone} onChange={(event) => change('timezone', event.target.value)} required /></Field><Field label={c('Moneda base', 'Base currency')} htmlFor="company-currency" name="baseCurrency" required><input id="company-currency" maxLength={3} value={form.baseCurrency} onChange={(event) => change('baseCurrency', event.target.value.toUpperCase())} required /></Field><Field label={c('Teléfono', 'Phone')} htmlFor="company-phone" name="phone"><input id="company-phone" value={form.phone ?? ''} onChange={(event) => change('phone', event.target.value)} /></Field><Field label={c('Correo de contacto', 'Contact email')} htmlFor="company-contact" name="contactEmail"><input id="company-contact" type="email" value={form.contactEmail ?? ''} onChange={(event) => change('contactEmail', event.target.value)} /></Field><Field label={c('Correo de facturación', 'Invoice email')} htmlFor="company-invoice" name="invoiceEmail"><input id="company-invoice" type="email" value={form.invoiceEmail ?? ''} onChange={(event) => change('invoiceEmail', event.target.value)} /></Field><Field label={c('Correo de respuesta', 'Reply-to email')} htmlFor="company-reply" name="replyToEmail"><input id="company-reply" type="email" value={form.replyToEmail ?? ''} onChange={(event) => change('replyToEmail', event.target.value)} /></Field><Field label={c('Sitio web', 'Website')} htmlFor="company-web" name="website"><input id="company-web" type="url" value={form.website ?? ''} onChange={(event) => change('website', event.target.value)} /></Field><Field label={c('Dirección', 'Address')} htmlFor="company-address" name="addressLine1" wide><input id="company-address" value={form.addressLine1 ?? ''} onChange={(event) => change('addressLine1', event.target.value)} /></Field><Field label={c('Dirección adicional', 'Additional address')} htmlFor="company-address2" name="addressLine2" wide><input id="company-address2" value={form.addressLine2 ?? ''} onChange={(event) => change('addressLine2', event.target.value)} /></Field><Field label={c('Código postal', 'Postcode')} htmlFor="company-postal" name="postalCode"><input id="company-postal" value={form.postalCode ?? ''} onChange={(event) => change('postalCode', event.target.value)} /></Field><Field label={c('Ciudad', 'City')} htmlFor="company-city" name="city"><input id="company-city" value={form.city ?? ''} onChange={(event) => change('city', event.target.value)} /></Field><Field label={c('Provincia / región', 'Region')} htmlFor="company-region" name="region"><input id="company-region" value={form.region ?? ''} onChange={(event) => change('region', event.target.value)} /></Field></div>{error && <div className="form-error">{error}</div>}<div className="form-actions"><button className="button button-primary" disabled={saving}>{saving ? c('Guardando…', 'Saving…') : c('Guardar parámetros', 'Save settings')}</button></div></FormErrors></form></section>
 }
 
 function NumberingPanel() {
@@ -314,14 +318,25 @@ function VerifactuPanel() {
   const { language } = useTranslation(); const c = (es: string, en: string) => language === 'es' ? es : en
   const [form, setForm] = useState<VerifactuSettingsValue | null>(null)
   const [configured, setConfigured] = useState(false)
+  const [company, setCompany] = useState<{ legalName: string | null; taxId: string | null } | null>(null)
   const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState(''); const formErrors = useFormErrors()
   const { notify } = useToast()
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await apiFetch<VerifactuSettingsValue>('/api/v1/verifactu-settings/current')
-      setForm(response); setConfigured(response.configured); setError('')
+      const [response, companySettings] = await Promise.all([
+        apiFetch<VerifactuSettingsValue>('/api/v1/verifactu-settings/current'),
+        apiFetch<CompanySettingsValue>('/api/v1/company-settings/current').catch(() => null),
+      ])
+      setCompany(companySettings ? { legalName: companySettings.legalName, taxId: companySettings.taxId } : null)
+      // Sin configurar todavía, el emisor es la propia empresa: se proponen su NIF y su razón social.
+      setForm(!response.configured && companySettings ? {
+        ...response,
+        issuerTaxId: response.issuerTaxId || companySettings.taxId || '',
+        issuerLegalName: response.issuerLegalName || companySettings.legalName || '',
+      } : response)
+      setConfigured(response.configured); setError('')
     } catch (cause) { setError(errorMessage(cause)) } finally { setLoading(false) }
   }, [])
   useEffect(() => { void load() }, [load])
@@ -368,6 +383,7 @@ function VerifactuPanel() {
         </div>
       </div>
 
+      {company?.taxId && form.issuerTaxId && company.taxId !== form.issuerTaxId.trim().toUpperCase() && <p className="certificate-warning" role="alert">{c(`El NIF del obligado (${form.issuerTaxId}) no coincide con el de la empresa en Configuración › Empresa (${company.taxId}). Las facturas y los tickets deberían llevar el mismo.`, `The issuer tax ID (${form.issuerTaxId}) differs from the company one in Settings › Company (${company.taxId}). Invoices and receipts should carry the same.`)}</p>}
       <div className="form-grid settings-form-grid">
         <Field label={c('NIF del obligado', 'Issuer tax ID')} htmlFor="vf-nif" name="issuerTaxId" required>
           <input id="vf-nif" value={form.issuerTaxId} maxLength={20} required
