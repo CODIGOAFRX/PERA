@@ -6,6 +6,8 @@ import com.peraerp.operations.config.CurrentUserProvider.CurrentUser;
 import com.peraerp.operations.inventory.InventoryDtos.ScanDirection;
 import com.peraerp.operations.inventory.InventoryDtos.StockMovementResponse;
 import com.peraerp.operations.inventory.InventoryDtos.StockScanRequest;
+import com.peraerp.operations.inventory.InventoryDtos.StockLevelResponse;
+import com.peraerp.operations.inventory.InventoryDtos.StockLocationRequest;
 import com.peraerp.platform.domain.BusinessRuleException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -126,6 +128,25 @@ class StockScanTest {
 
         assertThatThrownBy(() -> service.scan(scan(ScanDirection.IN, "1", StockReason.RECEIPT, null)))
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("predeterminado");
+    }
+
+    @Test
+    void theLocationCanBeSetBeforeTheGoodsArriveAndChangedWithoutTouchingTheStock() {
+        StockLevelResponse empty = service.changeLocation(location("Cámara frigorífica 2"));
+        assertThat(empty.quantity()).isEqualByComparingTo("0");
+        assertThat(empty.location()).isEqualTo("Cámara frigorífica 2");
+
+        service.scan(scan(ScanDirection.IN, "12", StockReason.RECEIPT, null));
+        StockLevelResponse moved = service.changeLocation(location("  Pasillo 3 · Estante B  "));
+        assertThat(moved.quantity()).isEqualByComparingTo("12");
+        assertThat(moved.location()).isEqualTo("Pasillo 3 · Estante B");
+
+        assertThat(service.changeLocation(location("  ")).location()).isNull();
+        verify(movementRepository, times(1)).save(any(StockMovement.class));
+    }
+
+    private StockLocationRequest location(String value) {
+        return new StockLocationRequest(main.getId(), productId, "SARD-120", "Sardinas en aceite 120 g", "UNIT", value);
     }
 
     private StockScanRequest scan(ScanDirection direction, String quantity, StockReason reason, UUID reference) {

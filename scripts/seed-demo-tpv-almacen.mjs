@@ -210,6 +210,18 @@ async function seedStock(admin, products) {
     }
   }
   console.log(`Existencias iniciales: ${entries} artículos inventariados en ${central.code}.`)
+
+  // Dónde está cada familia en el almacén central (solo si aún no tiene ubicación).
+  const zones = { 'TDA-CONS': 'Pasillo 1 · Estante A', 'TDA-DESA': 'Pasillo 1 · Estante C', 'TDA-PAST': 'Pasillo 2 · Estante A', 'TDA-LACT': 'Cámara frigorífica 1', 'TDA-PANA': 'Zona de panadería', 'TDA-FRUT': 'Cámara frigorífica 2', 'TDA-AGUA': 'Zona de palés · Calle 1', 'TDA-VINO': 'Pasillo 4 · Bodega', 'TDA-CAFE': 'Pasillo 2 · Estante D', 'TDA-LIMP': 'Pasillo 5 · Estante A', 'TDA-HIGI': 'Pasillo 5 · Estante C', 'TDA-FERR': 'Pasillo 6 · Estante B', 'TDA-MENA': 'Pasillo 6 · Estante D' }
+  let located = 0
+  for (const [code, , , , group, unit] of PRODUCTS) {
+    const product = products[code]
+    const level = (await admin('GET', `/api/v1/stock-levels?productId=${product.id}&warehouseId=${central.id}&size=1`)).content[0]
+    if (level?.location) continue
+    await admin('PUT', '/api/v1/stock-levels/location', { warehouseId: central.id, productId: product.id, productCode: product.code, productName: product.name, unitOfMeasure: unit, location: zones[group] })
+    located += 1
+  }
+  console.log(`Ubicaciones: ${located} artículos colocados en ${central.code}.`)
   return { central, secondary }
 }
 

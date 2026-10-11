@@ -26,6 +26,8 @@ public class StockLevel extends CompanyScopedEntity {
     private String unitOfMeasureSnapshot;
     @Column(nullable = false, precision = 19, scale = 6)
     private BigDecimal quantity = BigDecimal.ZERO;
+    @Column(length = 120)
+    private String location;
 
     protected StockLevel() {
     }
@@ -57,10 +59,16 @@ public class StockLevel extends CompanyScopedEntity {
         this.productNameSnapshot = productNameSnapshot;
     }
 
+    /** Dónde está el artículo dentro del almacén; vacío lo quita. No cambia las existencias. */
+    public void changeLocation(String location) {
+        this.location = location;
+    }
+
     public UUID getWarehouseId() { return warehouseId; }
     public UUID getProductId() { return productId; }
     public String getProductCodeSnapshot() { return productCodeSnapshot; }
     public String getProductNameSnapshot() { return productNameSnapshot; }
     public String getUnitOfMeasureSnapshot() { return unitOfMeasureSnapshot; }
     public BigDecimal getQuantity() { return quantity; }
+    public String getLocation() { return location; }
 }

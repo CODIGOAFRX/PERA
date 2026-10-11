@@ -474,3 +474,21 @@ td .status-badge + .status-badge { margin-left: 4px; }
 .report-period-values select { min-height: 34px; padding: 4px 8px; width: auto; }
 
 @media (max-width: 440px) { .wh-header .pos-brand > span { display: none; } .wh-warehouse > svg { display: none; } }
+
+/* ---------------------------------------------------------------- copiar código y ubicación */
+.copy-code-button { margin-left: 6px; white-space: nowrap; vertical-align: middle; }
+td .icon-button { vertical-align: middle; }
+.location-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 220px; min-height: 30px; padding: 3px 10px; border-radius: 999px; border: 1px solid #d5dfc9; background: #f3f5ec; color: #294b38; font-size: 12.5px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.location-chip:hover { background: #e9eee1; }
+.location-chip.empty { border-style: dashed; background: #fff; color: var(--muted); }
+.wh-location { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 10px; background: #fff; border: 1px solid var(--line); color: #294b38; }
+.wh-location > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wh-location small { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.wh-location strong { font-size: 19px; color: var(--ink); overflow-wrap: anywhere; }
+.wh-location strong.empty { color: var(--muted); font-weight: 500; font-size: 15px; }
+.wh-location .button { min-height: 44px; }
+.wh-location-edit { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; background: #f3f5ec; border: 1px solid #d5dfc9; }
+.wh-location-edit input { font-size: 17px; min-height: 50px; }
+.wh-location-edit > div { display: flex; gap: 8px; justify-content: flex-end; }
+.wh-location-edit .button { min-height: 46px; }
+.wh-stock > div.other span { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--muted); }

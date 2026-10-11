@@ -65,6 +65,9 @@ Para propietario, administrador y economía: hoy, ayer, semana, mes o fechas; ve
 - Todos los movimientos guardan ahora **quién** los hizo (`performed_by`, `performed_by_name`) y el **motivo** (operations `V11`). Los anteriores no tienen autor: no se inventa. Las lecturas automáticas (ventas y TPV) aparecen como «Automático».
 - `GET /api/v1/stock-movements?mine=true` devuelve los del usuario de la sesión.
 - Pantalla: «Añadir producto» / «Retirar producto» grandes; identificar con la cámara (barras o QR), a mano o con un lector Bluetooth emparejado; ficha con existencias por almacén; cantidad con botones grandes, cantidades rápidas y **contar por embalaje** (p. ej. 3 × caja de 24 = 72); motivo y nota; confirmación con el nuevo saldo; «Lo que he hecho hoy»; consulta de existencias; acceso a etiquetas.
+- **Ubicación en el almacén** (operations `V12`): texto libre por almacén y artículo (pasillo, estante, zona, cámara: «Pasillo 3 · Estante B», «Cámara frigorífica 2»). `PUT /api/v1/stock-levels/location` (`inventory:scan` o `inventory:write`); si el artículo aún no tiene existencias en ese almacén se crea su ficha con cero unidades, para decir dónde irá antes de que llegue. Vacío la quita; no cambia existencias ni crea movimientos. El buscador de existencias encuentra también por ubicación.
+- En el móvil, la ficha del artículo muestra su ubicación en el almacén elegido (y en los demás) y el operario puede indicarla o cambiarla. En Almacén (escritorio), columna «Ubicación» editable con sugerencias de las ya usadas.
+- **Copiar código**: botón verde al final de cada fila del catálogo y de las existencias; copia el código del artículo (también por la red local, sin HTTPS).
 - En Almacén (escritorio): columna «Quién» y motivo en el diario, origen TPV en Salidas de venta y pestaña **Actividad del día** (entradas, salidas, mermas por motivo, por origen y por persona).
 
 ### Cámara y lectores
@@ -89,7 +92,7 @@ Para propietario, administrador y economía: hoy, ayer, semana, mes o fechas; ve
 
 ## Datos de demostración
 
-`node scripts/seed-demo-tpv-almacen.mjs` (con el entorno arrancado) crea, solo si no existen: familias de tienda, 60 artículos con código de barras interno, 12 embalajes, existencias iniciales en el almacén predeterminado, ventas del día en las dos cajas demo (con una devolución, una anulación y movimientos de efectivo) y movimientos de los operarios. Es idempotente. Las ventas quedan con fecha del día en que se ejecuta.
+`node scripts/seed-demo-tpv-almacen.mjs` (con el entorno arrancado) crea, solo si no existen: familias de tienda, 60 artículos con código de barras interno, 12 embalajes, existencias iniciales en el almacén predeterminado, ventas del día en las dos cajas demo (con una devolución, una anulación y movimientos de efectivo) y movimientos de los operarios. También coloca cada familia en una ubicación del almacén central. Es idempotente, salvo los movimientos de ejemplo de los operarios, que se registran una vez por día para que haya «actividad de hoy». Las ventas quedan con fecha del día en que se ejecuta.
 
 ## Límites y pendientes
 

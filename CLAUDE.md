@@ -67,6 +67,11 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Registro de entregas
 
+### v20261011.Pedro — ubicación en el almacén y copiar código
+
+- **Ubicación** de cada artículo en cada almacén (pasillo, estante, cámara…), editable desde Almacén y desde el móvil del operario, y buscable. Migración `V12` de operations ([docs/28](docs/28-tpv-almacen-movil-etiquetas-listados.md)). El script de demo coloca los artículos de tienda.
+- Botón verde **«Copiar código»** al final de cada fila del catálogo y de las existencias. Pedido por Pedro.
+
 ### v20261010.Raul — datos demo del TPV en una instalación nueva
 
 - `scripts/seed-demo-tpv-almacen.mjs` necesitaba las cajas `DEMO-CAJA-1` y `DEMO-CAJA-2`, que nada creaba: en un repositorio recién clonado no vendía ningún ticket. Ahora las crea si faltan.

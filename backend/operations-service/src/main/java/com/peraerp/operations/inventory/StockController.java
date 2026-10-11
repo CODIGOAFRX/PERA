@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -17,6 +18,7 @@ import java.util.UUID;
 
 import static com.peraerp.operations.inventory.InventoryDtos.StockAdjustmentRequest;
 import static com.peraerp.operations.inventory.InventoryDtos.StockLevelResponse;
+import static com.peraerp.operations.inventory.InventoryDtos.StockLocationRequest;
 import static com.peraerp.operations.inventory.InventoryDtos.StockMovementResponse;
 import static com.peraerp.operations.inventory.InventoryDtos.StockScanRequest;
 import static com.peraerp.operations.inventory.InventoryDtos.StockTransferRequest;
@@ -37,6 +39,11 @@ public class StockController {
                                                   @RequestParam(required = false) String query,
                                                   Pageable pageable) {
         return PageResponse.from(service.searchLevels(warehouseId, productId, onlyInStock, query, pageable));
+    }
+
+    @PutMapping("/api/v1/stock-levels/location")
+    StockLevelResponse changeLocation(@Valid @RequestBody StockLocationRequest request) {
+        return service.changeLocation(request);
     }
 
     @GetMapping("/api/v1/stock-movements")

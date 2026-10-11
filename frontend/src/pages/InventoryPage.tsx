@@ -1,4 +1,4 @@
-import { Activity, ArrowLeftRight, Ban, Boxes, ClipboardList, PackageCheck, Pencil, Plus, ScanBarcode, SlidersHorizontal, Tags, Truck, Warehouse as WarehouseIcon } from 'lucide-react'
+import { Activity, ArrowLeftRight, Ban, MapPin, Boxes, ClipboardList, PackageCheck, Pencil, Plus, ScanBarcode, SlidersHorizontal, Tags, Truck, Warehouse as WarehouseIcon } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useConfirm } from '../components/ConfirmDialog'
 import { EmptyState, LoadingState } from '../components/DataState'
@@ -19,9 +19,11 @@ import type { FlatPage, PageResponse, Product, SalesDelivery, SalesDeliveryStatu
 import { InventoryActivity } from '../components/InventoryActivity'
 import { reasonLabel } from '../lib/stockReasons'
 import { Link } from '../routing/Router'
+import { CopyCodeButton } from '../components/CopyCodeButton'
+import { StockLocationForm } from '../components/StockLocationForm'
 
 type Tab = 'stock' | 'movements' | 'deliveries' | 'warehouses' | 'activity'
-type Editor = { kind: 'adjustment'; level?: StockLevel } | { kind: 'transfer'; level?: StockLevel } | { kind: 'warehouse'; item?: Warehouse } | { kind: 'delivery'; delivery: SalesDelivery }
+type Editor = { kind: 'location'; level: StockLevel } | { kind: 'adjustment'; level?: StockLevel } | { kind: 'transfer'; level?: StockLevel } | { kind: 'warehouse'; item?: Warehouse } | { kind: 'delivery'; delivery: SalesDelivery }
 type InventoryRow = StockLevel | StockMovement | SalesDelivery | Warehouse
 
 const movementTypes: StockMovementType[] = ['PURCHASE_RECEIPT', 'PURCHASE_REVERSAL', 'SALES_ISSUE', 'SALES_RETURN', 'ADJUSTMENT_IN', 'ADJUSTMENT_OUT', 'TRANSFER_IN', 'TRANSFER_OUT']
@@ -140,7 +142,7 @@ export function InventoryPage() {
     </nav>
 
     {tab === 'activity' ? <InventoryActivity warehouses={warehouses} /> : <section className="panel table-panel">
-      <TableToolbar value={query} onChange={setQuery} placeholder={tab === 'warehouses' ? c('Buscar almacén', 'Search warehouse') : tab === 'deliveries' ? c('Buscar por documento o cliente', 'Search by document or customer') : tab === 'movements' ? c('Buscar por producto o documento', 'Search by product or document') : c('Buscar producto', 'Search product')}>
+      <TableToolbar value={query} onChange={setQuery} placeholder={tab === 'warehouses' ? c('Buscar almacén', 'Search warehouse') : tab === 'deliveries' ? c('Buscar por documento o cliente', 'Search by document or customer') : tab === 'movements' ? c('Buscar por producto o documento', 'Search by product or document') : c('Buscar producto o ubicación', 'Search product or location')}>
         {(tab === 'stock' || tab === 'movements') && warehouseFilter}
         {tab === 'deliveries' && <select aria-label={t('sales.filterStatus')} value={deliveryStatus} onChange={(event) => setDeliveryStatus(event.target.value as SalesDeliveryStatus | '')}><option value="">{t('sales.allStatuses')}</option>{deliveryStatuses.map((item) => <option key={item} value={item}>{deliveryLabels[item][language === 'es' ? 0 : 1]}</option>)}</select>}
         {tab === 'stock' && <select aria-label={c('Filtrar por existencias', 'Filter by stock')} value={onlyInStock ? 'in' : 'all'} onChange={(event) => setOnlyInStock(event.target.value === 'in')}><option value="in">{c('Con existencias', 'In stock')}</option><option value="all">{c('Incluir agotados', 'Include out of stock')}</option></select>}
@@ -154,15 +156,16 @@ export function InventoryPage() {
         <div className="table-scroll">
           {tab === 'stock' && <table>
             <TableCaption es="Existencias por almacén" en="Stock by warehouse" />
-            <thead><tr><th>{t('field.code')}</th><th>{t('sales.product')}</th><th>{c('Almacén', 'Warehouse')}</th><th className="align-right">{c('Existencias', 'Stock')}</th><th>{c('Unidad', 'Unit')}</th><th>{c('Último movimiento', 'Last movement')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead>
+            <thead><tr><th>{t('field.code')}</th><th>{t('sales.product')}</th><th>{c('Almacén', 'Warehouse')}</th><th>{c('Ubicación', 'Location')}</th><th className="align-right">{c('Existencias', 'Stock')}</th><th>{c('Unidad', 'Unit')}</th><th>{c('Último movimiento', 'Last movement')}</th><th><span className="sr-only">{t('common.actions')}</span></th></tr></thead>
             <tbody>{(rows as StockLevel[]).map((level) => <tr key={level.id}>
               <td><span className="code-cell">{level.productCode}</span></td>
               <td><strong>{level.productName}</strong></td>
               <td>{warehouseName(level.warehouseId)}</td>
+              <td><button type="button" className={`location-chip ${level.location ? '' : 'empty'}`} onClick={() => setEditor({ kind: 'location', level })} aria-label={c(`Ubicación de ${level.productCode}: ${level.location ?? 'sin indicar'}. Cambiar`, `Location of ${level.productCode}: ${level.location ?? 'not set'}. Change`)}><MapPin size={13} aria-hidden="true" />{level.location || c('Indicar', 'Set')}</button></td>
               <td className="align-right"><strong>{formatNumber(level.quantity, locale, 6)}</strong></td>
               <td>{unitLabel(level.unitOfMeasure)}</td>
               <td>{formatDateTime(level.updatedAt, locale)}</td>
-              <td><button className="icon-button" type="button" onClick={() => setEditor({ kind: 'adjustment', level })} aria-label={c(`Ajustar existencias de ${level.productCode}`, `Adjust stock of ${level.productCode}`)}><SlidersHorizontal size={16} /></button>{activeWarehouses.length > 1 && <button className="icon-button" type="button" onClick={() => setEditor({ kind: 'transfer', level })} aria-label={c(`Traspasar ${level.productCode}`, `Transfer ${level.productCode}`)}><ArrowLeftRight size={16} /></button>}</td>
+              <td><button className="icon-button" type="button" onClick={() => setEditor({ kind: 'adjustment', level })} aria-label={c(`Ajustar existencias de ${level.productCode}`, `Adjust stock of ${level.productCode}`)}><SlidersHorizontal size={16} /></button>{activeWarehouses.length > 1 && <button className="icon-button" type="button" onClick={() => setEditor({ kind: 'transfer', level })} aria-label={c(`Traspasar ${level.productCode}`, `Transfer ${level.productCode}`)}><ArrowLeftRight size={16} /></button>}<CopyCodeButton code={level.productCode} /></td>
             </tr>)}</tbody>
           </table>}
           {tab === 'movements' && <table>
@@ -209,7 +212,10 @@ export function InventoryPage() {
       </>}
     </section>}
 
-    <Modal open={editor !== null} title={editor?.kind === 'adjustment' ? c('Ajuste de existencias', 'Stock adjustment') : editor?.kind === 'delivery' ? c(`Dar salida a ${editor.delivery.sourceNumber}`, `Issue ${editor.delivery.sourceNumber}`) : editor?.kind === 'transfer' ? c('Traspaso entre almacenes', 'Transfer between warehouses') : editor?.item ? c('Editar almacén', 'Edit warehouse') : c('Nuevo almacén', 'New warehouse')}
+    <Modal open={editor?.kind === 'location'} title={c('Ubicación en el almacén', 'Location in the warehouse')} description={editor?.kind === 'location' ? `${editor.level.productName} · ${warehouseName(editor.level.warehouseId)}` : undefined} onClose={() => setEditor(null)}>
+      {editor?.kind === 'location' && <StockLocationForm level={editor.level} suggestions={(rows as StockLevel[]).filter((item) => item.warehouseId === editor.level.warehouseId && item.location).map((item) => item.location!)} onCancel={() => setEditor(null)} onSaved={() => saved(c('Ubicación guardada.', 'Location saved.'))} />}
+    </Modal>
+    <Modal open={editor !== null && editor.kind !== 'location'} title={editor?.kind === 'adjustment' ? c('Ajuste de existencias', 'Stock adjustment') : editor?.kind === 'delivery' ? c(`Dar salida a ${editor.delivery.sourceNumber}`, `Issue ${editor.delivery.sourceNumber}`) : editor?.kind === 'transfer' ? c('Traspaso entre almacenes', 'Transfer between warehouses') : editor?.kind === 'warehouse' && editor.item ? c('Editar almacén', 'Edit warehouse') : c('Nuevo almacén', 'New warehouse')}
       description={editor?.kind === 'adjustment' ? c('Corrige las existencias tras un recuento, una rotura o una merma. Queda anotado en el diario.', 'Correct the stock after a count, a breakage or a loss. It is recorded in the journal.') : editor?.kind === 'delivery' ? c('Elige el almacén del que sale la mercancía de esta venta.', 'Choose the warehouse the goods of this sale leave from.') : editor?.kind === 'transfer' ? c('Mueve existencias de un almacén a otro.', 'Move stock from one warehouse to another.') : c('Lugar donde se guarda la mercancía.', 'Place where goods are kept.')}
       onClose={() => setEditor(null)}>
       {editor?.kind === 'adjustment' && <MovementForm mode="adjustment" level={editor.level} warehouses={activeWarehouses} onCancel={() => setEditor(null)} onSaved={() => saved(c('Ajuste registrado.', 'Adjustment recorded.'))} />}

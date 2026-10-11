@@ -30,7 +30,8 @@ public interface StockLevelRepository extends JpaRepository<StockLevel, UUID> {
             "and (:filterProduct = false or s.productId = :productId) " +
             "and (:onlyInStock = false or s.quantity > 0) " +
             "and (:filterQuery = false or lower(s.productCodeSnapshot) like lower(concat('%', :query, '%')) " +
-            "or lower(s.productNameSnapshot) like lower(concat('%', :query, '%')))")
+            "or lower(s.productNameSnapshot) like lower(concat('%', :query, '%')) " +
+            "or lower(coalesce(s.location, '')) like lower(concat('%', :query, '%')))")
     Page<StockLevel> search(@Param("companyId") UUID companyId,
                             @Param("filterWarehouse") boolean filterWarehouse, @Param("warehouseId") UUID warehouseId,
                             @Param("filterProduct") boolean filterProduct, @Param("productId") UUID productId,

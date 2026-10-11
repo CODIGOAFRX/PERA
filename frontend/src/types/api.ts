@@ -573,6 +573,8 @@ export interface StockLevel {
   unitOfMeasure: string
   quantity: number
   updatedAt: string
+  /** Dónde está dentro del almacén (pasillo, estante, cámara…). */
+  location?: string | null
 }
 
 export type StockMovementType = 'PURCHASE_RECEIPT' | 'PURCHASE_REVERSAL' | 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'SALES_ISSUE' | 'SALES_RETURN'

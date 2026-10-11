@@ -16,6 +16,7 @@ const sardines = { id: 'p9', code: 'SARD-120', name: 'Sardinas en aceite 120 g',
 beforeEach(() => {
   api.mockReset(); localStorage.clear()
   api.mockImplementation((path: string, init?: RequestInit) => {
+    if (path === '/api/v1/stock-levels/location' && init?.method === 'PUT') return Promise.resolve({ id: 'l1', warehouseId: 'w1', productId: 'p9', productCode: 'SARD-120', productName: sardines.name, unitOfMeasure: 'UNIT', quantity: 40, updatedAt: '2026-10-11T08:00:00Z', location: 'Pasillo 3 · Estante B' })
     if (path.startsWith('/api/v1/warehouses')) return Promise.resolve(flat(warehouses))
     if (path.startsWith('/api/v1/stock-movements?')) return Promise.resolve(flat([]))
     if (path.startsWith('/api/v1/products/lookup')) return Promise.resolve(sardines)
@@ -64,4 +65,21 @@ it('does not let the operator remove more than is recorded and asks for a reason
   expect(screen.getByRole('button', { name: 'Retirar 2' })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'Roto o dañado' }))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Retirar 2' })).toBeEnabled())
+})
+
+it('shows where the product is kept and lets the operator note where it is', async () => {
+  view()
+  fireEvent.click(await screen.findByText('Consultar existencias'))
+  fireEvent.click(screen.getByText('Introducir a mano'))
+  fireEvent.change(screen.getByLabelText('Código del artículo'), { target: { value: 'SARD-120' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
+
+  expect(await screen.findByText('Sin indicar')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Indicar' }))
+  fireEvent.change(screen.getByLabelText('Ubicación'), { target: { value: 'Pasillo 3 · Estante B' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar ubicación' }))
+
+  await waitFor(() => expect(document.querySelector('.wh-location strong')?.textContent).toBe('Pasillo 3 · Estante B'))
+  const put = api.mock.calls.find(([path, init]) => path === '/api/v1/stock-levels/location' && init?.method === 'PUT')!
+  expect(JSON.parse(String(put[1].body))).toMatchObject({ warehouseId: 'w1', productId: 'p9', location: 'Pasillo 3 · Estante B' })
 })

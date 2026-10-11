@@ -1,4 +1,4 @@
-import { ArrowLeft, Boxes, Camera, Check, ChevronRight, CircleUserRound, ClipboardList, Home, Keyboard, LogOut, Minus, PackageMinus, PackagePlus, Plus, ScanBarcode, Search, Tags, Warehouse as WarehouseIcon } from 'lucide-react'
+import { ArrowLeft, Boxes, Camera, Check, ChevronRight, CircleUserRound, ClipboardList, Home, Keyboard, LogOut, MapPin, Minus, PackageMinus, PackagePlus, Plus, ScanBarcode, Search, Tags, Warehouse as WarehouseIcon } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { CameraScanner } from '../components/CameraScanner'
@@ -14,6 +14,7 @@ import { newClientReference } from '../lib/pos'
 import { scanFeedback, useHardwareScanner } from '../lib/scanner'
 import { REASONS, reasonLabels, type StockReason } from '../lib/stockReasons'
 import { Link } from '../routing/Router'
+import { LOCATION_EXAMPLES, saveStockLocation } from '../components/StockLocationForm'
 import type { FlatPage, Product, StockLevel, StockMovement, UnitOfMeasure, Warehouse } from '../types/api'
 
 type Direction = 'IN' | 'OUT'
@@ -188,15 +189,20 @@ function ProductScreen({ product, direction, warehouse, warehouses, language, lo
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [editingLocation, setEditingLocation] = useState(false)
+  const [locationDraft, setLocationDraft] = useState('')
+  const [savingLocation, setSavingLocation] = useState(false)
   const reference = useRef(newClientReference())
+  const canEditLocation = hasPermission('inventory:scan') || hasPermission('inventory:write')
 
+  const canReadPackaging = hasPermission('packaging:read')
   useEffect(() => {
     apiFetch<FlatPage<StockLevel>>(`/api/v1/stock-levels?productId=${product.id}&size=50`).then((page) => setLevels(page.content)).catch(() => setLevels([]))
-    if (hasPermission('packaging:read')) {
+    if (canReadPackaging) {
       apiFetch<{ content: Packaging[] }>(`/api/v1/product-packaging?productId=${product.id}&size=20`)
         .then((page) => setPackaging(page.content.filter((item) => item.active && Number(item.unitsPerPackage) > 1))).catch(() => setPackaging([]))
     }
-  }, [product.id, hasPermission])
+  }, [product.id, canReadPackaging])
 
   const here = levels?.find((level) => level.warehouseId === warehouse?.id)
   const stock = Number(here?.quantity ?? 0)
@@ -206,6 +212,18 @@ function ProductScreen({ product, direction, warehouse, warehouses, language, lo
   const quantity = Number.isFinite(entered) && entered > 0 ? Number((entered * (pack ? Number(pack.unitsPerPackage) : 1)).toFixed(6)) : 0
   const tooMany = direction === 'OUT' && quantity > stock
   const step = (delta: number) => setCount((value) => String(Math.max(0, Number((Number(value.replace(',', '.')) || 0) + delta))).replace('.', ','))
+
+  // La ubicación se guarda aparte del movimiento: es dónde está el artículo, no cuánto hay.
+  const saveLocation = async () => {
+    if (!warehouse) return
+    setSavingLocation(true); setError('')
+    try {
+      const saved = await saveStockLocation({ warehouseId: warehouse.id, productId: product.id, productCode: product.code, productName: product.name, unitOfMeasure: unit }, locationDraft)
+      setLevels((current) => [...(current ?? []).filter((level) => level.warehouseId !== saved.warehouseId), saved])
+      setEditingLocation(false)
+      scanFeedback(true)
+    } catch (cause) { setError(errorMessage(cause)) } finally { setSavingLocation(false) }
+  }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -231,8 +249,17 @@ function ProductScreen({ product, direction, warehouse, warehouses, language, lo
     </div>
     <div className="wh-stock">
       <div><small>{c('En', 'In')} {warehouse?.name ?? '—'}</small><strong>{levels === null ? '…' : formatNumber(stock, locale, 3)}</strong><span>{unitLabel(unit)}</span></div>
-      {levels && levels.filter((level) => level.warehouseId !== warehouse?.id && Number(level.quantity) > 0).map((level) => <div key={level.id} className="other"><small>{warehouses.find((item) => item.id === level.warehouseId)?.name ?? '—'}</small><strong>{formatNumber(level.quantity, locale, 3)}</strong></div>)}
+      {levels && levels.filter((level) => level.warehouseId !== warehouse?.id && Number(level.quantity) > 0).map((level) => <div key={level.id} className="other"><small>{warehouses.find((item) => item.id === level.warehouseId)?.name ?? '—'}</small><strong>{formatNumber(level.quantity, locale, 3)}</strong>{level.location && <span><MapPin size={11} aria-hidden="true" /> {level.location}</span>}</div>)}
     </div>
+    <div className="wh-location">
+      <MapPin size={22} aria-hidden="true" />
+      <div><small>{c('Ubicación en', 'Location in')} {warehouse?.name ?? '—'}</small><strong className={here?.location ? '' : 'empty'}>{levels === null ? '…' : here?.location || c('Sin indicar', 'Not set')}</strong></div>
+      {canEditLocation && !editingLocation && <button type="button" className="button button-secondary button-small" onClick={() => { setLocationDraft(here?.location ?? ''); setEditingLocation(true) }}>{here?.location ? c('Cambiar', 'Change') : c('Indicar', 'Set')}</button>}
+    </div>
+    {editingLocation && <div className="wh-location-edit">
+      <input autoFocus value={locationDraft} maxLength={120} onChange={(event) => setLocationDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void saveLocation() } }} placeholder={LOCATION_EXAMPLES[1]} aria-label={c('Ubicación', 'Location')} />
+      <div><button type="button" className="button button-ghost" onClick={() => setEditingLocation(false)}>{c('Cancelar', 'Cancel')}</button><button type="button" className="button button-primary" disabled={savingLocation} onClick={() => void saveLocation()}>{savingLocation ? c('Guardando…', 'Saving…') : c('Guardar ubicación', 'Save location')}</button></div>
+    </div>}
     {direction === 'LOOKUP' ? <div className="wh-actions compact">
       <button type="button" className="wh-action in" onClick={() => onChoose('IN')} disabled={!hasPermission('inventory:scan') && !hasPermission('inventory:write')}><PackagePlus size={30} /><strong>{c('Añadir', 'Add')}</strong></button>
       <button type="button" className="wh-action out" onClick={() => onChoose('OUT')} disabled={!hasPermission('inventory:scan') && !hasPermission('inventory:write')}><PackageMinus size={30} /><strong>{c('Retirar', 'Remove')}</strong></button>

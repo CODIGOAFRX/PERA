@@ -10,7 +10,7 @@ vi.mock('../lib/api', async (original) => ({ ...(await original<typeof import('.
 
 const flat = <T,>(content: T[]) => ({ content, page: 0, size: 15, totalElements: content.length, totalPages: 1 })
 const warehouses = [{ id: 'w1', code: 'MAIN', name: 'Principal', location: null, defaultWarehouse: true, active: true }, { id: 'w2', code: 'SEC', name: 'Secundario', location: 'Nave 2', defaultWarehouse: false, active: true }]
-const level = { id: 'lv1', warehouseId: 'w1', productId: 'p1', productCode: 'P-1', productName: 'Tornillo M6', unitOfMeasure: 'UNIT', quantity: 5.5, updatedAt: '2026-10-01T10:00:00Z' }
+const level = { id: 'lv1', warehouseId: 'w1', productId: 'p1', productCode: 'P-1', productName: 'Tornillo M6', unitOfMeasure: 'UNIT', quantity: 5.5, updatedAt: '2026-10-01T10:00:00Z', location: null }
 const movement = { id: 'm1', warehouseId: 'w1', productId: 'p1', productCode: 'P-1', productName: 'Tornillo M6', unitOfMeasure: 'UNIT', type: 'PURCHASE_RECEIPT', quantity: 2, balanceAfter: 2, unitCost: 27.95, costCurrencyCode: 'EUR', occurredAt: '2026-10-01T09:00:00Z', sourceType: 'PURCHASE_DOCUMENT', sourceId: 'd1', sourceNumber: 'AC-2026-000001', note: null }
 const delivery = { id: 'sd1', sourceDocumentId: 'doc-9', sourceType: 'DELIVERY_NOTE', sourceNumber: 'ALB-2026-000009', sourceDate: '2026-10-01', sourceStatus: 'CONFIRMED', customerCode: 'C001', customerName: 'Cliente Demo', status: 'PENDING', warehouseId: null, problem: 'Faltan existencias en MAIN: P-1 (disponibles 2, necesarias 5).', postedAt: null, lines: [{ sequence: 1, productId: 'p1', productCode: 'P-1', description: 'Tornillo M6', quantity: 5 }] }
 
@@ -94,4 +94,22 @@ it('shows why a sale has not left the warehouse and issues it from the chosen wa
   expect(await screen.findByText('Salida anotada en el diario.')).toBeInTheDocument()
   const [[, init]] = calls('POST', '/api/v1/sales-deliveries/sd1/post')
   expect(JSON.parse(String(init?.body))).toEqual({ warehouseId: 'w2' })
+})
+
+it('sets where a product is kept in the warehouse and copies its code', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+  Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true })
+  view()
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Copiar el código P-1' }))
+  await waitFor(() => expect(writeText).toHaveBeenCalledWith('P-1'))
+  expect(await screen.findByText('Copiado')).toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: /Ubicación de P-1: sin indicar/ }))
+  fireEvent.change(await screen.findByLabelText('Ubicación'), { target: { value: '  Cámara frigorífica 2 ' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Guardar ubicación' }))
+
+  await waitFor(() => expect(calls('PUT', '/api/v1/stock-levels/location')).toHaveLength(1))
+  expect(JSON.parse(String(calls('PUT', '/api/v1/stock-levels/location')[0][1].body))).toEqual({ warehouseId: 'w1', productId: 'p1', productCode: 'P-1', productName: 'Tornillo M6', unitOfMeasure: 'UNIT', location: 'Cámara frigorífica 2' })
 })

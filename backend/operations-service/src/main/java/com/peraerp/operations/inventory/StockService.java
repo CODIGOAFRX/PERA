@@ -20,6 +20,7 @@ import java.util.UUID;
 
 import static com.peraerp.operations.inventory.InventoryDtos.StockAdjustmentRequest;
 import static com.peraerp.operations.inventory.InventoryDtos.StockLevelResponse;
+import static com.peraerp.operations.inventory.InventoryDtos.StockLocationRequest;
 import static com.peraerp.operations.inventory.InventoryDtos.StockMovementResponse;
 import static com.peraerp.operations.inventory.InventoryDtos.StockTransferRequest;
 
@@ -138,6 +139,24 @@ public class StockService {
                 request.productCode(), request.productName(), request.unitOfMeasure(), type, request.quantity(), null,
                 null, StockSourceType.SCAN, null, null, normalize(request.note()), request.reason(),
                 request.clientReference())));
+    }
+
+    @Transactional
+    public StockLevelResponse changeLocation(StockLocationRequest request) {
+        UUID companyId = companyProvider.requireCompanyId();
+        Warehouse warehouse = warehouseRepository.findByIdAndCompanyId(request.warehouseId(), companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Almacén", request.warehouseId()));
+        StockLevel level = levelRepository.findForUpdate(companyId, warehouse.getId(), request.productId())
+                .orElseGet(() -> {
+                    if (!warehouse.isActive()) {
+                        throw new BusinessRuleException("El almacén " + warehouse.getCode() + " está inactivo.");
+                    }
+                    return new StockLevel(companyId, warehouse.getId(), request.productId(),
+                            request.productCode().trim(), request.productName().trim(),
+                            request.unitOfMeasure().trim().toUpperCase(Locale.ROOT));
+                });
+        level.changeLocation(normalize(request.location()));
+        return StockLevelResponse.from(levelRepository.save(level));
     }
 
     @Transactional

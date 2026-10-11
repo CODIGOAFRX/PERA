@@ -36,12 +36,27 @@ public final class InventoryDtos {
 
     public record StockLevelResponse(UUID id, UUID warehouseId, UUID productId, String productCode,
                                      String productName, String unitOfMeasure, BigDecimal quantity,
-                                     Instant updatedAt) {
+                                     Instant updatedAt, String location) {
         static StockLevelResponse from(StockLevel level) {
             return new StockLevelResponse(level.getId(), level.getWarehouseId(), level.getProductId(),
                     level.getProductCodeSnapshot(), level.getProductNameSnapshot(),
-                    level.getUnitOfMeasureSnapshot(), level.getQuantity(), level.getUpdatedAt());
+                    level.getUnitOfMeasureSnapshot(), level.getQuantity(), level.getUpdatedAt(),
+                    level.getLocation());
         }
+    }
+
+    /**
+     * Ubicación del artículo en un almacén. Si el artículo aún no tiene ficha de existencias en
+     * ese almacén se crea con cero unidades, para poder decir dónde irá antes de que llegue.
+     */
+    public record StockLocationRequest(
+            @NotNull UUID warehouseId,
+            @NotNull UUID productId,
+            @NotBlank @Size(max = 100) String productCode,
+            @NotBlank @Size(max = 300) String productName,
+            @NotBlank @Size(max = 30) String unitOfMeasure,
+            @Size(max = 120) String location
+    ) {
     }
 
     public record StockMovementResponse(UUID id, UUID warehouseId, UUID productId, String productCode,
