@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Component
 public class BootstrapDataInitializer implements ApplicationRunner {
@@ -82,6 +83,7 @@ public class BootstrapDataInitializer implements ApplicationRunner {
     private final RoleRepository roleRepository;
     private final UserCompanyRepository membershipRepository;
     private final PasswordEncoder passwordEncoder;
+    private final DemoProperties demoProperties;
 
     @Value("${pera.bootstrap.admin-password}")
     private String adminPassword;
@@ -90,7 +92,8 @@ public class BootstrapDataInitializer implements ApplicationRunner {
                                     CompanySettingsRepository companySettingsRepository,
                                     AppUserRepository userRepository,
                                     PermissionRepository permissionRepository, RoleRepository roleRepository,
-                                    UserCompanyRepository membershipRepository, PasswordEncoder passwordEncoder) {
+                                    UserCompanyRepository membershipRepository, PasswordEncoder passwordEncoder,
+                                    DemoProperties demoProperties) {
         this.companyRepository = companyRepository;
         this.companySettingsRepository = companySettingsRepository;
         this.userRepository = userRepository;
@@ -98,6 +101,7 @@ public class BootstrapDataInitializer implements ApplicationRunner {
         this.roleRepository = roleRepository;
         this.membershipRepository = membershipRepository;
         this.passwordEncoder = passwordEncoder;
+        this.demoProperties = demoProperties;
     }
 
     @Override
@@ -114,13 +118,7 @@ public class BootstrapDataInitializer implements ApplicationRunner {
         PLATFORM_PERMISSIONS.forEach(code -> permissionRepository.findByCode(code)
                 .orElseGet(() -> permissionRepository.save(new Permission(code, code))));
 
-        Map<String, Role> roles = new LinkedHashMap<>();
-        for (RoleDefinition definition : ROLE_DEFINITIONS) {
-            Role role = roleRepository.findByCompanyIdAndCodeIgnoreCase(company.getId(), definition.code())
-                    .orElseGet(() -> new Role(company.getId(), definition.code(), definition.name()));
-            role.replacePermissions(definition.permissions().stream().map(permissions::get).toList());
-            roles.put(definition.code(), roleRepository.save(role));
-        }
+        Map<String, Role> roles = ensureRoles(company, permissions);
 
         ensureDemoUser(company, roles.get("OWNER"), "admin", "Propietario", "admin@pera-erp.local", true);
         ensureDemoUser(company, roles.get("ADMIN"), "administracion", "Administración", "administracion@pera-erp.local", false);
@@ -131,6 +129,45 @@ public class BootstrapDataInitializer implements ApplicationRunner {
         ensureDemoUser(company, roles.get("CASHIER"), "cajero2", "Andrés Gil · Caja", "cajero2@pera-erp.local", false);
         ensureDemoUser(company, roles.get("WAREHOUSE"), "almacen1", "Iván Rojas · Almacén", "almacen1@pera-erp.local", false);
         ensureDemoUser(company, roles.get("WAREHOUSE"), "almacen2", "Sara Pino · Almacén", "almacen2@pera-erp.local", false);
+
+        if (demoProperties.enabled()) {
+            ensurePublicDemo(permissions);
+        }
+    }
+
+    /**
+     * Empresa y visitante de la demo pública. El visitante es administrador para poder recorrer
+     * todas las pantallas; lo que no debe hacer lo frena la pasarela por la marca del token. Su
+     * contraseña es aleatoria y nadie la conoce: se entra solo por /api/v1/auth/demo.
+     */
+    private void ensurePublicDemo(Map<String, Permission> permissions) {
+        Company company = companyRepository.findByCodeIgnoreCase(demoProperties.companyCode())
+                .orElseGet(() -> companyRepository.save(new Company(demoProperties.companyCode(),
+                        demoProperties.companyName(), demoProperties.companyTaxId())));
+        companySettingsRepository.findByCompanyId(company.getId())
+                .orElseGet(() -> companySettingsRepository.save(CompanySettings.defaults(company.getId(), company.getName())));
+        Map<String, Role> roles = ensureRoles(company, permissions);
+
+        AppUser visitor = userRepository.findByUsernameIgnoreCase(demoProperties.username())
+                .orElseGet(() -> userRepository.save(new AppUser(demoProperties.username(),
+                        passwordEncoder.encode(UUID.randomUUID().toString()), demoProperties.displayName(),
+                        demoProperties.username() + "@demo.pera-erp.local")));
+        UserCompany membership = membershipRepository.findByUserIdAndCompanyId(visitor.getId(), company.getId())
+                .orElseGet(() -> new UserCompany(visitor, company.getId()));
+        membership.replaceRoles(Set.of(roles.get("ADMIN")));
+        membership.setActive(true);
+        membershipRepository.save(membership);
+    }
+
+    private Map<String, Role> ensureRoles(Company company, Map<String, Permission> permissions) {
+        Map<String, Role> roles = new LinkedHashMap<>();
+        for (RoleDefinition definition : ROLE_DEFINITIONS) {
+            Role role = roleRepository.findByCompanyIdAndCodeIgnoreCase(company.getId(), definition.code())
+                    .orElseGet(() -> new Role(company.getId(), definition.code(), definition.name()));
+            role.replacePermissions(definition.permissions().stream().map(permissions::get).toList());
+            roles.put(definition.code(), roleRepository.save(role));
+        }
+        return roles;
     }
 
     private void ensureDemoUser(Company company, Role role, String username, String displayName, String email,

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { apiFetch, clearStoredToken, getStoredToken, storeToken } from '../lib/api'
+import { DEMO_MODE } from '../lib/demo'
 import type { CompanyOption, LoginResponse } from '../types/api'
 
 const COMPANY_KEY = 'pera.auth.company'
@@ -22,6 +23,9 @@ interface AuthContextValue {
   hasRole: (role: string) => boolean
   login: (username: string, password: string, companyId?: string) => Promise<LoginResponse>
   logout: () => void
+  /** Demo pública: error al entrar como visitante (null mientras entra o si ya ha entrado). */
+  demoError: string | null
+  retryDemo: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -63,6 +67,8 @@ export function decodeAccessToken(token: string | null): AuthIdentity | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [identity, setIdentity] = useState<AuthIdentity | null>(() => decodeAccessToken(getStoredToken()))
   const [company, setCompany] = useState<CompanyOption | null>(readCompany)
+  const [demoError, setDemoError] = useState<string | null>(null)
+  const [demoAttempt, setDemoAttempt] = useState(0)
   const authenticated = identity !== null
 
   const logout = () => {
@@ -77,20 +83,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('pera:unauthorized', logout)
   }, [])
 
+  // En la demo no hay pantalla de acceso: sin sesión (al llegar o al caducar) se entra como visitante.
+  useEffect(() => {
+    if (!DEMO_MODE || identity) return
+    let active = true
+    setDemoError(null)
+    apiFetch<LoginResponse>('/api/v1/auth/demo', { method: 'POST' })
+      .then((response) => { if (active) startSession(response) })
+      .catch((error: unknown) => { if (active) setDemoError(error instanceof Error ? error.message : String(error)) })
+    return () => { active = false }
+  }, [identity, demoAttempt])
+
+  const startSession = (response: LoginResponse) => {
+    if (!response.accessToken) return
+    const nextIdentity = decodeAccessToken(response.accessToken)
+    if (!nextIdentity) throw new Error('El servidor devolvió una sesión no válida.')
+    const selected = response.companies[0] ?? null
+    storeToken(response.accessToken)
+    if (selected) sessionStorage.setItem(COMPANY_KEY, JSON.stringify(selected))
+    setCompany(selected)
+    setIdentity(nextIdentity)
+  }
+
   const login = async (username: string, password: string, companyId?: string) => {
     const response = await apiFetch<LoginResponse>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password, companyId: companyId || null }),
     })
-    if (response.accessToken) {
-      const nextIdentity = decodeAccessToken(response.accessToken)
-      if (!nextIdentity) throw new Error('El servidor devolvió una sesión no válida.')
-      const selected = response.companies[0] ?? null
-      storeToken(response.accessToken)
-      if (selected) sessionStorage.setItem(COMPANY_KEY, JSON.stringify(selected))
-      setCompany(selected)
-      setIdentity(nextIdentity)
-    }
+    startSession(response)
     return response
   }
 
@@ -102,7 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hasRole: (role) => identity?.roles.some((assigned) => assigned.toUpperCase() === role.toUpperCase()) ?? false,
     login,
     logout,
-  }), [authenticated, company, identity])
+    demoError,
+    retryDemo: () => setDemoAttempt((attempt) => attempt + 1),
+  }), [authenticated, company, identity, demoError])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

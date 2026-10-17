@@ -1,6 +1,7 @@
 import type { ProblemDetail } from '../types/api'
 import { translate } from '../i18n/catalogs'
 import { getStoredLanguage, getStoredLocale } from '../i18n/language'
+import { API_BASE } from './demo'
 
 const TOKEN_KEY = 'pera.auth.token'
 
@@ -28,6 +29,11 @@ export function clearStoredToken() {
   sessionStorage.removeItem(TOKEN_KEY)
 }
 
+/** Las rutas del servidor se escriben como `/api/...`; en la demo pública cuelgan de otro prefijo. */
+export function apiUrl(path: string) {
+  return API_BASE && path.startsWith('/api/') ? `${API_BASE}${path}` : path
+}
+
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getStoredToken()
   const headers = new Headers(init.headers)
@@ -35,7 +41,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   if (!headers.has('Accept-Language')) headers.set('Accept-Language', getStoredLocale())
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const response = await fetch(path, { ...init, headers })
+  const response = await fetch(apiUrl(path), { ...init, headers })
   if (response.status === 204) return undefined as T
   if (!response.ok) {
     const problem = await readProblem(response)
@@ -55,7 +61,7 @@ export async function apiFetchText(path: string): Promise<string> {
   const token = getStoredToken()
   const headers = new Headers({ 'Accept-Language': getStoredLocale() })
   if (token) headers.set('Authorization', `Bearer ${token}`)
-  const response = await fetch(path, { headers })
+  const response = await fetch(apiUrl(path), { headers })
   if (!response.ok) {
     const problem = await readProblem(response)
     if (response.status === 401 && token) window.dispatchEvent(new Event('pera:unauthorized'))
@@ -68,7 +74,7 @@ export async function apiDownload(path: string): Promise<{ blob: Blob; filename:
   const token = getStoredToken()
   const headers = new Headers({ 'Accept-Language': getStoredLocale() })
   if (token) headers.set('Authorization', `Bearer ${token}`)
-  const response = await fetch(path, { headers })
+  const response = await fetch(apiUrl(path), { headers })
   if (!response.ok) {
     const problem = await readProblem(response)
     if (response.status === 401 && token) window.dispatchEvent(new Event('pera:unauthorized'))

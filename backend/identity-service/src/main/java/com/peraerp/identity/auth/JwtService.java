@@ -28,6 +28,11 @@ public class JwtService {
     }
 
     public String issue(AppUser user, UserCompany membership) {
+        return issue(user, membership, false);
+    }
+
+    /** Con {@code demo} el token lleva la marca de visitante de la demo pública (ver DemoAccessService). */
+    public String issue(AppUser user, UserCompany membership, boolean demo) {
         Instant now = Instant.now();
         Set<String> roles = new LinkedHashSet<>();
         Set<String> permissions = new LinkedHashSet<>();
@@ -36,7 +41,7 @@ public class JwtService {
             role.getPermissions().stream().map(Permission::getCode).forEach(permissions::add);
         }
 
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
                 .issuer(properties.issuer())
                 .issuedAt(now)
                 .expiresAt(now.plus(properties.ttl()))
@@ -45,8 +50,11 @@ public class JwtService {
                 .claim("display_name", user.getDisplayName())
                 .claim("company_id", membership.getCompanyId().toString())
                 .claim("roles", roles)
-                .claim("permissions", permissions)
-                .build();
+                .claim("permissions", permissions);
+        if (demo) {
+            builder.claim("demo", true);
+        }
+        JwtClaimsSet claims = builder.build();
 
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();

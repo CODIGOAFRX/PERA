@@ -3,6 +3,7 @@
 **/build/
 **/node_modules/
 **/dist/
+**/dist-demo/
 
 # IDEs
 .idea/

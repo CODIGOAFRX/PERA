@@ -16,10 +16,18 @@ public class AuthController {
 
     private final AuthService authService;
     private final LoginAttemptLimiter limiter;
+    private final DemoAccessService demoAccessService;
 
-    public AuthController(AuthService authService, LoginAttemptLimiter limiter) {
+    public AuthController(AuthService authService, LoginAttemptLimiter limiter, DemoAccessService demoAccessService) {
         this.authService = authService;
         this.limiter = limiter;
+        this.demoAccessService = demoAccessService;
+    }
+
+    /** Entrada sin contraseña a la demo pública; responde 404 si la demo no está activada. */
+    @PostMapping("/demo")
+    ResponseEntity<LoginResponse> demo() {
+        return ResponseEntity.ok(demoAccessService.enter());
     }
 
     @PostMapping("/login")

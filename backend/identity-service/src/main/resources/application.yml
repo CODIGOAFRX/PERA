@@ -29,6 +29,14 @@ pera:
     ttl: ${PERA_JWT_TTL:PT8H}
   bootstrap:
     admin-password: ${PERA_BOOTSTRAP_ADMIN_PASSWORD:ChangeMe123!}
+  # Demo pública del portfolio: apagada salvo que el despliegue la active (ver DemoProperties).
+  demo:
+    enabled: ${PERA_DEMO_ENABLED:false}
+    company-code: ${PERA_DEMO_COMPANY_CODE:VISITA}
+    company-name: ${PERA_DEMO_COMPANY_NAME:Distribuciones Nevada (demo)}
+    company-tax-id: ${PERA_DEMO_COMPANY_TAX_ID:B18745638}
+    username: ${PERA_DEMO_USERNAME:visitante}
+    display-name: ${PERA_DEMO_DISPLAY_NAME:Visitante de la demo}
   company-logo:
     storage-root: ${PERA_COMPANY_LOGO_STORAGE_ROOT:.runtime/company-logos}
 

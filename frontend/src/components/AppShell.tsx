@@ -1,4 +1,5 @@
-import { Leaf, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
+import { FlaskConical, Leaf, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
+import { DEMO_EXIT_URL, DEMO_MODE } from '../lib/demo'
 import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { useTranslation } from '../i18n/I18nProvider'
@@ -16,7 +17,10 @@ const COMPACT_THRESHOLD = 184
 const MAX_WIDTH = 360
 
 function readSidebarWidth() {
-  const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY))
+  const raw = localStorage.getItem(SIDEBAR_WIDTH_KEY)
+  // Sin nada guardado (primera visita), Number(null) daría 0 y la barra arrancaría oculta.
+  if (raw === null) return DEFAULT_WIDTH
+  const stored = Number(raw)
   return stored === 0 || (stored >= MIN_VISIBLE_WIDTH && stored <= MAX_WIDTH) ? stored : DEFAULT_WIDTH
 }
 
@@ -125,7 +129,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <LanguageSelector compact={compact} />
           <div className="sidebar-version"><Leaf size={16} /><span>PERA ERP <small>v0.2</small></span></div>
-          <button type="button" className="nav-link logout-link" onClick={logout} title={compact ? t('nav.logout') : undefined}><LogOut size={18} aria-hidden="true" /><span>{t('nav.logout')}</span></button>
+          {DEMO_MODE
+            // En la demo no se cierra sesión (se volvería a entrar como visitante): se vuelve al proyecto.
+            ? <a className="nav-link logout-link" href={DEMO_EXIT_URL} title={compact ? t('demo.exit') : undefined}><LogOut size={18} aria-hidden="true" /><span>{t('demo.exit')}</span></a>
+            : <button type="button" className="nav-link logout-link" onClick={logout} title={compact ? t('nav.logout') : undefined}><LogOut size={18} aria-hidden="true" /><span>{t('nav.logout')}</span></button>}
         </div>
         <button type="button" className="sidebar-resizer" role="separator" aria-label={t('nav.resizeSidebar')} aria-orientation="vertical" aria-valuemin={MIN_VISIBLE_WIDTH} aria-valuemax={MAX_WIDTH} aria-valuenow={sidebarWidth || MIN_VISIBLE_WIDTH} onPointerDown={startResize} onPointerMove={resize} onPointerUp={stopResize} onPointerCancel={stopResize} onDoubleClick={() => setSidebarWidth(DEFAULT_WIDTH)} onKeyDown={resizeWithKeyboard} />
       </aside>
@@ -137,6 +144,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="brand compact"><PearBrandMark /><span><strong>PERA</strong><small>ERP</small></span></div>
           <span className="mobile-company">{company?.code || 'DEMO'}</span>
         </header>
+        {DEMO_MODE && <div className="demo-banner" role="note"><FlaskConical size={15} aria-hidden="true" /><span>{t('demo.banner')}</span><a href={DEMO_EXIT_URL}>{t('demo.back')}</a></div>}
         <main id="main-content" className="app-main" tabIndex={-1}>{children}</main>
       </div>
     </div>

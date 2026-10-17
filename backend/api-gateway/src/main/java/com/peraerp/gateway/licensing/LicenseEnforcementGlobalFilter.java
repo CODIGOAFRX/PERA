@@ -20,6 +20,7 @@ import java.util.UUID;
 @Component
 public class LicenseEnforcementGlobalFilter implements GlobalFilter, Ordered {
     private static final String LOGIN_PATH = "/api/v1/auth/login";
+    private static final String DEMO_LOGIN_PATH = "/api/v1/auth/demo";
     private static final String HEALTH_PREFIX = "/actuator/health";
     private static final String PUBLIC_LICENSE_PREFIX = "/public/v1/licenses";
 
@@ -74,7 +75,7 @@ public class LicenseEnforcementGlobalFilter implements GlobalFilter, Ordered {
             return true;
         }
         String path = exchange.getRequest().getURI().getPath();
-        return LOGIN_PATH.equals(path) || matchesPrefix(path, HEALTH_PREFIX) || matchesPrefix(path, PUBLIC_LICENSE_PREFIX);
+        return LOGIN_PATH.equals(path) || DEMO_LOGIN_PATH.equals(path) || matchesPrefix(path, HEALTH_PREFIX) || matchesPrefix(path, PUBLIC_LICENSE_PREFIX);
     }
 
     private boolean matchesPrefix(String path, String prefix) {

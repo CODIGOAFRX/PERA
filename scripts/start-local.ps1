@@ -1,6 +1,9 @@
 [CmdletBinding()]
 param(
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    # Activa la demo publica (empresa VISITA con entrada sin contrasena en /api/v1/auth/demo),
+    # la misma que usa la pagina del proyecto en el portfolio. Ver docs/29-demo-publica-portfolio.md.
+    [switch]$Demo
 )
 
 $ErrorActionPreference = 'Stop'
@@ -176,6 +179,12 @@ function Resolve-CompatibleJava {
 
     foreach ($candidate in ($candidates | Select-Object -Unique)) {
         if (-not (Test-Path $candidate)) {
+            continue
+        }
+
+        # La carpeta javapath de Oracle solo tiene accesos directos: no es un JDK y no sirve
+        # como JAVA_HOME (Maven falla con "JAVA_HOME is not defined correctly").
+        if ($candidate -match '\\javapath\\') {
             continue
         }
 
@@ -411,6 +420,7 @@ if (-not $env:PERA_MAIL_ENCRYPTION_KEY) {
 Write-Host 'Arrancando servicios...'
 
 $env:PERA_BOOTSTRAP_ADMIN_PASSWORD = 'ChangeMe123!'
+$env:PERA_DEMO_ENABLED = if ($Demo) { 'true' } else { 'false' }
 $env:PERA_INTERNAL_SERVICE_KEY = $internalServiceKey
 $env:PERA_COMPANY_LOGO_STORAGE_ROOT = Join-Path $runtimeRoot 'company-logos'
 $env:MASTER_DATA_SERVICE_URL = 'http://localhost:8082'

@@ -2,6 +2,8 @@ import { Suspense, useEffect } from 'react'
 import { useAuth } from './auth/AuthContext'
 import { AppShell } from './components/AppShell'
 import { LoadingState } from './components/DataState'
+import { DemoEntry } from './components/DemoEntry'
+import { DEMO_MODE } from './lib/demo'
 import { LoginPage } from './pages/LoginPage'
 import { AccessDeniedPage } from './pages/AccessDeniedPage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -16,7 +18,7 @@ export default function App() {
   useEffect(() => {
     if (authenticated && path === '/' && home !== '/') navigate(home, true)
   }, [authenticated, path, home, navigate])
-  if (!authenticated) return <LoginPage />
+  if (!authenticated) return DEMO_MODE ? <DemoEntry /> : <LoginPage />
   if (path === '/' && home !== '/') return <LoadingState />
 
   const match = matchAppRoute(path)

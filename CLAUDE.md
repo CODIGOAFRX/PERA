@@ -63,9 +63,18 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 - **Facturación automática (bloque 3):** si una factura puede agrupar varios albaranes. Hoy la conversión es uno a uno y las facturas van encadenadas en Veri*Factu.
 - **Cierre de ejercicio (bloque 3):** qué hace hoy el cierre en DimproCristalWin (solo numeraciones o también asientos).
+- **Demo pública:** dónde se alojan los servicios de la demo del portfolio y cómo se restauran sus datos cada noche ([docs/29](docs/29-demo-publica-portfolio.md)). Hasta entonces la página del proyecto se publica y la demo dice que no está disponible.
 - **Secretos por defecto:** los servicios arrancan con claves públicas si falta la variable de entorno (JWT, clave interna, contraseña de los usuarios demo). Falta decidir si deben negarse a arrancar.
 
 ## Registro de entregas
+
+### v20261017.Pedro — demo pública para el portfolio
+
+- **Demo sin login** ([docs/29](docs/29-demo-publica-portfolio.md)): empresa propia `VISITA` con el usuario `visitante`, `POST /api/v1/auth/demo` (solo con `PERA_DEMO_ENABLED=true`, `scripts/start-local.ps1 -Demo`) y token marcado `demo`; la pasarela bloquea al visitante correos, conexiones, certificados, envíos a la AEAT, usuarios y datos de la empresa.
+- **Frontend en modo demo** (`npm run build:demo`): se sirve bajo `/proyecto/pera-erp/app/`, API en `/proyecto/pera-erp/api/`, franja de demo y «Salir de la demo». `scripts/build-portfolio-demo.mjs` lo copia al portfolio.
+- **Datos inventados**: `scripts/seed-demo-portfolio.mjs`, una distribuidora con cinco meses de actividad (facturas con Veri*Factu en pruebas, cobros, compras, TPV, almacén, agenda y reclamaciones).
+- **Arreglos:** la barra lateral arrancaba oculta en la primera visita (`Number(null)` es 0); `start-local.ps1` podía elegir la carpeta `javapath` de Oracle como JDK y Maven fallaba.
+- La landing del proyecto vive en el repositorio del portfolio (`proyecto/pera-erp`).
 
 ### v20261011.Raul — razón social y NIF de la empresa
 

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from 'react'
+import { APP_BASE } from '../lib/demo'
 
 interface RouterValue {
   path: string
@@ -8,9 +9,21 @@ interface RouterValue {
 
 const RouterContext = createContext<RouterValue | null>(null)
 
+// Las rutas de la aplicación son siempre '/clientes', '/ventas'...; si se sirve bajo un prefijo
+// (la demo del portfolio), el prefijo solo existe en la barra de direcciones.
+function stripBase(pathname: string) {
+  if (!APP_BASE) return pathname
+  if (pathname === APP_BASE) return '/'
+  return pathname.startsWith(`${APP_BASE}/`) ? pathname.slice(APP_BASE.length) : pathname
+}
+
+export function browserPath(to: string) {
+  return APP_BASE && to.startsWith('/') ? `${APP_BASE}${to === '/' ? '/' : to}` : to
+}
+
 function currentLocation() {
   return {
-    path: window.location.pathname.replace(/\/$/, '') || '/',
+    path: stripBase(window.location.pathname).replace(/\/$/, '') || '/',
     search: window.location.search,
   }
 }
@@ -24,8 +37,8 @@ export function RouterProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const navigate = useCallback((to: string, replace = false) => {
-    if (replace) window.history.replaceState(null, '', to)
-    else window.history.pushState(null, '', to)
+    if (replace) window.history.replaceState(null, '', browserPath(to))
+    else window.history.pushState(null, '', browserPath(to))
     setLocation(currentLocation())
     window.scrollTo({ top: 0, behavior: 'auto' })
   }, [])
@@ -73,5 +86,5 @@ export function Link({ to, replace, onClick, children, ...props }: LinkProps) {
     event.preventDefault()
     navigate(to, replace)
   }
-  return <a href={to} onClick={handleClick} {...props}>{children}</a>
+  return <a href={browserPath(to)} onClick={handleClick} {...props}>{children}</a>
 }

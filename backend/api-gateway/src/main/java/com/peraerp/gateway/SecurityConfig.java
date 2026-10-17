@@ -13,7 +13,7 @@ public class SecurityConfig {
     @Bean SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http){
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchange->exchange
-                        .pathMatchers("/api/v1/auth/login", "/public/v1/licenses/**", "/actuator/health/**").permitAll()
+                        .pathMatchers("/api/v1/auth/login", "/api/v1/auth/demo", "/public/v1/licenses/**", "/actuator/health/**").permitAll()
                         // Operational endpoints (metrics, config) are for internal scraping, never for end users.
                         .pathMatchers("/actuator/**").denyAll()
                         .anyExchange().authenticated())
