@@ -14,6 +14,10 @@ const TOKEN_TTL_SECONDS = 8 * 60 * 60
 // se acepta igualmente la respuesta grabada más parecida.
 const SOFT_PARAMS = new Set(['from', 'to', 'fromDate', 'toDate', 'date', 'dateFrom', 'dateTo', 'occurredFrom', 'occurredTo', 'issuedFrom', 'issuedTo', 'day', 'month', 'year', 'week', 'period', 'start', 'end', 'since', 'until', 'reference', 'referenceDate', 'asOf'])
 
+// Consultas en las que un parámetro identifica lo que se busca: si no coincide, no hay respuesta
+// parecida que valga (un código leído por el escáner es ese artículo o ninguno).
+const EXACT_PARAMS = { '/api/v1/products/lookup': 'code' }
+
 let indexPromise = null
 
 function loadIndex(env, origin) {
@@ -78,8 +82,14 @@ async function serveApi(request, env, url, path) {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return problem(403, 'Solo lectura', 'En la demo publicada puedes recorrerlo todo, pero los cambios no se guardan.', { code: 'DEMO_READ_ONLY' })
   }
-  const variants = index.routes[`GET ${path}`]
+  let variants = index.routes[`GET ${path}`]
   if (!variants?.length) return problem(404, 'No disponible en la demo', 'Esta consulta no forma parte de la demo publicada.')
+  const exact = EXACT_PARAMS[path]
+  if (exact) {
+    const wanted = (url.searchParams.get(exact) ?? '').trim().toLowerCase()
+    variants = variants.filter((variant) => String(variant.query[exact] ?? '').trim().toLowerCase() === wanted)
+    if (!variants.length) return problem(404, 'No encontrado', `No existe ningún artículo con el código «${url.searchParams.get(exact)}».`)
+  }
   const variant = pick(variants, Object.fromEntries(url.searchParams))
   const asset = await env.ASSETS.fetch(new Request(`${url.origin}${SNAPSHOT}${variant.file}`))
   if (!asset.ok) return problem(404, 'No disponible en la demo', 'Esta consulta no forma parte de la demo publicada.')

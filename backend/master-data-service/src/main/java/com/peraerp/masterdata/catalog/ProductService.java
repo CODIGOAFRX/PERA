@@ -63,7 +63,11 @@ public class ProductService {
                 request.description(), productTypeId, request.productGroupId(), request.taxCodeId(),
                 request.familyId(), request.categoryId(), request.unitOfMeasure(), request.basePrice(),
                 effectiveTaxRate);
-        product.changeBarcode(resolveBarcode(companyId, null, request.barcode(), null));
+        // Sin código de barras, PERA le asigna uno interno: así se puede escanear e imprimir su etiqueta
+        // desde el primer momento. Se puede cambiar después por el EAN del fabricante.
+        boolean withoutBarcode = request.barcode() == null || request.barcode().isBlank();
+        product.changeBarcode(withoutBarcode ? nextInternalBarcode(companyId)
+                : resolveBarcode(companyId, null, request.barcode(), null));
         return ProductResponse.from(repository.save(product));
     }
 
@@ -134,6 +138,17 @@ public class ProductService {
                             + other.getCode() + ".");
                 });
         return barcode;
+    }
+
+    /** Siguiente código interno libre de la empresa (salta los que alguien haya puesto a mano). */
+    private String nextInternalBarcode(UUID companyId) {
+        Long last = repository.findMaxInternalBarcodeSequence(companyId);
+        long sequence = last == null ? 1 : last + 1;
+        String candidate = InternalBarcode.ean13(sequence);
+        while (repository.findFirstByCompanyIdAndBarcodeIgnoreCase(companyId, candidate).isPresent()) {
+            candidate = InternalBarcode.ean13(++sequence);
+        }
+        return candidate;
     }
 
     private UUID resolveProductType(UUID companyId, UUID requestedTypeId, UUID productGroupId) {

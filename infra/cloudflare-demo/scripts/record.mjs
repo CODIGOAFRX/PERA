@@ -47,6 +47,14 @@ function remember(method, path, search, status, type, body) {
 // ------------------------------------------------------------------ 1. recorrido con el navegador
 
 const routes = [...readFileSync(ROUTES_FILE, 'utf8').matchAll(/path: '(\/[^']*)'/g)].map((match) => match[1])
+
+// Los artículos de la demo, para escanear alguno en el recorrido y grabar después la búsqueda
+// por código de todos.
+const visitor = await (await fetch(`${GATEWAY}/api/v1/auth/demo`, { method: 'POST' })).json()
+const catalogue = (await (await fetch(`${GATEWAY}/api/v1/products?size=1000`, { headers: { Authorization: `Bearer ${visitor.accessToken}` } })).json()).content
+const sample = catalogue.find((product) => product.barcode) ?? catalogue[0]
+if (!sample) throw new Error('La demo no tiene artículos: carga antes scripts/seed-demo-portfolio.mjs.')
+
 const browser = await chromium.launch({ channel: 'chrome' })
 
 async function crawl(viewport, isMobile, paths) {
@@ -74,6 +82,14 @@ async function crawl(viewport, isMobile, paths) {
       await settle(500)
     }
   }
+  // Escribe un código en la entrada a mano (como haría un lector) y lo envía.
+  const typeCode = async (selector, code) => {
+    const input = page.locator(selector).first()
+    if (!(await input.isVisible().catch(() => false))) return
+    await input.fill(code).catch(() => undefined)
+    await input.press('Enter').catch(() => undefined)
+    await settle(1000)
+  }
   const openRows = async (limit = 3) => {
     const count = Math.min(limit, await page.locator('tr.clickable-row').count())
     for (let index = 0; index < count; index += 1) {
@@ -100,13 +116,21 @@ async function crawl(viewport, isMobile, paths) {
         await page.getByText(name).first().click({ timeout: 3000 }).catch(() => undefined)
         await settle(1200)
         await clickAll('.pos-category, .pos-categories button, .pos-filters button', 14)
+        await typeCode('input', sample.barcode ?? sample.code)
       }
     }
+    if (path === '/etiquetas') await typeCode('input', sample.barcode ?? sample.code)
     if (path === '/almacen-movil') {
-      for (const label of ['Consultar existencias', 'Lo que he hecho hoy', 'Imprimir etiquetas']) {
+      for (const label of ['Consultar existencias', 'Añadir producto', 'Retirar producto', 'Lo que he hecho hoy', 'Imprimir etiquetas']) {
         await page.goto(`${APP}/almacen-movil`); await settle(900)
         await page.getByText(label).first().click({ timeout: 3000 }).catch(() => undefined)
         await settle(1000)
+        // Identificar un artículo a mano: así se graban su ficha, existencias y embalajes.
+        if (!['Lo que he hecho hoy', 'Imprimir etiquetas'].includes(label)) {
+          await page.getByText('Introducir a mano').first().click({ timeout: 3000 }).catch(() => undefined)
+          await settle(500)
+          await typeCode('.wh-manual input', sample.barcode ?? sample.code)
+        }
       }
     }
     console.log(`· ${viewport.width}px ${path} (${records.size} respuestas)`)
@@ -167,6 +191,18 @@ for (const template of patterns.keys()) {
   }
 }
 console.log(`Detalles añadidos: ${extra}`)
+
+// Lo que lee un escáner o se teclea: el código de barras y la referencia de cada artículo.
+let lookups = 0
+for (const product of catalogue) {
+  for (const code of [product.barcode, product.code].filter(Boolean)) {
+    const query = `?code=${encodeURIComponent(code)}`
+    if (records.has(keyOf('GET', '/api/v1/products/lookup', query))) continue
+    await fetchDirect('/api/v1/products/lookup', query)
+    lookups += 1
+  }
+}
+console.log(`Búsquedas por código: ${lookups}`)
 
 // ------------------------------------------------------------------ 3. ficheros para el Worker
 

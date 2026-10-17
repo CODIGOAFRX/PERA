@@ -16,6 +16,11 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Optional<Product> findFirstByCompanyIdAndBarcodeIgnoreCase(UUID companyId, String barcode);
     Optional<Product> findFirstByCompanyIdAndCodeIgnoreCase(UUID companyId, String code);
 
+    /** Mayor número de código interno (EAN-13 con prefijo 20) usado en la empresa; nulo si no hay ninguno. */
+    @Query(value = "select max(cast(substring(barcode from 3 for 10) as bigint)) from products " +
+            "where company_id = :companyId and barcode ~ '" + InternalBarcode.PATTERN + "'", nativeQuery = true)
+    Long findMaxInternalBarcodeSequence(@Param("companyId") UUID companyId);
+
     @Query("select p from Product p where p.companyId = :companyId and (:query is null " +
             "or lower(p.code) like lower(concat('%', :query, '%')) " +
             "or lower(p.name) like lower(concat('%', :query, '%')) " +

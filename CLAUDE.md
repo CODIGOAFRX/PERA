@@ -68,6 +68,11 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Registro de entregas
 
+### v20261017.Pedro.3 — código de barras automático y escáner en la demo
+
+- **Código de barras automático:** un artículo creado sin código de barras recibe uno interno EAN-13 (prefijo 20, correlativo por empresa, con dígito de control), listo para escanear e imprimir en etiqueta; se puede cambiar después. Migración `V13` de master-data: asigna uno a los artículos que no lo tenían.
+- **Arreglo:** en la demo publicada, escanear un artículo (almacén móvil, TPV, etiquetas) decía «No hay ningún artículo con el código…»: la búsqueda por código no estaba grabada. Ahora se graba para el código de barras y la referencia de cada artículo, con su ficha, existencias y embalajes, y el Worker solo responde si el código coincide.
+
 ### v20261017.Pedro.2 — demo publicada en Cloudflare
 
 - La demo del portfolio ya funciona para cualquiera: el Worker `pera-demo` (`infra/cloudflare-demo`) sirve una instantánea de la demo local grabada con `npm run record` (todas las pantallas, pestañas y detalles); Vercel le reescribe `/proyecto/pera-erp/api/*`. Es de solo lectura: se recorre todo y las escrituras responden «Solo lectura» ([docs/29](docs/29-demo-publica-portfolio.md)).

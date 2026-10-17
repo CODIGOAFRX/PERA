@@ -73,6 +73,35 @@ class ProductBarcodeTest {
         assertThatThrownBy(() -> service.lookup("  ")).isInstanceOf(BusinessRuleException.class);
     }
 
+    @Test
+    void aNewProductWithoutBarcodeGetsTheNextInternalOne() {
+        when(products.findMaxInternalBarcodeSequence(companyId)).thenReturn(5059L);
+
+        assertThat(service.create(request("ATUN", null)).barcode()).isEqualTo("2000000050607");
+        assertThat(service.create(request("MEJI", "  ")).barcode()).isEqualTo("2000000050607");
+    }
+
+    @Test
+    void theFirstInternalBarcodeOfACompanyStartsAtOne() {
+        when(products.findMaxInternalBarcodeSequence(companyId)).thenReturn(null);
+
+        assertThat(service.create(request("ATUN", "")).barcode()).isEqualTo("2000000000015");
+    }
+
+    @Test
+    void anInternalBarcodeTypedByHandIsSkipped() {
+        when(products.findMaxInternalBarcodeSequence(companyId)).thenReturn(5059L);
+        when(products.findFirstByCompanyIdAndBarcodeIgnoreCase(companyId, "2000000050607")).thenReturn(Optional.of(existing));
+
+        assertThat(service.create(request("ATUN", null)).barcode()).isEqualTo("2000000050614");
+    }
+
+    @Test
+    void aBarcodeGivenOnCreationIsKeptAndCanBeChangedLater() {
+        assertThat(service.create(request("ATUN", "8410000000024")).barcode()).isEqualTo("8410000000024");
+        assertThat(service.update(existing.getId(), request("SARD", "8410000000031")).barcode()).isEqualTo("8410000000031");
+    }
+
     private ProductRequest request(String code, String barcode) {
         return new ProductRequest(code, "Producto", null, null, null, null, null, null, UnitOfMeasure.UNIT,
                 new BigDecimal("1.50"), new BigDecimal("10"), true, barcode);
