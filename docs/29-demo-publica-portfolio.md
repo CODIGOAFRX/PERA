@@ -28,9 +28,20 @@ node scripts/build-portfolio-demo.mjs
 
 Para trabajar en la demo con recarga en caliente: `cd frontend && npm run dev:demo` y abrir `http://localhost:5173/proyecto/pera-erp/app/`.
 
-## Límites y pendiente para publicarla
+## Publicada en Cloudflare (instantánea)
 
-- **Servidor.** La demo necesita los ocho servicios y PostgreSQL en algún sitio accesible. Cuando lo haya, en `vercel.json` del portfolio falta la reescritura `/proyecto/pera-erp/api/:path*` → `https://<servidor>/api/:path*`. Hasta entonces, la demo publicada muestra «La demo no está disponible ahora mismo».
+El backend real no cabe en un Worker, así que la demo publicada sirve una **instantánea** de la demo local: `infra/cloudflare-demo`.
+
+- `npm run record` (con PERA arrancado con `-Demo`, los datos cargados y `node scripts/serve-local.mjs` en el portfolio) recorre la aplicación con Chrome, pantalla por pantalla, pestañas y detalles incluidos, y guarda cada respuesta GET de la API. Después pide a la pasarela el detalle de cada registro que aparece en los listados. El resultado va a `public/snapshot/` (no se versiona: se regenera).
+- El Worker `pera-demo` (`src/index.js`) sirve esas respuestas como Static Assets: la entrada de visitante emite un token con los mismos datos que PERA, cada GET devuelve la respuesta grabada (si la consulta lleva fechas de hoy, la grabada más parecida) y **toda escritura responde 403 «Solo lectura»**: se puede recorrer todo, pero los cambios no se guardan.
+- Vercel reescribe `/proyecto/pera-erp/api/:path*` hacia `https://pera-demo.pedrojgomezperez.workers.dev/api/:path*`.
+- Publicar: `npm run record && npm run deploy` (wrangler con la cuenta de Pedro). Las cifras del resumen son las del día de la grabación: conviene volver a grabar de vez en cuando.
+
+## Límites y pendiente para tener la demo completa
+
+La instantánea es de solo lectura. Para que el visitante pueda crear y cambiar cosas hace falta el backend real en un servidor (o en contenedores de Cloudflare, que exigen plan de pago):
+
+- **Servidor.** Los ocho servicios y PostgreSQL en algún sitio accesible; entonces la reescritura de `vercel.json` pasa a apuntar a ese servidor en lugar de al Worker.
 - **CORS.** La reescritura de Vercel envía el origen del portfolio: en ese servidor, `CORS_ALLOWED_ORIGINS` tiene que incluir `https://www.pedrogomez.dev` y `https://pedrogomez.dev`. El proxy local no lo necesita porque quita el origen.
 - **Secretos.** En ese servidor, `PERA_JWT_SECRET`, `PERA_INTERNAL_SERVICE_KEY` y `PERA_BOOTSTRAP_ADMIN_PASSWORD` propios (los valores por defecto son públicos), y `PERA_DEMO_ENABLED=true`.
 - **Reinicio de datos.** Los visitantes comparten la misma empresa: lo que uno cree lo ve el siguiente. Falta una tarea que restaure los datos (por ejemplo, cada noche, recrear las bases de una instalación solo de demo y volver a cargar el script). El script fecha los datos respecto al día en que se ejecuta, así que recargarlo los mantiene al día.

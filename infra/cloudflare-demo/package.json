@@ -1,0 +1,14 @@
+{
+  "name": "pera-demo-cloudflare",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "record": "node scripts/record.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "wrangler": "4.135.0"
+  }
+}

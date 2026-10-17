@@ -63,10 +63,15 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 - **Facturación automática (bloque 3):** si una factura puede agrupar varios albaranes. Hoy la conversión es uno a uno y las facturas van encadenadas en Veri*Factu.
 - **Cierre de ejercicio (bloque 3):** qué hace hoy el cierre en DimproCristalWin (solo numeraciones o también asientos).
-- **Demo pública:** dónde se alojan los servicios de la demo del portfolio y cómo se restauran sus datos cada noche ([docs/29](docs/29-demo-publica-portfolio.md)). Hasta entonces la página del proyecto se publica y la demo dice que no está disponible.
+- **Demo pública completa:** hoy es una instantánea de solo lectura en Cloudflare. Para que el visitante pueda crear y cambiar cosas, decidir dónde alojar el backend real (servidor propio o contenedores de Cloudflare, de pago) y cómo restaurar sus datos cada noche ([docs/29](docs/29-demo-publica-portfolio.md)).
 - **Secretos por defecto:** los servicios arrancan con claves públicas si falta la variable de entorno (JWT, clave interna, contraseña de los usuarios demo). Falta decidir si deben negarse a arrancar.
 
 ## Registro de entregas
+
+### v20261017.Pedro.2 — demo publicada en Cloudflare
+
+- La demo del portfolio ya funciona para cualquiera: el Worker `pera-demo` (`infra/cloudflare-demo`) sirve una instantánea de la demo local grabada con `npm run record` (todas las pantallas, pestañas y detalles); Vercel le reescribe `/proyecto/pera-erp/api/*`. Es de solo lectura: se recorre todo y las escrituras responden «Solo lectura» ([docs/29](docs/29-demo-publica-portfolio.md)).
+- `npm run deploy` publica con wrangler; `node scripts/check.mjs` recorre la demo publicada y lista lo que falte.
 
 ### v20261017.Pedro — demo pública para el portfolio
 

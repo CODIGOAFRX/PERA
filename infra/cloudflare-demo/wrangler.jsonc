@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Demo pública de PERA ERP: sirve la instantánea de public/snapshot (scripts/record.mjs).
+  "name": "pera-demo",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-19",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "html_handling": "none",
+    "not_found_handling": "none",
+    // Las respuestas grabadas solo salen a través del Worker, que decide cuál toca.
+    "run_worker_first": true
+  }
+}

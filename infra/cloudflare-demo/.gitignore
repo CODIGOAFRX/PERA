@@ -1,0 +1,4 @@
+node_modules/
+.wrangler/
+# Instantánea generada por scripts/record.mjs a partir de la demo local (se regenera).
+public/snapshot/
