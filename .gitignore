@@ -39,3 +39,9 @@ Thumbs.db
 # Test and coverage output
 coverage/
 **/jacoco.exec
+
+# Configuración fiscal de cada empresa (factura_e.ini, certificados y claves): solo en el servidor
+config/empresas/*
+!config/empresas/EJEMPLO/
+config/empresas/EJEMPLO/*
+!config/empresas/EJEMPLO/factura_e.ini.example

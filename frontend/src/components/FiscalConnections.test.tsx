@@ -40,3 +40,14 @@ it('shows the stored certificate and warns when it expires soon or belongs to an
   expect(alerts.some((text) => text?.includes('caduca en'))).toBe(true)
   expect(alerts.some((text) => text?.includes('no coincide con el emisor'))).toBe(true)
 })
+it('shows the company factura_e.ini instead of the upload form and explains why it is not submitting', async () => {
+  api.mockImplementation((path: string) => Promise.resolve(path.endsWith('B2B') ? stored('B2B') : {
+    ...stored('AEAT'), enabled: true, source: 'FILE', file: 'config/empresas/B12345678/factura_e.ini', mode: 'PROPIO',
+    problem: 'No está el certificado empresa.p12 en la carpeta de la empresa.',
+  }))
+  render(<I18nProvider><FiscalConnections /></I18nProvider>)
+  expect(await screen.findByText('config/empresas/B12345678/factura_e.ini')).toBeInTheDocument()
+  expect(screen.queryByLabelText(/Certificado P12\/PFX/)).not.toBeInTheDocument()
+  expect(screen.getByRole('alert')).toHaveTextContent('empresa.p12')
+  expect(screen.getByRole('button', { name: 'Comprobar certificado' })).toBeDisabled()
+})

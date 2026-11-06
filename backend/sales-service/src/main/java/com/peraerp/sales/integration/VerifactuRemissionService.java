@@ -23,6 +23,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -72,10 +74,12 @@ public class VerifactuRemissionService {
     private final VerifactuSettingsRepository settings;
     private final VerifactuRecordRepository records;
     private final TransactionTemplate tx;
+    private final FiscalProfileService profiles;
 
     public VerifactuRemissionService(JdbcTemplate jdbc, MailSecretCipher cipher, ObjectMapper mapper,
                                      AeatTestTransport transport, VerifactuSettingsRepository settings,
-                                     VerifactuRecordRepository records, PlatformTransactionManager transactions) {
+                                     VerifactuRecordRepository records, PlatformTransactionManager transactions,
+                                     FiscalProfileService profiles) {
         this.jdbc = jdbc;
         this.cipher = cipher;
         this.mapper = mapper;
@@ -83,19 +87,25 @@ public class VerifactuRemissionService {
         this.settings = settings;
         this.records = records;
         this.tx = new TransactionTemplate(transactions);
+        this.profiles = profiles;
     }
 
-    /** Empresas con Veri*Factu y conexión activos, con algo por remitir y fuera del tiempo de espera. */
-    public List<UUID> dueCompanies() {
-        return jdbc.queryForList("""
-                SELECT c.company_id FROM fiscal_connections c
+    /**
+     * Empresas con Veri*Factu activo, con algo por remitir y fuera del tiempo de espera, y con la conexión
+     * activa o un factura_e.ini que remite por su cuenta ({@code withFile}).
+     */
+    public List<UUID> dueCompanies(Set<UUID> withFile) {
+        return jdbc.query("""
+                SELECT c.company_id, c.enabled FROM fiscal_connections c
                 JOIN verifactu_settings s ON s.company_id = c.company_id
-                WHERE c.provider = 'AEAT' AND c.enabled AND s.enabled
+                WHERE c.provider = 'AEAT' AND s.enabled
                   AND (c.next_send_at IS NULL OR c.next_send_at <= now())
                   AND EXISTS (SELECT 1 FROM verifactu_records r WHERE r.company_id = c.company_id
                       AND r.record_type = 'ALTA' AND (r.state = 'PENDING'
                       OR (r.state = 'SENT' AND r.last_attempt_at < now() - make_interval(secs => ?))))
-                """, UUID.class, RECONCILE_AFTER_SECONDS);
+                """, (rs, n) -> rs.getBoolean(2) || withFile.contains(rs.getObject(1, UUID.class))
+                        ? rs.getObject(1, UUID.class) : null, RECONCILE_AFTER_SECONDS)
+                .stream().filter(Objects::nonNull).toList();
     }
 
     /** Remite lo pendiente de una empresa, si le toca. Nunca lanza por un fallo de la AEAT: lo anota. */
@@ -146,8 +156,12 @@ public class VerifactuRemissionService {
             return Claim.nothing("No hay conexión con la AEAT o la está usando otro envío.");
         }
         Object[] connection = connections.getFirst();
-        if (!(Boolean) connection[2]) {
-            return Claim.nothing("La conexión con la AEAT está desactivada.");
+        // Con factura_e.ini manda el fichero: el certificado está en la carpeta de la empresa.
+        FiscalProfileService.Profile profile = profiles.forCompany(companyId).orElse(null);
+        if (profile == null && (!(Boolean) connection[2] || FiscalProfileService.FROM_FILE.equals(connection[0]))) {
+            return Claim.nothing(FiscalProfileService.FROM_FILE.equals(connection[0])
+                    ? "La empresa ya no tiene su " + FiscalProfileService.FILE_NAME + "."
+                    : "La conexión con la AEAT está desactivada.");
         }
         if (!(Boolean) connection[3]) {
             return Claim.nothing("La AEAT fija un tiempo de espera entre envíos. "
@@ -156,6 +170,18 @@ public class VerifactuRemissionService {
         VerifactuSettings configuration = settings.findByCompanyId(companyId).orElse(null);
         if (configuration == null || !configuration.isEnabled()) {
             return Claim.nothing("Veri*Factu está desactivado en la empresa.");
+        }
+        if (profile != null) {
+            if (!profile.usable()) {
+                return Claim.nothing(profile.problem());
+            }
+            // Nunca se remite a producción por un descuido: fichero y empresa tienen que decir lo mismo.
+            if (profile.environment() != configuration.getEnvironment()) {
+                return Claim.nothing("El " + FiscalProfileService.FILE_NAME + " dice "
+                        + (profile.environment() == VerifactuEnvironment.TEST ? "pruebas" : "producción")
+                        + " y la empresa está en " + (configuration.getEnvironment() == VerifactuEnvironment.TEST
+                        ? "pruebas" : "producción") + ". Pon los dos igual para remitir.");
+            }
         }
         List<UUID> ids = jdbc.queryForList("""
                 SELECT id FROM verifactu_records WHERE company_id = ? AND record_type = 'ALTA'
@@ -185,9 +211,18 @@ public class VerifactuRemissionService {
         if (batch.isEmpty()) {
             return Claim.nothing("Los registros pendientes no superan el esquema oficial de la AEAT.");
         }
-        var secret = mapper.readTree(cipher.decrypt(companyId, (String) connection[0]));
-        if (!"AEAT".equals(secret.path("provider").asText())) {
-            throw new BusinessRuleException("Credencial de otro proveedor");
+        String certificate;
+        String password;
+        if (profile != null) {
+            certificate = profile.certificateBase64();
+            password = profile.password();
+        } else {
+            var secret = mapper.readTree(cipher.decrypt(companyId, (String) connection[0]));
+            if (!"AEAT".equals(secret.path("provider").asText())) {
+                throw new BusinessRuleException("Credencial de otro proveedor");
+            }
+            certificate = secret.path("certificate").asText();
+            password = secret.path("password").asText();
         }
         List<UUID> batchIds = batch.stream().map(VerifactuRecord::getId).toList();
         for (UUID id : batchIds) {
@@ -199,8 +234,8 @@ public class VerifactuRemissionService {
         // Mientras dura el envío nadie más remite por esta empresa.
         jdbc.update("UPDATE fiscal_connections SET next_send_at = now() + make_interval(secs => ?) "
                 + "WHERE company_id = ? AND provider = 'AEAT'", DEFAULT_WAIT_SECONDS, companyId);
-        return new Claim(secret.path("certificate").asText(), secret.path("password").asText(),
-                "SEAL".equals(connection[1]), configuration.getEnvironment(), batch, "");
+        boolean seal = profile != null ? profile.seal() : "SEAL".equals(connection[1]);
+        return new Claim(certificate, password, seal, configuration.getEnvironment(), batch, "");
     }
 
     private void apply(UUID companyId, List<VerifactuRecord> batch, AeatTestTransport.BatchResult result) {

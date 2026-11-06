@@ -55,10 +55,12 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 | 2026-10-09 | Traer a PERA todo lo que hace DimproCristalWin, leyendo su código fuente: se copia el comportamiento (opciones, campos, reglas y cálculos, comprobados con datos reales), no la estructura de su código. Base: el inventario del doc 26. |
 | 2026-10-09 | `main` recibe todo lo de `migracion-dimprocristalwin` (Raúl lo pidió para que el compañero lo clone directamente). Se sigue trabajando en la rama y se pasa a `main` al terminar cada entrega. |
 | 2026-10-08 | Veri*Factu se presenta de forma propia (registro, huella y cadena de PERA, remitidos con el certificado de la empresa), no a través de Verifacti o B2BRouter como en DimproCristalWin. Se completa lo que hace Dimpro: envío automático, estado por factura, seguimiento. |
+| 2026-11-07 | La factura electrónica de cada empresa se configura en su propio `config/empresas/<NIF>/factura_e.ini`, como el `Factura_e.INI` de DimproCristalWin, y cada empresa elige la vía: propia (directa a la AEAT con su certificado) o por Verifacti/B2BRouter con su api key. Ninguna depende del certificado de otra. Esos ficheros nunca van a GitHub ([docs/30](docs/30-factura-e-ini-por-empresa.md)). |
 
 ## Pendiente de decidir
 
 - **TPV y Veri*Factu:** los tickets del TPV son facturas simplificadas y aún no generan registro Veri*Factu ni asiento. Decidir si se integran en la cadena de Ventas antes de usar el TPV con una empresa real.
+- **Factura electrónica por proveedor:** fases 2 a 4 de [docs/30](docs/30-factura-e-ini-por-empresa.md): Verifacti como `facturae_auto_verifacti` de Dimpro, B2BRouter en producción y comprobación del NIF del cliente con `url_nifs`/`url_vies`.
 - **Veri*Factu en producción:** antes de la primera empresa real, declaración responsable de PERA como sistema informático de facturación y revisión de un asesor fiscal. Siguiente fase técnica: subsanación y anulación, y validación del NIF del cliente en la AEAT.
 
 - **Facturación automática (bloque 3):** si una factura puede agrupar varios albaranes. Hoy la conversión es uno a uno y las facturas van encadenadas en Veri*Factu.
@@ -67,6 +69,13 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 - **Secretos por defecto:** los servicios arrancan con claves públicas si falta la variable de entorno (JWT, clave interna, contraseña de los usuarios demo). Falta decidir si deben negarse a arrancar.
 
 ## Registro de entregas
+
+### v20261107.Raul — `factura_e.ini` por empresa
+
+- La conexión con la AEAT de cada empresa se puede configurar en `config/empresas/<NIF>/factura_e.ini` con su certificado al lado, con las mismas secciones que el de DimproCristalWin ([docs/30](docs/30-factura-e-ini-por-empresa.md), plantilla en `config/empresas/EJEMPLO`). Así cada cliente remite con su certificado y no con el de Raúl.
+- Sin fichero, todo sigue como antes (certificado cargado en Conexiones). Con fichero manda el fichero, sin borrar ni cambiar lo guardado: al quitarlo, la empresa vuelve a como estaba. Si el entorno del fichero (`modotest`) no coincide con el de la empresa no se remite nada.
+- Conexiones enseña el fichero, el modo, el entorno, el certificado y, si no se puede usar, por qué. Los modos `VERIFACTI` y `B2BROUTER` se reconocen pero aún no remiten (fase siguiente).
+- `docs/29-formas-de-pago` pasa a [docs/31](docs/31-formas-de-pago.md): el 29 ya lo usaba la demo pública. Sigue siendo un borrador, sin implementar.
 
 ### v20261017.Pedro.3 — código de barras automático y escáner en la demo
 

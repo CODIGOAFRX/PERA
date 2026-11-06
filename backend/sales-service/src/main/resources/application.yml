@@ -16,6 +16,9 @@ pera.services:
   identity-url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
   finance-url: ${FINANCE_SERVICE_URL:http://localhost:8084}
   master-data-url: ${MASTER_DATA_SERVICE_URL:http://localhost:8082}
+# Carpeta con la configuración de factura electrónica de cada empresa: <carpeta>/<NIF>/factura_e.ini,
+# como el Factura_e.INI de DimproCristalWin. Relativa a la carpeta desde la que arranca el servicio.
+pera.fiscal.config-dir: ${PERA_FISCAL_CONFIG_DIR:config/empresas}
 # Identidad del productor del software ante la AEAT. Identifica a PERA como sistema informático
 # de facturación, no a la empresa que lo usa. Sin developer-tax-id no se puede activar Veri*Factu.
 pera.verifactu.software:

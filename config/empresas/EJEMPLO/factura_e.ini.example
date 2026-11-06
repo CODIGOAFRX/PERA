@@ -1,0 +1,40 @@
+; Configuración de factura electrónica de UNA empresa en PERA.
+;
+; Copia esta carpeta como config/empresas/<NIF del emisor>/ (p. ej. config/empresas/B12345678/),
+; renombra este fichero a factura_e.ini y pon el certificado de la empresa en la misma carpeta.
+; Esa carpeta NO se sube a GitHub: tiene el certificado y su clave.
+;
+; Mismo formato que el Factura_e.INI de DimproCristalWin. Los comentarios empiezan por ; # o *.
+; Las secciones se pueden escribir con o sin guion bajo ([VERI_FACTI] = [VERIFACTI]).
+; PERA lo vuelve a leer solo cada medio minuto: no hace falta reiniciar.
+
+[FACTURA_E]
+; Comprobar el NIF de los clientes en la AEAT y en VIES (las usa Dimpro con la api key de Verifacti).
+url_nifs = https://api.verifacti.com/nifs/validar
+url_vies = https://api.verifacti.com/nifs/validar/vies
+; Cómo se presentan las facturas a Hacienda:
+;   PROPIO     -> PERA remite directamente a la AEAT con el certificado de la empresa (sección [AEAT]).
+;   VERIFACTI  -> a través de Verifacti con la api key de la empresa (próxima fase, aún no remite).
+;   B2BROUTER  -> a través de B2Brouter (próxima fase, aún no remite).
+modo = PROPIO
+; "1" = pruebas (preproducción de la AEAT, sin efecto fiscal). "0" = producción.
+; Tiene que coincidir con el entorno de Configuración > Veri*Factu; si no, PERA no remite nada.
+modotest = "1"
+
+[AEAT]
+; Fichero P12/PFX dentro de esta misma carpeta.
+certificado = certificado.p12
+clave = contraseña-del-certificado
+; CERTIFICADO (persona o representante) o SELLO (sello de entidad).
+tipo = CERTIFICADO
+
+[VERIFACTI]
+url_crea = https://api.verifacti.com/verifactu/create
+url_status = https://api.verifacti.com/verifactu/status?uuid=
+apikey_test =
+apikey_prod =
+
+[B2BROUTER]
+dominio = api-staging.b2brouter.net
+ruta =
+header =

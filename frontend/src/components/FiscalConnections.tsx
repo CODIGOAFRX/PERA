@@ -8,7 +8,7 @@ import { StatusBadge } from './StatusBadge'
 
 type Provider = 'AEAT' | 'B2B'
 type CertificateInfo = { holder: string; personalTaxId: string | null; entityTaxId: string | null; issuer: string; validUntil: string; expired: boolean }
-type View = { provider: string; configured: boolean; encryptionReady: boolean; account: string; enabled: boolean; environment: string; certificate?: CertificateInfo | null; issuerMatches?: boolean | null }
+type View = { provider: string; configured: boolean; encryptionReady: boolean; account: string; enabled: boolean; environment: string; certificate?: CertificateInfo | null; issuerMatches?: boolean | null; source?: 'FILE' | 'DATABASE' | null; file?: string | null; mode?: string | null; problem?: string | null }
 
 /** Días de antelación con los que se avisa de la caducidad del certificado. */
 const EXPIRY_WARNING_DAYS = 30
@@ -127,7 +127,8 @@ function FiscalConnection({ provider }: { provider: Provider }) {
     {error && <p className="inline-error" role="alert">{error}</p>}
     {!view && !error && <p className="fiscal-connection-intro">{c('Cargando la configuración…', 'Loading configuration…')}</p>}
     {aeat && view?.certificate && <CertificateSummary info={view.certificate} issuerMatches={view.issuerMatches ?? null} c={c} locale={language === 'es' ? 'es-ES' : 'en-GB'} />}
-    {view && <fieldset className="fiscal-connection-fields" disabled={busy}>
+    {view?.source === 'FILE' && <FileConfiguration view={view} busy={busy} onCheck={() => void check()} c={c} />}
+    {view && view.source !== 'FILE' && <fieldset className="fiscal-connection-fields" disabled={busy}>
       <legend className="sr-only">{aeat ? c('Credenciales de la AEAT', 'AEAT credentials') : c('Credenciales de B2Brouter', 'B2Brouter credentials')}</legend>
       {!view.encryptionReady && <p className="inline-error" role="alert">{c('El servidor necesita configurar su clave de cifrado antes de guardar credenciales.', 'The server needs its encryption key configured before credentials can be saved.')}</p>}
       <div className="form-grid">
@@ -161,6 +162,24 @@ function FiscalConnection({ provider }: { provider: Provider }) {
     </fieldset>}
     {notice && <p className="connection-success" role="status"><CheckCircle2 size={15} aria-hidden="true" /> {notice}</p>}
   </form>
+}
+
+/** La empresa se configura con su factura_e.ini, como en DimproCristalWin: aquí solo se enseña lo que dice. */
+function FileConfiguration({ view, busy, onCheck, c }: { view: View; busy: boolean; onCheck: () => void; c: (es: string, en: string) => string }) {
+  const environment = view.environment === 'PRODUCTION' ? c('producción', 'production') : c('pruebas', 'test')
+  return <div className="fiscal-connection-fields">
+    <p className="fiscal-connection-intro">{c('Esta empresa se configura con su fichero ', 'This company is configured with its file ')}<code>factura_e.ini</code>{c('. Para cambiar el certificado, la clave o la forma de presentar, cambia el fichero en el servidor; PERA lo vuelve a leer solo.', '. To change the certificate, password or submission method, edit the file on the server; PERA reloads it on its own.')}</p>
+    <div className="certificate-summary"><dl>
+      <div><dt>{c('Fichero', 'File')}</dt><dd><code>{view.file}</code></dd></div>
+      <div><dt>{c('Presentación', 'Submission')}</dt><dd>{view.mode === 'PROPIO' ? c('Propia, directa a la AEAT', 'Own, directly to AEAT') : view.mode ?? '—'}</dd></div>
+      <div><dt>{c('Entorno', 'Environment')}</dt><dd>{environment}</dd></div>
+      <div><dt>{c('Envíos', 'Sending')}</dt><dd>{view.enabled ? c('Activos', 'Enabled') : c('Desactivados', 'Disabled')}</dd></div>
+    </dl></div>
+    {view.problem && <p className="certificate-warning" role="alert"><AlertTriangle size={15} aria-hidden="true" /> {view.problem}</p>}
+    <div className="form-actions">
+      <button className="button button-ghost" type="button" disabled={busy || !view.configured || Boolean(view.problem)} onClick={onCheck}>{c('Comprobar certificado', 'Check certificate')}</button>
+    </div>
+  </div>
 }
 
 function CertificateSummary({ info, issuerMatches, c, locale }: { info: CertificateInfo; issuerMatches: boolean | null; c: (es: string, en: string) => string; locale: string }) {

@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -19,15 +20,25 @@ import java.util.UUID;
 public class VerifactuRemissionWorker {
     private static final Logger log = LoggerFactory.getLogger(VerifactuRemissionWorker.class);
     private final VerifactuRemissionService remission;
+    private final FiscalProfileService profiles;
 
-    public VerifactuRemissionWorker(VerifactuRemissionService remission) {
+    public VerifactuRemissionWorker(VerifactuRemissionService remission, FiscalProfileService profiles) {
         this.remission = remission;
+        this.profiles = profiles;
     }
 
     @Scheduled(fixedDelayString = "${pera.verifactu.remission.poll-ms:30000}",
             initialDelayString = "${pera.verifactu.remission.initial-delay-ms:30000}")
     public void remitDue() {
-        for (UUID companyId : remission.dueCompanies()) {
+        // Un factura_e.ini nuevo o cambiado se tiene en cuenta sin reiniciar el servicio.
+        Set<UUID> withFile;
+        try {
+            withFile = profiles.sync();
+        } catch (RuntimeException e) {
+            log.error("No se pudieron leer los ficheros factura_e.ini", e);
+            withFile = Set.of();
+        }
+        for (UUID companyId : remission.dueCompanies(withFile)) {
             try {
                 remission.remit(companyId);
             } catch (RuntimeException e) {

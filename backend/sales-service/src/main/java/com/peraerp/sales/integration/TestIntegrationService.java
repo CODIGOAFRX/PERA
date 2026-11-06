@@ -23,8 +23,14 @@ public class TestIntegrationService {
     public record Config(@NotBlank @Pattern(regexp="AEAT|B2B") String provider,
             @NotNull @Pattern(regexp="[A-Za-z0-9_-]{0,80}") String account,
             @Size(max=3000000) String certificate,@Size(max=1000) String password,@Size(max=1000) String apiKey,boolean enabled) {}
+    /** source: FILE si la conexión sale del factura_e.ini de la empresa (file, mode y problem lo describen), DATABASE si se cargó a mano. */
     public record View(String provider,boolean configured,boolean encryptionReady,String account,boolean enabled,String environment,
-            AeatTestTransport.CertificateInfo certificate,Boolean issuerMatches) {}
+            AeatTestTransport.CertificateInfo certificate,Boolean issuerMatches,String source,String file,String mode,String problem) {
+        public View(String provider,boolean configured,boolean encryptionReady,String account,boolean enabled,String environment,
+                AeatTestTransport.CertificateInfo certificate,Boolean issuerMatches) {
+            this(provider,configured,encryptionReady,account,enabled,environment,certificate,issuerMatches,configured?"DATABASE":null,null,null,null);
+        }
+    }
     /** connectionActive lets the UI hide a provider the company has not enabled; it never reveals credentials. */
     public record Delivery(String state,String remoteId,String message,String updatedAt,boolean connectionActive) {
         public Delivery(String state,String remoteId,String message,String updatedAt) { this(state,remoteId,message,updatedAt,false); }
@@ -34,13 +40,14 @@ public class TestIntegrationService {
     private final ObjectMapper mapper; private final AeatTestTransport aeat; private final B2bTestTransport b2b;
     private final VerifactuSettingsRepository settings; private final VerifactuRecordRepository records;
     private final CommercialDocumentRepository documents; private final TransactionTemplate tx;
-    private final VerifactuRemissionService remission;
+    private final VerifactuRemissionService remission; private final FiscalProfileService profiles;
     public TestIntegrationService(JdbcTemplate jdbc,CurrentCompanyProvider company,MailSecretCipher cipher,ObjectMapper mapper,
             AeatTestTransport aeat,B2bTestTransport b2b,VerifactuSettingsRepository settings,VerifactuRecordRepository records,
-            CommercialDocumentRepository documents,PlatformTransactionManager transactions,VerifactuRemissionService remission) {
+            CommercialDocumentRepository documents,PlatformTransactionManager transactions,VerifactuRemissionService remission,
+            FiscalProfileService profiles) {
         this.jdbc=jdbc;this.company=company;this.cipher=cipher;this.mapper=mapper;this.aeat=aeat;this.b2b=b2b;
         this.settings=settings;this.records=records;this.documents=documents;this.tx=new TransactionTemplate(transactions);
-        this.remission=remission;
+        this.remission=remission; this.profiles=profiles;
     }
     private static void provider(String p) { if(!Set.of("AEAT","B2B").contains(p)) throw new BusinessRuleException("Proveedor desconocido"); }
     Connection connection(UUID id,String p) { return connection(id,p,false); }
@@ -50,24 +57,42 @@ public class TestIntegrationService {
                 (rs,n)->new Connection(rs.getString(1),rs.getString(2),rs.getBoolean(3)),id,p).stream().findFirst().orElse(null);
     }
     public View view(String p) {
-        UUID id=company.requireCompanyId(); var c=connection(id,p);
+        UUID id=company.requireCompanyId();
+        if(p.equals("AEAT")) profiles.sync();
+        var c=connection(id,p);
+        var profile=p.equals("AEAT")?profiles.forCompany(id).orElse(null):null;
         AeatTestTransport.CertificateInfo info=null; Boolean matches=null;
-        if(c!=null && p.equals("AEAT")) {
-            info=certificateInfo(id,c);
+        if((c!=null || profile!=null) && p.equals("AEAT")) {
+            info=certificateInfo(id,c,profile);
             String issuer=settings.findByCompanyId(id).map(VerifactuSettings::getIssuerTaxId).map(AeatTestTransport::taxId).orElse(null);
             if(info!=null && issuer!=null) matches=issuer.equals(info.personalTaxId()) || issuer.equals(info.entityTaxId());
         }
         // B2Brouter solo funciona en su sandbox; la AEAT, en el entorno que tenga configurado la empresa.
         String environment=p.equals("AEAT")?settings.findByCompanyId(id).map(s->s.getEnvironment().name()).orElse("TEST"):"TEST";
+        if(profile!=null) {
+            // Con fichero, el entorno que se enseña es el del fichero: si no coincide con el de la empresa no se remite.
+            String problem=profile.problem();
+            if(problem==null && profile.environment()!=null && !profile.environment().name().equals(environment))
+                problem="El "+FiscalProfileService.FILE_NAME+" y Configuración › Veri*Factu tienen distinto entorno; no se remite hasta que coincidan.";
+            // Con fichero en modo PROPIO y completo se remite aunque la casilla de Conexiones esté apagada.
+            boolean sending=profile.usable() && problem==null;
+            return new View(p,true,cipher.ready(),profile.seal()?"SEAL":"CERTIFICATE",sending,environment,info,matches,
+                    "FILE",profile.file().toString(),profile.mode()==null?null:profile.mode().name(),problem);
+        }
         return new View(p,c!=null,cipher.ready(),c==null?"":c.account(),c!=null&&c.enabled(),environment,info,matches);
     }
     /** Informative only: a missing server key or a damaged secret must not break the configuration screen. */
-    private AeatTestTransport.CertificateInfo certificateInfo(UUID id,Connection c) {
-        try { var s=secret(id,"AEAT",c); return aeat.describe(s.path("certificate").asText(),s.path("password").asText()); }
+    private AeatTestTransport.CertificateInfo certificateInfo(UUID id,Connection c,FiscalProfileService.Profile profile) {
+        try {
+            if(profile!=null) return profile.usable()?aeat.describe(profile.certificateBase64(),profile.password()):null;
+            if(FiscalProfileService.FROM_FILE.equals(c.secret())) return null;
+            var s=secret(id,"AEAT",c); return aeat.describe(s.path("certificate").asText(),s.path("password").asText()); }
         catch(RuntimeException e) { return null; }
     }
     public View save(Config r) {
         provider(r.provider()); UUID id=company.requireCompanyId();
+        if(r.provider().equals("AEAT") && profiles.forCompany(id).isPresent())
+            throw new BusinessRuleException("Esta empresa se configura con su fichero "+FiscalProfileService.FILE_NAME+". Cambia el fichero, no la pantalla.");
         // Same row lock as the delivery claim: an identity change cannot slip between the check and a claim.
         tx.executeWithoutResult(ignored->store(id,r));
         return view(r.provider());
@@ -99,14 +124,25 @@ public class TestIntegrationService {
         return node;
     }
     private Connection ready(UUID id,String p) {
-        var c=connection(id,p); if(c==null || !c.enabled()) throw new BusinessRuleException(p.equals("AEAT")?"Configura y activa la conexión con la AEAT en Conexiones":"Configura y activa la conexión de pruebas en Conexiones"); return c;
+        if(p.equals("AEAT")) profiles.sync();
+        var c=connection(id,p);
+        // Una empresa con su factura_e.ini remite con él: la remisión ya comprueba que esté completo.
+        if(p.equals("AEAT") && c!=null && profiles.forCompany(id).isPresent()) return c;
+        if(c==null || !c.enabled() || FiscalProfileService.FROM_FILE.equals(c.secret())) throw new BusinessRuleException(p.equals("AEAT")?"Configura y activa la conexión con la AEAT en Conexiones":"Configura y activa la conexión de pruebas en Conexiones"); return c;
     }
     private VerifactuSettings settings(UUID id) {
         return settings.findByCompanyId(id).orElseThrow(()->new BusinessRuleException("Configura primero la identidad fiscal de la empresa"));
     }
     public Map<String,String> test(String p) {
         UUID id=company.requireCompanyId(); var c=connection(id,p);
-        if(c==null) throw new BusinessRuleException("Guarda primero la conexión");
+        var profile=p.equals("AEAT")?profiles.forCompany(id).orElse(null):null;
+        if(c==null && profile==null) throw new BusinessRuleException("Guarda primero la conexión");
+        if(profile!=null) {
+            if(!profile.usable()) throw new BusinessRuleException(profile.problem());
+            try { aeat.certificate(profile.certificateBase64(),profile.password()); }
+            catch(BusinessRuleException e) { throw e; } catch(Exception e) { throw new BusinessRuleException("El certificado del "+FiscalProfileService.FILE_NAME+" no se puede abrir con su clave."); }
+            return Map.of("message","Certificado del "+FiscalProfileService.FILE_NAME+" y clave privada válidos. La autorización ante la AEAT se comprobará al remitir un registro.");
+        }
         var s=secret(id,p,c);
         try {
             if(p.equals("AEAT")) { aeat.certificate(s.path("certificate").asText(),s.path("password").asText());
