@@ -20,12 +20,26 @@ public class SmtpTransport {
         p.setProperty("mail.smtp.ssl.checkserveridentity","true");
         p.setProperty("mail.smtp.connectiontimeout","10000"); p.setProperty("mail.smtp.timeout","15000");
         p.setProperty("mail.smtp.writetimeout","15000");
+        // Sin esto, JavaMail pregunta al DNS el nombre completo del equipo para saludar al servidor (EHLO). En
+        // redes donde esa consulta no responde (p. ej. con una VPN) tarda segundos por correo: se le da el nombre.
+        p.setProperty("mail.smtp.localhost",LocalHostName.VALUE);
+        // Lo mismo para el Message-ID: sin «mail.from», JavaMail también pregunta al DNS el nombre del equipo.
+        p.setProperty("mail.from",c.senderEmail());
         p.setProperty("mail.smtp.starttls.enable",String.valueOf(c.security().equals("STARTTLS")));
         p.setProperty("mail.smtp.starttls.required",String.valueOf(c.security().equals("STARTTLS")));
         p.setProperty("mail.smtp.ssl.enable",String.valueOf(c.security().equals("TLS")));
         return sender;
     }
     public void test(MailConnectionService.Connection c) throws Exception { sender(c).testConnection(); }
+    /** Correo de texto sin adjuntos, como el aviso de error a soporte que en Dimpro sale con el correo de la empresa. */
+    public void sendText(MailConnectionService.Connection c, String to, String subject, String body) throws Exception {
+        JavaMailSenderImpl sender=sender(c);
+        var message=sender.createMimeMessage();
+        var helper=new MimeMessageHelper(message,false,"UTF-8");
+        helper.setFrom(new InternetAddress(c.senderEmail(),c.senderName(),"UTF-8"));
+        helper.setTo(to); helper.setSubject(subject); helper.setText(body,false);
+        sender.send(message);
+    }
     public void send(MailConnectionService.Connection c, DocumentMailService.Job job) throws Exception {
         JavaMailSenderImpl sender=sender(c);
         var message=sender.createMimeMessage();

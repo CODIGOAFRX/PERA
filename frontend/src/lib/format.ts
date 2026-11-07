@@ -53,3 +53,8 @@ export function formatDate(value: string | null | undefined, locale = 'es-ES') {
   }
   return formatter.format(new Date(`${value}T00:00:00`))
 }
+
+/** Búsqueda con la que se abre una lista desde el buscador general (`?q=` en la dirección). */
+export function initialSearch() {
+  return new URLSearchParams(window.location.search).get('q') ?? ''
+}

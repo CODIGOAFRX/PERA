@@ -17,7 +17,7 @@ import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { apiFetch, errorMessage } from '../lib/api'
 import { catalogItemName, salespersonName, selectableItems } from '../lib/customers'
-import { formatCurrency } from '../lib/format'
+import { formatCurrency, initialSearch } from '../lib/format'
 import { riskPolicyKey, taxIdentificationTypeKey } from '../i18n/businessLabels'
 import { useTranslation } from '../i18n/I18nProvider'
 import type { Customer, CustomerCatalogItem, CustomerCatalogKind, CustomerInput, PageResponse, PaymentMethod, RiskPolicy, Salesperson, TaxIdentificationType } from '../types/api'
@@ -70,7 +70,7 @@ function CustomersList({ catalog, salespeople, canWrite, editing, setEditing, im
   const { language, locale, t } = useTranslation()
   const c = (es: string, en: string) => language === 'es' ? es : en
   const [data, setData] = useState<PageResponse<Customer> | null>(null)
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialSearch)
   const debouncedQuery = useDebouncedValue(query)
   const [groupId, setGroupId] = useState('')
   const [salespersonId, setSalespersonId] = useState('')

@@ -133,6 +133,7 @@ public class DocumentService {
             CustomerSnapshot customer = masterDataService.requireActiveCustomer(document.getCustomerId());
             creditRisk.enforce(creditRisk.assess(companyId, customer, document.getBaseTotalAmount()), riskAcknowledged);
         }
+        refreshMissingCustomerTax(document);
         document.confirm();
         document = repository.save(document);
         if (document.isIssued()) {
@@ -142,6 +143,21 @@ public class DocumentService {
                 Map.of("documentId", document.getId(), "number", document.getDocumentNumber(), "type", document.getType(),
                         "total", document.getTotalAmount(), "companyId", companyId));
         return DocumentResponse.from(document);
+    }
+
+    /**
+     * Una factura que se expide desde un borrador o un albarán lleva los datos fiscales del cliente de cuando
+     * se creó. Si entonces no tenía NIF y se ha completado después en su ficha, se toma el de ahora: si no, la
+     * factura no se podría expedir aunque el cliente ya esté bien.
+     */
+    private void refreshMissingCustomerTax(CommercialDocument document) {
+        if (!document.getType().isInvoice() || (document.getCustomerTaxIdSnapshot() != null && !document.getCustomerTaxIdSnapshot().isBlank())) {
+            return;
+        }
+        CustomerSnapshot customer = masterDataService.requireActiveCustomer(document.getCustomerId());
+        if (customer.taxId() != null && !customer.taxId().isBlank()) {
+            document.applyCustomerTaxSnapshot(customer.taxId(), customer.taxIdentificationType(), customer.taxCountryCode());
+        }
     }
 
     @Transactional
@@ -186,6 +202,7 @@ public class DocumentService {
             CustomerSnapshot customer = masterDataService.requireActiveCustomer(source.getCustomerId());
             creditRisk.enforce(creditRisk.assess(companyId, customer, target.getBaseTotalAmount()), riskAcknowledged);
         }
+        refreshMissingCustomerTax(target);
         target.confirm();
         source.markConverted();
         target = repository.save(target);

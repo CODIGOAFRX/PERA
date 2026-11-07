@@ -16,7 +16,7 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { useToast } from '../components/Toast'
 import { apiDownload, apiFetch, errorMessage } from '../lib/api'
 import { calculateDocumentPreview } from '../lib/document'
-import { formatCurrency, formatDate, formatNumber } from '../lib/format'
+import { formatCurrency, formatDate, formatNumber, initialSearch } from '../lib/format'
 import { localIsoDate } from '../lib/date'
 import { creditCheckedTypes, creditRiskFigures, withCreditRiskConfirmation, type CreditRiskAssessment } from '../lib/creditRisk'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
@@ -33,8 +33,8 @@ export function SalesPage() {
   const { language, locale, t } = useTranslation()
   const [data, setData] = useState<PageResponse<CommercialDocument> | null>(null)
   const [page, setPage] = useState(0)
-  const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [query, setQuery] = useState(initialSearch)
+  const [debouncedQuery, setDebouncedQuery] = useState(initialSearch)
   const [type, setType] = useState<DocumentType | ''>('')
   const [status, setStatus] = useState<DocumentStatus | ''>('')
   const [fromDate, setFromDate] = useState('')

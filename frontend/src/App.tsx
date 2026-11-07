@@ -12,7 +12,7 @@ import { homePathFor, isRouteAllowed, matchAppRoute } from './routing/routes'
 
 export default function App() {
   const { authenticated, identity } = useAuth()
-  const { path, navigate } = useRouter()
+  const { path, search, navigate } = useRouter()
   const home = homePathFor(identity?.roles ?? [])
   // Un cajero o un operario de almacén no tiene resumen: entra directamente a su aplicación.
   useEffect(() => {
@@ -25,7 +25,8 @@ export default function App() {
   const Page = match?.route.component
   const allowed = match ? isRouteAllowed(match.route, identity?.roles ?? []) : false
   const page = Page
-    ? allowed ? <Page /> : <AccessDeniedPage />
+    // La clave hace que la pantalla se recargue si el buscador general la abre con otra búsqueda (?q=).
+    ? allowed ? <Page key={search} /> : <AccessDeniedPage />
     : <NotFoundPage />
 
   if (match?.route.standalone && allowed) return <Suspense fallback={<LoadingState />}>{page}</Suspense>

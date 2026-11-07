@@ -45,3 +45,5 @@ config/empresas/*
 !config/empresas/EJEMPLO/
 config/empresas/EJEMPLO/*
 !config/empresas/EJEMPLO/factura_e.ini.example
+# Configuración de la instalación (productor, soporte y correo): solo en el servidor
+config/pera.ini

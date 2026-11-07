@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { apiFetch, clearStoredToken, getStoredToken, storeToken } from '../lib/api'
+import { useRouter } from '../routing/Router'
 import { DEMO_MODE } from '../lib/demo'
 import type { CompanyOption, LoginResponse } from '../types/api'
 
@@ -71,11 +72,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [demoAttempt, setDemoAttempt] = useState(0)
   const authenticated = identity !== null
 
+  const { navigate } = useRouter()
+  // Al salir se vuelve al inicio: si no, el siguiente usuario que entra en este navegador aparece en la
+  // pantalla del anterior (el TPV, la caja...) en vez de en la suya.
   const logout = () => {
     clearStoredToken()
     sessionStorage.removeItem(COMPANY_KEY)
     setIdentity(null)
     setCompany(null)
+    navigate('/', true)
   }
 
   useEffect(() => {

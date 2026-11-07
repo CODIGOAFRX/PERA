@@ -11,6 +11,18 @@ spring:
     properties.hibernate.jdbc.time_zone: UTC
   flyway.enabled: true
 pera:
+  # Avisos de error a soporte (config/pera.ini, [SOPORTE] y [SMTP]). Se mandan con el correo de la empresa
+  # (Conexiones › Correo) y, si no tiene, con el [SMTP] de la instalación. Sin ninguno, solo se guardan.
+  services.sales-url: ${SALES_SERVICE_URL:http://localhost:8083}
+  support:
+    email: ${PERA_SUPPORT_EMAIL:}
+    smtp:
+      host: ${PERA_SUPPORT_SMTP_HOST:}
+      port: ${PERA_SUPPORT_SMTP_PORT:587}
+      user: ${PERA_SUPPORT_SMTP_USER:}
+      password: ${PERA_SUPPORT_SMTP_PASSWORD:}
+      from: ${PERA_SUPPORT_SMTP_FROM:}
+      security: ${PERA_SUPPORT_SMTP_SECURITY:STARTTLS}
   jwt.secret: ${PERA_JWT_SECRET:change-me-development-secret-at-least-32-bytes}
   internal.service-key: ${PERA_INTERNAL_SERVICE_KEY:pera-local-internal-service-key-change-me}
   audit.retention:

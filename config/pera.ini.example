@@ -1,0 +1,28 @@
+; Configuración de la INSTALACIÓN de PERA (no de una empresa: eso va en config/empresas/<NIF>/factura_e.ini).
+;
+; Copia este fichero como config/pera.ini. No se sube a GitHub: lleva la clave del correo.
+; Lo lee scripts/start-local.ps1 al arrancar; una variable de entorno ya definida manda sobre el fichero.
+; Los comentarios empiezan por ; # o *.
+
+[PRODUCTOR]
+; Quien hace y comercializa PERA ante la AEAT (bloque SistemaInformatico de Veri*Factu).
+; El nombre tiene que ser EXACTAMENTE el que figura en Hacienda para ese NIF; si no, la AEAT rechaza
+; las facturas con el error 1110.
+nif =
+nombre =
+; Número de la instalación: el mismo para todas las empresas de este servidor.
+instalacion = PERA-LOCAL-DEV
+
+[SOPORTE]
+; A quién llegan los avisos de error del programa, como los correos de error de DimproCristalWin.
+correo =
+
+[SMTP]
+; Servidor de correo con el que PERA manda los avisos de error a soporte.
+servidor =
+puerto = 587
+usuario =
+clave =
+remitente =
+; STARTTLS, TLS o NINGUNA
+seguridad = STARTTLS

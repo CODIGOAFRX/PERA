@@ -1,4 +1,4 @@
-import { FlaskConical, Leaf, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
+import { FlaskConical, Leaf, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search, X } from 'lucide-react'
 import { DEMO_EXIT_URL, DEMO_MODE } from '../lib/demo'
 import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthContext'
@@ -6,6 +6,7 @@ import { useTranslation } from '../i18n/I18nProvider'
 import { apiFetch } from '../lib/api'
 import { Link, useRouter } from '../routing/Router'
 import { appRoutes, isRouteActive, isRouteAllowed, type NavigationGroup } from '../routing/routes'
+import { GlobalSearch } from './GlobalSearch'
 import { LanguageSelector } from './LanguageSelector'
 import { PearBrandMark } from './PearBrandMark'
 
@@ -110,6 +111,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="company-avatar">{company?.code?.slice(0, 2) || 'PE'}</span>
           <span className="company-copy"><small>{t('nav.activeCompany')}</small><strong>{company?.name || 'PERA ERP'}</strong></span>
         </div>
+        <button type="button" className="global-search-trigger" onClick={() => window.dispatchEvent(new Event('pera:open-search'))} title={language === 'es' ? 'Buscar en PERA (Ctrl+K)' : 'Search PERA (Ctrl+K)'}>
+          <Search size={17} aria-hidden="true" /><span>{language === 'es' ? 'Buscar…' : 'Search…'}</span><kbd>Ctrl K</kbd>
+        </button>
+        <GlobalSearch />
         <nav className="main-nav" aria-label={t('nav.main')}>
           {navigationGroups.map((group) => <div className="nav-group" key={group.id}>
             <span className="nav-label">{t(group.labelKey)}</span>
@@ -128,7 +133,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div><strong>{identity?.displayName}</strong><small>{roleLabel(role, language)}</small></div>
           </div>
           <LanguageSelector compact={compact} />
-          <div className="sidebar-version"><Leaf size={16} /><span>PERA ERP <small>v0.2</small></span></div>
+          <div className="sidebar-version"><Leaf size={16} /><span>PERA ERP <small>v{__APP_VERSION__.split('.').slice(0, 2).join('.')}</small></span></div>
           {DEMO_MODE
             // En la demo no se cierra sesión (se volvería a entrar como visitante): se vuelve al proyecto.
             ? <a className="nav-link logout-link" href={DEMO_EXIT_URL} title={compact ? t('demo.exit') : undefined}><LogOut size={18} aria-hidden="true" /><span>{t('demo.exit')}</span></a>

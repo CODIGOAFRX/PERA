@@ -4,6 +4,7 @@ import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.sales.document.CommercialDocument;
 import com.peraerp.sales.verifactu.chain.ChainedRecordRequest;
 import com.peraerp.sales.verifactu.chain.VerifactuChainService;
+import com.peraerp.sales.verifactu.domain.InvoiceKind;
 import com.peraerp.sales.verifactu.domain.VerifactuRecord;
 import com.peraerp.sales.verifactu.domain.VerifactuRecordType;
 import com.peraerp.sales.verifactu.domain.VerifactuSettings;
@@ -55,6 +56,7 @@ public class VerifactuIssuanceService {
         }
         VerifactuSettings active = configuration.get();
         requireEuroAmounts(document);
+        requireRecipient(document);
 
         return Optional.of(chain.append(document.getCompanyId(), new ChainedRecordRequest(
                 document.getId(),
@@ -68,6 +70,23 @@ public class VerifactuIssuanceService {
                 document.getBaseTotalAmount(),
                 active.zone(),
                 payloads.forInvoice(document, active))));
+    }
+
+    /**
+     * Una factura completa (F1, F3) o rectificativa de una completa (R1 a R4) tiene que llevar el NIF del
+     * cliente: sin él la AEAT la rechaza (error 1189) y un registro rechazado ya no se puede reenviar.
+     * Mejor no expedirla y decir qué falta, como hace DimproCristalWin al comprobar el NIF antes de facturar.
+     */
+    private void requireRecipient(CommercialDocument document) {
+        InvoiceKind kind = document.getInvoiceKind();
+        boolean needsRecipient = kind == InvoiceKind.F1 || kind == InvoiceKind.F3 || kind == InvoiceKind.R1
+                || kind == InvoiceKind.R2 || kind == InvoiceKind.R3 || kind == InvoiceKind.R4;
+        String taxId = document.getCustomerTaxIdSnapshot();
+        if (needsRecipient && (taxId == null || taxId.isBlank())) {
+            throw new BusinessRuleException("El cliente «" + document.getCustomerNameSnapshot() + "» no tiene NIF. "
+                    + "Hacienda no admite una factura completa sin el NIF del cliente y la rechazaría. "
+                    + "Pon su NIF en la ficha del cliente y vuelve a expedir la factura.");
+        }
     }
 
     /**

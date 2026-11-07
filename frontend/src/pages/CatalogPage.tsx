@@ -11,7 +11,7 @@ import { TableToolbar } from '../components/TableToolbar'
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { apiFetch, errorMessage } from '../lib/api'
-import { formatCurrency, formatNumber } from '../lib/format'
+import { formatCurrency, formatNumber, initialSearch } from '../lib/format'
 import { localIsoDate } from '../lib/date'
 import { unitKey } from '../i18n/businessLabels'
 import { useTranslation } from '../i18n/I18nProvider'
@@ -45,7 +45,7 @@ export function CatalogPage() {
   const { language, locale, t } = useTranslation()
   const c = (es: string, en: string) => language === 'es' ? es : en
   const [data, setData] = useState<PageResponse<Product> | null>(null)
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialSearch)
   const debouncedQuery = useDebouncedValue(query)
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)

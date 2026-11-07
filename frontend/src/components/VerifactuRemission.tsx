@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext'
 import { useTranslation } from '../i18n/I18nProvider'
 import { apiFetch, errorMessage } from '../lib/api'
 import { formatDateTime } from '../lib/format'
-import { verifactuMessage, verifactuStateLabel, verifactuStateTone } from '../lib/verifactu'
+import { aeatErrorExplanation, verifactuMessage, verifactuStateLabel, verifactuStateTone } from '../lib/verifactu'
 import type { VerifactuRecord, VerifactuRemissionSummary } from '../types/api'
 import { StatusBadge } from './StatusBadge'
 
@@ -35,6 +35,7 @@ export function VerifactuRemission({ record, configureLink, onChanged }: { recor
   const production = summary?.environment === 'PRODUCTION'
   const canSend = unanswered && summary?.connectionActive === true && hasPermission('verifactu:write')
   const message = verifactuMessage(record)
+  const explained = aeatErrorExplanation(record, language)
 
   const send = async () => {
     setBusy(true); setError(''); setNotice('')
@@ -56,6 +57,10 @@ export function VerifactuRemission({ record, configureLink, onChanged }: { recor
       {record.attemptCount ? <> · {record.attemptCount === 1 ? c('1 intento', '1 attempt') : c(`${record.attemptCount} intentos`, `${record.attemptCount} attempts`)}</> : null}
     </p>
     {message && <p>{message}</p>}
+    {(record.state === 'REJECTED' || record.state === 'ACCEPTED_WITH_ERRORS') && explained && <div className="aeat-explanation" role="note">
+      <p><strong>{c('Por qué', 'Why')}:</strong> {explained.cause}</p>
+      <p><strong>{c('Qué hacer', 'What to do')}:</strong> {explained.action}</p>
+    </div>}
     <p className="fiscal-delivery-note">{explanation()}</p>
     {notice && <p role="status">{notice}</p>}
     {error && <p role="alert" className="inline-error">{error}</p>}

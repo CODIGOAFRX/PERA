@@ -10,7 +10,7 @@ import { useToast } from '../components/Toast'
 import { useTranslation } from '../i18n/I18nProvider'
 import { apiFetch, errorMessage } from '../lib/api'
 import { formatCurrency, formatDate, formatDateTime } from '../lib/format'
-import { verifactuMessage, verifactuStateLabel, verifactuStates, verifactuStateTone } from '../lib/verifactu'
+import { aeatErrorExplanation, verifactuMessage, verifactuStateLabel, verifactuStates, verifactuStateTone } from '../lib/verifactu'
 import type { PageResponse, VerifactuRecord, VerifactuRemissionSummary, VerifactuState } from '../types/api'
 
 /** Lo que la pantalla enseña al entrar: lo que pide atención. */
@@ -108,7 +108,7 @@ export function VerifactuPage() {
             <td>{formatDate(record.invoiceDate, locale)}</td>
             <td className="align-right">{formatCurrency(record.totalAmount, 'EUR', locale)}</td>
             <td><StatusBadge tone={verifactuStateTone(record.state)}>{verifactuStateLabel(record.state, language)}</StatusBadge></td>
-            <td>{verifactuMessage(record) || (record.aeatCsv ? `CSV ${record.aeatCsv}` : '—')}</td>
+            <td>{verifactuMessage(record) || (record.aeatCsv ? `CSV ${record.aeatCsv}` : '—')}{record.state !== 'ACCEPTED' && aeatErrorExplanation(record, language) && <small className="aeat-cause">{aeatErrorExplanation(record, language)?.cause}</small>}</td>
             <td>{record.lastAttemptAt ? formatDateTime(record.lastAttemptAt, locale) : '—'}{record.attemptCount ? <small>{record.attemptCount === 1 ? c('1 intento', '1 attempt') : c(`${record.attemptCount} intentos`, `${record.attemptCount} attempts`)}</small> : null}</td>
           </tr>)}</tbody>
         </table></div>

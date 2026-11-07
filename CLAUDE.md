@@ -23,6 +23,7 @@ vAAAAMMDD.Nombre        p. ej. v20261003.Raul
 - Va al principio del título del commit (`v20261003.Raul feat: ...`) y como etiqueta de Git sobre el último commit subido.
 - Si ese día ya hay una entrega con ese nombre, la siguiente añade un contador: `v20261003.Raul.2`, `v20261003.Raul.3`.
 - Las etiquetas se suben con `git push origin <etiqueta>`.
+- **Versión del programa** (la de `frontend/package.json`, que sale abajo del menú y en los avisos de error): un cambio pequeño sube el segundo número (0.3, 0.4…) y uno importante el primero (1.0). Se sube en cada entrega que cambia algo visible ([docs/32](docs/32-avisos-de-error-buscador-y-version.md)).
 
 ### Cómo se cambia el código
 
@@ -69,6 +70,15 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 - **Secretos por defecto:** los servicios arrancan con claves públicas si falta la variable de entorno (JWT, clave interna, contraseña de los usuarios demo). Falta decidir si deben negarse a arrancar.
 
 ## Registro de entregas
+
+### v20261107.Raul.2 — avisos de error a soporte, buscador general y versión 0.3 (subida solo a `raul`, no a `main`)
+
+- **Avisos de error** como `MisErrores`/`ver_error` de DimproCristalWin: ventana «Error en la aplicación» con «¿Qué estabas haciendo?» y «Enviar a soporte» (si se cierra, sale solo a los 3 minutos), código de error en cada fallo interno del servidor y registro en Actividad (`V3`, `V4`). El correo sale, como en Dimpro, con el correo de la empresa (Conexiones › Correo) y, si no tiene, con la cuenta de la instalación de `config/pera.ini`; cada aviso con su propio asunto para que el buzón no los agrupe. Probado de verdad: de gjraul98@gmail.com a raulgil98@proton.me ([docs/32](docs/32-avisos-de-error-buscador-y-version.md)).
+- **Arreglo:** los correos (avisos y facturas) tardaban 11 s en salir: JavaMail preguntaba dos veces al DNS el nombre del equipo, y con la VPN cada consulta tardaba 5 s. Ahora salen en 1,5 s.
+- **`config/pera.ini`** de la instalación: productor ante la AEAT, correo de soporte y SMTP. Arreglo del rechazo 1110 de la FAC-2026-000022 (PERA arrancó sin el nombre real del productor).
+- **Facturas completas sin NIF del cliente:** ya no se expiden con Veri*Factu activo (la AEAT las rechazaba con 1189); el borrador o el albarán toman el NIF actual de la ficha al expedirse. Los rechazos de la AEAT se explican con «Por qué» y «Qué hacer».
+- **Buscador general** (Ctrl+K): pantallas, opciones y datos (clientes, proveedores, artículos y documentos), según el perfil.
+- **Versión 0.3**, leída de `package.json`. **Arreglos:** cerrar sesión vuelve al inicio (el siguiente usuario entraba en el TPV del anterior); letra de las fechas «Desde / Hasta»; texto de Conexiones con fichero.
 
 ### v20261107.Raul — `factura_e.ini` por empresa
 

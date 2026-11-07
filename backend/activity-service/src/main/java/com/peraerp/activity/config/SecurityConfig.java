@@ -28,6 +28,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/history/**").hasAuthority("history:read")
                         .requestMatchers(HttpMethod.GET, "/api/v1/alert-rules/**").hasAuthority("alerts:read")
                         .requestMatchers("/api/v1/alert-rules/**").hasAuthority("alerts:manage")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/error-reports/**").hasAuthority("history:read")
                         .requestMatchers(HttpMethod.GET, "/api/v1/alerts/**").hasAuthority("alerts:read")
                         .requestMatchers("/api/v1/alerts/**").hasAuthority("alerts:acknowledge")
                         .anyRequest().authenticated())

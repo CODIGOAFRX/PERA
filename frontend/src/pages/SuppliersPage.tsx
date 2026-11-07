@@ -1,3 +1,4 @@
+import { initialSearch } from '../lib/format'
 import { Building2, FileUp, Pencil, Plus } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { EmptyState, LoadingState } from '../components/DataState'
@@ -20,7 +21,7 @@ export function SuppliersPage() {
   const { language, t } = useTranslation()
   const c = (es: string, en: string) => language === 'es' ? es : en
   const [data, setData] = useState<PageResponse<Supplier> | null>(null)
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialSearch)
   const debouncedQuery = useDebouncedValue(query)
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)

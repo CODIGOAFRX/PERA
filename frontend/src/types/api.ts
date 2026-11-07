@@ -81,6 +81,9 @@ export interface ProblemDetail {
   status?: number
   detail?: string
   violations?: Record<string, string>
+  /** Código de un error interno del servidor: el mismo que queda en su registro y en el aviso a soporte. */
+  errorId?: string
+  exception?: string
 }
 
 export type RiskPolicy = 'WARN' | 'REQUIRE_CONFIRMATION' | 'BLOCK'

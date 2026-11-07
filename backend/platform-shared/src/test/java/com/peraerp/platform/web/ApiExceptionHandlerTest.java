@@ -55,6 +55,10 @@ class ApiExceptionHandlerTest {
         assertThat(detail.getTitle()).isEqualTo("Error interno");
         assertThat(detail.getDetail()).doesNotContain("password", "database");
         assertThat(detail.getType().toString()).endsWith("/internal-error");
+        // Lleva un código para buscarlo en el registro y avisar a soporte, pero nunca el mensaje interno.
+        String errorId = (String) detail.getProperties().get("errorId");
+        assertThat(errorId).isNotBlank();
+        assertThat(detail.getDetail()).contains(errorId).doesNotContain("internal diagnostic");
     }
 
     @Test

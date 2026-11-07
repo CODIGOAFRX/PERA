@@ -77,6 +77,7 @@ class VerifactuIssuanceServiceTest {
                 new BigDecimal("100"), BigDecimal.ZERO, new BigDecimal("21")));
         document.recalculate(new DocumentAmountsCalculator());
         document.applyCurrencySnapshot(baseCurrency, BigDecimal.ONE, ISSUE_DATE, "TEST");
+        document.applyCustomerTaxSnapshot("B12345674", null, "ES");
         return document;
     }
 
@@ -182,5 +183,29 @@ class VerifactuIssuanceServiceTest {
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("euros");
         verify(chain, never()).append(any(), any());
+    }
+
+    @Test
+    void fullInvoiceToACustomerWithoutTaxIdIsNotIssuedBecauseAeatWouldRejectIt() {
+        when(settings.findByCompanyId(COMPANY)).thenReturn(Optional.of(enabledSettings()));
+        CommercialDocument document = invoice(DocumentType.INVOICE, "EUR");
+        document.applyCustomerTaxSnapshot(null, null, null);
+        document.confirm();
+
+        assertThatThrownBy(() -> service.recordIssuance(document))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("ALUMINIOS FAMA S.L.")
+                .hasMessageContaining("no tiene NIF");
+        verify(chain, never()).append(any(), any());
+    }
+
+    @Test
+    void withoutVerifactuAnInvoiceWithoutTaxIdIsStillIssued() {
+        when(settings.findByCompanyId(COMPANY)).thenReturn(Optional.empty());
+        CommercialDocument document = invoice(DocumentType.INVOICE, "EUR");
+        document.applyCustomerTaxSnapshot(null, null, null);
+        document.confirm();
+
+        assertThat(service.recordIssuance(document)).isEmpty();
     }
 }

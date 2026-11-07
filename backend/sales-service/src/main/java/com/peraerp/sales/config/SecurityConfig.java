@@ -21,7 +21,7 @@ public class SecurityConfig {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
-                                "/internal/v1/accounting/invoices", "/internal/v1/inventory/deliveries").permitAll()
+                                "/internal/v1/accounting/invoices", "/internal/v1/inventory/deliveries", "/internal/v1/support-mail").permitAll()
                         .requestMatchers("/api/v1/connections/**").hasAnyRole("OWNER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/commissions/**", "/api/v1/commission-rules/**").hasAuthority("commissions:read")
                         .requestMatchers("/api/v1/commissions/**", "/api/v1/commission-rules/**").hasAuthority("commissions:write")

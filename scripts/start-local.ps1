@@ -37,6 +37,46 @@ function Get-LocalSecret {
 $jwtSecret = Get-LocalSecret 'jwt-secret.key' $env:PERA_JWT_SECRET
 $internalServiceKey = Get-LocalSecret 'internal-service.key' $env:PERA_INTERNAL_SERVICE_KEY
 
+# Configuracion de la instalacion en config/pera.ini (plantilla en config/pera.ini.example): productor
+# del software ante la AEAT y correo de soporte para los avisos de error. Como el Factura_e.INI de
+# DimproCristalWin, no se sube a Git. Una variable de entorno ya definida manda sobre el fichero.
+function Read-PeraIni([string]$Path) {
+    $values = @{}
+    if (-not (Test-Path $Path)) { return $values }
+    $section = ''
+    foreach ($raw in [System.IO.File]::ReadAllLines($Path)) {
+        $line = $raw.Trim()
+        if (-not $line -or $line.StartsWith(';') -or $line.StartsWith('#') -or $line.StartsWith('*')) { continue }
+        if ($line.StartsWith('[') -and $line.EndsWith(']')) { $section = $line.Trim('[', ']').Replace('_', '').ToUpperInvariant(); continue }
+        $equals = $line.IndexOf('=')
+        if ($equals -le 0) { continue }
+        $value = $line.Substring($equals + 1).Trim()
+        if ($value.Length -ge 2 -and $value.StartsWith('"') -and $value.EndsWith('"')) { $value = $value.Substring(1, $value.Length - 2) }
+        $values["$section.$($line.Substring(0, $equals).Trim().ToUpperInvariant())"] = $value
+    }
+    return $values
+}
+$installationIni = Read-PeraIni (Join-Path $repoRoot 'config\pera.ini')
+$iniVariables = [ordered]@{
+    'PRODUCTOR.NIF' = 'PERA_VERIFACTU_DEVELOPER_TAX_ID'
+    'PRODUCTOR.NOMBRE' = 'PERA_VERIFACTU_DEVELOPER_NAME'
+    'PRODUCTOR.INSTALACION' = 'PERA_VERIFACTU_INSTALLATION_NUMBER'
+    'SOPORTE.CORREO' = 'PERA_SUPPORT_EMAIL'
+    'SMTP.SERVIDOR' = 'PERA_SUPPORT_SMTP_HOST'
+    'SMTP.PUERTO' = 'PERA_SUPPORT_SMTP_PORT'
+    'SMTP.USUARIO' = 'PERA_SUPPORT_SMTP_USER'
+    'SMTP.CLAVE' = 'PERA_SUPPORT_SMTP_PASSWORD'
+    'SMTP.REMITENTE' = 'PERA_SUPPORT_SMTP_FROM'
+    'SMTP.SEGURIDAD' = 'PERA_SUPPORT_SMTP_SECURITY'
+}
+foreach ($key in $iniVariables.Keys) {
+    $name = $iniVariables[$key]
+    if ($installationIni.ContainsKey($key) -and $installationIni[$key] -and -not [Environment]::GetEnvironmentVariable($name)) {
+        [Environment]::SetEnvironmentVariable($name, $installationIni[$key])
+    }
+}
+if ($installationIni.Count -gt 0) { Write-Host 'Configuracion de la instalacion leida de config\pera.ini' }
+
 # NIF del productor del software ante la AEAT. En desarrollo se usa el NIF de ejemplo que la propia
 # AEAT emplea en su documentacion. En produccion es el NIF real de quien comercializa PERA y debe
 # llegar por PERA_VERIFACTU_DEVELOPER_TAX_ID; si ya viene definido, este script lo respeta.

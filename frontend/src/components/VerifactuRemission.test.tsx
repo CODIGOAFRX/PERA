@@ -52,3 +52,11 @@ it('tells that sending is disabled and offers nothing to read-only users', async
   expect(await screen.findByText(/sin duplicarlo/)).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Enviar ahora' })).not.toBeInTheDocument()
 })
+
+it('explains in plain words why AEAT rejected a record and what to do', async () => {
+  api.mockResolvedValueOnce(summary())
+  view(record({ state: 'REJECTED', aeatErrorCode: '1189', aeatMessage: 'Si TipoFactura es F1 o F3 o R1 o R2 o R3 o R4 el bloque Destinatarios tiene que estar cumplimentado.' }))
+  const note = await screen.findByRole('note')
+  expect(note).toHaveTextContent('el cliente no tenía NIF')
+  expect(note).toHaveTextContent('Pon el NIF en la ficha del cliente')
+})

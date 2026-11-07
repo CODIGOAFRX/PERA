@@ -120,9 +120,16 @@ public class ApiExceptionHandler {
             ProblemDetail detail = frameworkError(error);
             if (detail != null) return detail;
         }
-        LOGGER.error("Error inesperado procesando la petición", exception);
-        return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno",
-                "No se pudo completar la operación. Inténtalo de nuevo.", "internal-error");
+        // El código viaja en la respuesta y en el aviso a soporte, y es el que hay que buscar en el registro del
+        // servicio para ver el detalle completo, que nunca se manda al navegador.
+        String errorId = Long.toString(System.currentTimeMillis(), 36).toUpperCase(java.util.Locale.ROOT)
+                + "-" + Integer.toString(java.util.concurrent.ThreadLocalRandom.current().nextInt(36 * 36 * 36), 36).toUpperCase(java.util.Locale.ROOT);
+        LOGGER.error("Error inesperado procesando la petición [{}]", errorId, exception);
+        ProblemDetail detail = problem(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno",
+                "No se pudo completar la operación. Código de error: " + errorId + ".", "internal-error");
+        detail.setProperty("errorId", errorId);
+        detail.setProperty("exception", exception.getClass().getSimpleName());
+        return detail;
     }
 
     private ProblemDetail problem(HttpStatus status, String title, String detail, String type) {

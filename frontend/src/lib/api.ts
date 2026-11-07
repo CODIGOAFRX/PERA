@@ -46,6 +46,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   if (!response.ok) {
     const problem = await readProblem(response)
     if (response.status === 401 && token) window.dispatchEvent(new Event('pera:unauthorized'))
+    notifyServerError(path, response.status, problem)
     throw new ApiError(response.status, problem?.detail || problem?.title || `Error HTTP ${response.status}`, problem)
   }
   return response.json() as Promise<T>
@@ -65,6 +66,7 @@ export async function apiFetchText(path: string): Promise<string> {
   if (!response.ok) {
     const problem = await readProblem(response)
     if (response.status === 401 && token) window.dispatchEvent(new Event('pera:unauthorized'))
+    notifyServerError(path, response.status, problem)
     throw new ApiError(response.status, problem?.detail || problem?.title || `Error HTTP ${response.status}`, problem)
   }
   return response.text()
@@ -78,11 +80,20 @@ export async function apiDownload(path: string): Promise<{ blob: Blob; filename:
   if (!response.ok) {
     const problem = await readProblem(response)
     if (response.status === 401 && token) window.dispatchEvent(new Event('pera:unauthorized'))
+    notifyServerError(path, response.status, problem)
     throw new ApiError(response.status, problem?.detail || problem?.title || `Error HTTP ${response.status}`, problem)
   }
   const disposition = response.headers.get('Content-Disposition') ?? ''
   const filename = /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? 'download'
   return { blob: await response.blob(), filename }
+}
+
+/** Un error interno del servidor se avisa a soporte (lo recoge lib/errorReport.ts): la pantalla solo enseña el mensaje. */
+function notifyServerError(path: string, status: number, problem?: ProblemDetail) {
+  if (status < 500) return
+  window.dispatchEvent(new CustomEvent('pera:server-error', { detail: {
+    path, message: problem?.detail || problem?.title || `Error HTTP ${status}`, errorId: problem?.errorId, exception: problem?.exception,
+  } }))
 }
 
 async function readProblem(response: Response): Promise<ProblemDetail | undefined> {
