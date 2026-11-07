@@ -71,12 +71,17 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Registro de entregas
 
-### v20261107.Raul.4 — varios correos de soporte y guía de puesta en marcha (subida solo a `raul`, no a `main`)
+### v20261107.Pedro — rama de Raúl en `main` y dependencias del frontend
+
+- `main` avanza hasta `raul` (entregas v20261107.Raul.2 a .4), sin conflictos.
+- **Arreglo:** la comprobación de GitHub del frontend falló al pasar a `main` por avisos de seguridad nuevos en `vite` 8.2.1, `vitest` 4.1.11 y `undici`. Se suben `vite` a 8.2.4 y `vitest` a 4.1.12 (el parche más cercano a cada uno) y `undici` con `npm audit fix`; solo cambian `package.json` y `package-lock.json`.
+
+### v20261107.Raul.4 — varios correos de soporte y guía de puesta en marcha
 
 - `[SOPORTE] correo` de `config/pera.ini` admite varios correos separados por comas: el aviso de error llega a todos en el mismo envío (para Raúl y Pedro). Probado a dos direcciones.
 - [docs/34](docs/34-puesta-en-marcha.md): qué poner en `config/pera.ini`, en `config/empresas/<NIF>/factura_e.ini` y en la pantalla para ver PERA funcionando en un equipo nuevo, y qué trae `raul` respecto a `main`.
 
-### v20261107.Raul.3 — series de documentos (parte 1 de 5) y versión 0.4 (subida solo a `raul`, no a `main`)
+### v20261107.Raul.3 — series de documentos (parte 1 de 5) y versión 0.4
 
 - Cada numeración pasa a ser una **serie** como `fseries` de DimproCristalWin, y cada documento guarda la suya (Ventas `V16`) ([docs/33](docs/33-series-de-documentos.md)): orden, color, agrupación, principal, **pide número**, **pasa a**, número y fecha iguales al anterior, pasa notas, **días de aviso sin pasar**, **texto al pie**, **copias**, **valorado**, **genera riesgo**, **interno** y **reposición**.
 - **Albaranes y pedidos ya se imprimen** (antes solo facturas y presupuestos), valorados o no según su serie.
@@ -84,7 +89,7 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 - Sin detalles técnicos a la vista: el número se configura eligiendo un formato y sus cifras, con «Así quedará…», en vez de un patrón; las series que crea PERA sola se llaman «PRE · Presupuesto», «FAC · Factura»… (Ventas `V17` renombra las que ya había).
 - Probado de verdad con series de ejemplo (AVSV, FCPRU, AREP, PMAN, PINT). Siguientes partes: contado y caja, permisos por usuario, formatos y listados, vidrio.
 
-### v20261107.Raul.2 — avisos de error a soporte, buscador general y versión 0.3 (subida solo a `raul`, no a `main`)
+### v20261107.Raul.2 — avisos de error a soporte, buscador general y versión 0.3
 
 - **Avisos de error** como `MisErrores`/`ver_error` de DimproCristalWin: ventana «Error en la aplicación» con «¿Qué estabas haciendo?» y «Enviar a soporte» (si se cierra, sale solo a los 3 minutos), código de error en cada fallo interno del servidor y registro en Actividad (`V3`, `V4`). El correo sale, como en Dimpro, con el correo de la empresa (Conexiones › Correo) y, si no tiene, con la cuenta de la instalación de `config/pera.ini`; cada aviso con su propio asunto para que el buzón no los agrupe. Probado de verdad: de gjraul98@gmail.com a raulgil98@proton.me ([docs/32](docs/32-avisos-de-error-buscador-y-version.md)).
 - **Arreglo:** los correos (avisos y facturas) tardaban 11 s en salir: JavaMail preguntaba dos veces al DNS el nombre del equipo, y con la VPN cada consulta tardaba 5 s. Ahora salen en 1,5 s.
