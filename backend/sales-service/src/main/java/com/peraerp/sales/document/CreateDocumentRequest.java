@@ -28,15 +28,27 @@ public record CreateDocumentRequest(
         RectificationType rectificationType,
         UUID rectifiedDocumentId,
         @io.swagger.v3.oas.annotations.media.Schema(description = "Comercial del documento. Si se omite, el de la ficha del cliente.")
-        UUID salespersonId
+        UUID salespersonId,
+        @io.swagger.v3.oas.annotations.media.Schema(description = "Número a mano, solo en series que lo piden (pide_numdocu de Dimpro). No cambia el contador.")
+        @Size(max = 60) String documentNumber
 ) {
+    public CreateDocumentRequest(DocumentType type, UUID customerId, String customerCode, String customerName,
+                                 LocalDate issueDate, LocalDate dueDate, String currency, UUID paymentMethodId,
+                                 String notes, boolean confirm, List<DocumentLineRequest> lines,
+                                 UUID numberingSchemeId, InvoiceKind invoiceKind, RectificationType rectificationType,
+                                 UUID rectifiedDocumentId, UUID salespersonId) {
+        this(type, customerId, customerCode, customerName, issueDate, dueDate, currency, paymentMethodId,
+                notes, confirm, lines, numberingSchemeId, invoiceKind, rectificationType, rectifiedDocumentId,
+                salespersonId, null);
+    }
     public CreateDocumentRequest(DocumentType type, UUID customerId, String customerCode, String customerName,
                                  LocalDate issueDate, LocalDate dueDate, String currency, UUID paymentMethodId,
                                  String notes, boolean confirm, List<DocumentLineRequest> lines,
                                  UUID numberingSchemeId, InvoiceKind invoiceKind, RectificationType rectificationType,
                                  UUID rectifiedDocumentId) {
         this(type, customerId, customerCode, customerName, issueDate, dueDate, currency, paymentMethodId,
-                notes, confirm, lines, numberingSchemeId, invoiceKind, rectificationType, rectifiedDocumentId, null);
+                notes, confirm, lines, numberingSchemeId, invoiceKind, rectificationType, rectifiedDocumentId,
+                null, null);
     }
     public CreateDocumentRequest(DocumentType type, UUID customerId, String customerCode, String customerName,
                                  LocalDate issueDate, LocalDate dueDate, String currency, UUID paymentMethodId,

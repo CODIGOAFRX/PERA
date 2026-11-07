@@ -1,5 +1,9 @@
 package com.peraerp.sales.document;
 
+import com.peraerp.sales.numbering.NumberingScheme;
+import com.peraerp.sales.numbering.NumberingSchemeRepository;
+import com.peraerp.sales.numbering.SeriesOptions;
+
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
 import com.peraerp.sales.config.CurrentCompanyProvider;
@@ -33,15 +37,17 @@ public class DocumentService {
     private final SalesMasterDataService masterDataService;
     private final VerifactuIssuanceService verifactuIssuance;
     private final CreditRiskService creditRisk;
+    private final NumberingSchemeRepository numberingSchemes;
 
     public DocumentService(CommercialDocumentRepository repository, DocumentNumberGenerator numberGenerator,
                            DocumentAmountsCalculator calculator, CurrentCompanyProvider companyProvider,
                            DomainEventRecorder events, DocumentCurrencyService currencyService,
                            SalesMasterDataService masterDataService, VerifactuIssuanceService verifactuIssuance,
-                           CreditRiskService creditRisk) {
+                           CreditRiskService creditRisk, NumberingSchemeRepository numberingSchemes) {
         this.repository=repository; this.numberGenerator=numberGenerator; this.calculator=calculator;
         this.companyProvider=companyProvider; this.events=events; this.currencyService=currencyService;
         this.masterDataService=masterDataService; this.verifactuIssuance=verifactuIssuance; this.creditRisk=creditRisk;
+        this.numberingSchemes=numberingSchemes;
     }
 
     @Transactional
@@ -56,7 +62,8 @@ public class DocumentService {
         List<ResolvedDocumentLine> resolvedLines = request.lines().stream()
                 .map(line -> masterDataService.resolveLine(customer.id(), line, request.issueDate(), currency))
                 .toList();
-        String number = numberGenerator.next(companyId, request.type(), request.issueDate(), request.numberingSchemeId());
+        NumberingScheme series = numberGenerator.resolveScheme(companyId, request.type(), request.numberingSchemeId());
+        String number = numberFor(companyId, series, request);
         CommercialDocument document = new CommercialDocument(companyId, number, request.type(), customer.id(),
                 customer.code(), customer.legalName(), request.issueDate(), request.dueDate(), currency,
                 null, request.paymentMethodId(), request.notes());
@@ -68,6 +75,8 @@ public class DocumentService {
             document.addLine(toLine(line));
         }
         document.recalculate(calculator);
+        document.assignSeries(series.getId());
+        if (series.options().zeroAmounts()) document.zeroAmounts(calculator);
         document.applyCustomerContactSnapshot(customer.email(), customer.details() == null ? null : customer.details().postalAddress());
         document.applyCustomerTaxSnapshot(customer.taxId(), customer.taxIdentificationType(),
                 customer.taxCountryCode());
@@ -75,7 +84,7 @@ public class DocumentService {
         document.applyCurrencySnapshot(currencySnapshot.baseCurrency(), currencySnapshot.exchangeRate(),
                 currencySnapshot.rateDate(), currencySnapshot.source());
         // A draft commits nothing yet: its risk is checked when it is confirmed.
-        if (request.confirm() && CreditRiskService.CHECKED_TYPES.contains(request.type())) {
+        if (request.confirm() && CreditRiskService.CHECKED_TYPES.contains(request.type()) && series.options().countsForRisk()) {
             creditRisk.enforce(creditRisk.assess(companyId, customer, document.getBaseTotalAmount()), riskAcknowledged);
         }
         if (request.type().isInvoice()) {
@@ -129,7 +138,7 @@ public class DocumentService {
         if (document.getType() == DocumentType.QUOTE) {
             throw new BusinessRuleException("Los presupuestos se envían desde Presupuestos.");
         }
-        if (CreditRiskService.CHECKED_TYPES.contains(document.getType())) {
+        if (CreditRiskService.CHECKED_TYPES.contains(document.getType()) && seriesOf(document).options().countsForRisk()) {
             CustomerSnapshot customer = masterDataService.requireActiveCustomer(document.getCustomerId());
             creditRisk.enforce(creditRisk.assess(companyId, customer, document.getBaseTotalAmount()), riskAcknowledged);
         }
@@ -181,24 +190,33 @@ public class DocumentService {
             case DELIVERY_NOTE -> DocumentType.INVOICE;
             default -> throw new BusinessRuleException("El tipo de documento no admite conversión.");
         };
-        LocalDate issueDate = LocalDate.now();
+        SeriesOptions sourceSeries = seriesOf(source).options();
+        NumberingScheme targetSeries = targetSeries(companyId, sourceSeries, targetType);
+        SeriesOptions targetOptions = targetSeries.options();
+        LocalDate issueDate = targetOptions.sameDateAsSource() ? source.getIssueDate() : LocalDate.now();
+        String number = targetOptions.sameNumberAsSource()
+                ? requireFreeNumber(companyId, targetType, source.getDocumentNumber())
+                : numberGenerator.next(companyId, targetSeries, issueDate);
         CommercialDocument target = new CommercialDocument(companyId,
-                numberGenerator.next(companyId, targetType, issueDate, null), targetType, source.getCustomerId(),
+                number, targetType, source.getCustomerId(),
                 source.getCustomerCodeSnapshot(), source.getCustomerNameSnapshot(), issueDate, source.getDueDate(),
-                source.getCurrency(), source.getId(), source.getPaymentMethodId(), source.getNotes());
+                source.getCurrency(), source.getId(), source.getPaymentMethodId(),
+                sourceSeries.carriesNotes() ? source.getNotes() : null);
+        target.assignSeries(targetSeries.getId());
         // La venta sigue siendo del mismo comercial al pasar de presupuesto a albarán y de albarán a factura.
         target.assignSalesperson(source.getSalespersonId(), source.getSalespersonName());
         for (DocumentLine line : source.getLines()) {
             target.addLine(line.copySnapshot());
         }
         target.recalculate(calculator);
+        if (targetOptions.zeroAmounts()) target.zeroAmounts(calculator);
         target.applyCustomerContactSnapshot(source.getCustomerEmailSnapshot(), source.getCustomerAddressSnapshot());
         target.applyCustomerTaxSnapshot(source.getCustomerTaxIdSnapshot(),
                 source.getCustomerTaxIdentificationTypeSnapshot(), source.getCustomerTaxCountrySnapshot());
         target.applyCurrencySnapshot(source.getBaseCurrency(), source.getExchangeRate(), source.getExchangeRateDate(),
                 source.getExchangeRateSource());
         // A quote becomes a new commitment; a delivery note was already checked when it was created.
-        if (source.getType() == DocumentType.QUOTE) {
+        if (source.getType() == DocumentType.QUOTE && targetOptions.countsForRisk()) {
             CustomerSnapshot customer = masterDataService.requireActiveCustomer(source.getCustomerId());
             creditRisk.enforce(creditRisk.assess(companyId, customer, target.getBaseTotalAmount()), riskAcknowledged);
         }
@@ -285,6 +303,49 @@ public class DocumentService {
         return repository.findByIdAndCompanyId(id, companyProvider.requireCompanyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Documento", id));
     }
+    /**
+     * Número del documento nuevo. Una serie que pide número (pide_numdocu de Dimpro) lo toma de la petición sin
+     * tocar el contador; las demás, del contador. Pedir un número en una serie que no lo pide es un error.
+     */
+    private String numberFor(UUID companyId, NumberingScheme series, CreateDocumentRequest request) {
+        String manual = request.documentNumber() == null ? "" : request.documentNumber().trim();
+        if (series.options().asksNumber()) {
+            if (manual.isEmpty()) throw new BusinessRuleException("La serie " + series.getName() + " pide el número del documento.");
+            return requireFreeNumber(companyId, request.type(), manual);
+        }
+        if (!manual.isEmpty()) throw new BusinessRuleException("La serie " + series.getName() + " no admite número a mano.");
+        return numberGenerator.next(companyId, series, request.issueDate());
+    }
+
+    private String requireFreeNumber(UUID companyId, DocumentType type, String number) {
+        if (repository.existsByCompanyIdAndTypeAndDocumentNumber(companyId, type, number)) {
+            throw new BusinessRuleException("Ya hay un documento de este tipo con el número " + number + ".");
+        }
+        return number;
+    }
+
+    /**
+     * La serie del documento, aunque se haya desactivado después: sigue mandando en sus documentos. Los antiguos,
+     * sin serie, se comportan como la predeterminada de su tipo.
+     */
+    private NumberingScheme seriesOf(CommercialDocument document) {
+        if (document.getNumberingSchemeId() != null) {
+            var own = numberingSchemes.findByIdAndCompanyId(document.getNumberingSchemeId(), document.getCompanyId());
+            if (own.isPresent()) return own.get();
+        }
+        return numberGenerator.resolveScheme(document.getCompanyId(), document.getType(), null);
+    }
+
+    /** «Pasará al documento…» de la serie de origen, si es del tipo al que se convierte y está activa. */
+    private NumberingScheme targetSeries(UUID companyId, SeriesOptions sourceSeries, DocumentType targetType) {
+        if (sourceSeries.nextSchemeId() != null) {
+            var next = numberingSchemes.findByIdAndCompanyId(sourceSeries.nextSchemeId(), companyId)
+                    .filter(scheme -> scheme.isActive() && scheme.getDocumentType() == targetType);
+            if (next.isPresent()) return next.get();
+        }
+        return numberGenerator.resolveScheme(companyId, targetType, null);
+    }
+
     private DocumentLine toLine(ResolvedDocumentLine line) {
         DocumentLine documentLine = new DocumentLine(line.productId(), line.productCode(), line.description(),
                 line.requestedQuantity(), line.billedQuantity(), line.displayUnitPrice(), line.discountPercentage(),

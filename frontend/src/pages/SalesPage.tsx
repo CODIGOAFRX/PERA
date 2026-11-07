@@ -1,3 +1,4 @@
+import type { DocumentSeries } from '../components/SeriesForm'
 import { DocumentEmail } from '../components/DocumentEmail'
 import { ArrowRight, CheckCircle2, Download, FileText, Plus, ReceiptText, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
@@ -47,6 +48,7 @@ export function SalesPage() {
   const [refresh, setRefresh] = useState(0)
   const { notify } = useToast()
   const confirm = useConfirm()
+  const series = useDocumentSeries()
 
   useEffect(() => { const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 250); return () => window.clearTimeout(timer) }, [query])
   useEffect(() => setPage(0), [debouncedQuery, type, status, fromDate, toDate])
@@ -114,7 +116,7 @@ export function SalesPage() {
         <label className="toolbar-date"><span>{t('common.to')}</span><input aria-label={t('common.to')} type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label>
       </TableToolbar>
       {error && <div className="inline-error">{error}</div>}
-      {loading ? <LoadingState /> : data && data.content.length > 0 ? <><div className="table-scroll"><table><TableCaption es="Documentos de venta" en="Sales documents" /><thead><tr><th>{t('sales.number')}</th><th>{t('sales.type')}</th><th>{t('sales.customer')}</th><th>{t('sales.date')}</th><th>{t('sales.status')}</th><th>{t('sales.payment')}</th><th className="align-right">{t('sales.total')}</th></tr></thead><tbody>{data.content.map((document) => <tr key={document.id} className={`clickable-row${document.status === 'CONVERTED' ? ' document-row-converted' : ''}`} onClick={() => setSelected(document)}><td><span className="document-number-wrap"><strong className="document-number">{document.number}</strong>{verifactuDocuments.has(document.id) && <span className="verifactu-list-mark" title="VERI*FACTU" aria-label="VERI*FACTU"><CheckCircle2 size={16} /><span>V</span></span>}</span></td><td>{t(documentTypeKey[document.type])}</td><td><strong>{document.customerName}</strong><small>{document.customerCode}</small></td><td>{formatDate(document.issueDate, locale)}</td><td><StatusBadge tone={statusTone(document.status)}>{t(documentStatusKey[document.status])}</StatusBadge></td><td><StatusBadge tone={paymentTone(document.paymentStatus)}>{t(paymentStatusKey[document.paymentStatus])}</StatusBadge></td><td className="align-right"><strong>{formatCurrency(document.totalAmount, document.currency, locale)}</strong></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('sales.empty')} description={t('sales.emptyDescription')} action={<button className="button button-secondary" type="button" onClick={() => setCreating(true)}>{t('sales.createDocument')}</button>} />}
+      {loading ? <LoadingState /> : data && data.content.length > 0 ? <><div className="table-scroll"><table><TableCaption es="Documentos de venta" en="Sales documents" /><thead><tr><th>{t('sales.number')}</th><th>{t('sales.type')}</th><th>{t('sales.customer')}</th><th>{t('sales.date')}</th><th>{t('sales.status')}</th><th>{t('sales.payment')}</th><th className="align-right">{t('sales.total')}</th></tr></thead><tbody>{data.content.map((document) => <tr key={document.id} className={`clickable-row${document.status === 'CONVERTED' ? ' document-row-converted' : ''}`} onClick={() => setSelected(document)}><td><span className="document-number-wrap">{seriesOf(series, document)?.options?.color && <i className="series-color" style={{ background: seriesOf(series, document)?.options?.color ?? undefined }} title={seriesOf(series, document)?.name} aria-hidden="true" />}<strong className="document-number">{document.number}</strong>{verifactuDocuments.has(document.id) && <span className="verifactu-list-mark" title="VERI*FACTU" aria-label="VERI*FACTU"><CheckCircle2 size={16} /><span>V</span></span>}</span></td><td>{t(documentTypeKey[document.type])}{overdueDays(series, document) > 0 && <span className="document-overdue" title={language === 'es' ? 'Su serie avisa si no se ha pasado a otro documento' : 'Its series warns when not converted'}>{language === 'es' ? `Sin pasar hace ${overdueDays(series, document)} días` : `Not converted for ${overdueDays(series, document)} days`}</span>}</td><td><strong>{document.customerName}</strong><small>{document.customerCode}</small></td><td>{formatDate(document.issueDate, locale)}</td><td><StatusBadge tone={statusTone(document.status)}>{t(documentStatusKey[document.status])}</StatusBadge></td><td><StatusBadge tone={paymentTone(document.paymentStatus)}>{t(paymentStatusKey[document.paymentStatus])}</StatusBadge></td><td className="align-right"><strong>{formatCurrency(document.totalAmount, document.currency, locale)}</strong></td></tr>)}</tbody></table></div><Pagination page={data.page.number} totalPages={data.page.totalPages} totalElements={data.page.totalElements} onChange={setPage} /></> : <EmptyState title={t('sales.empty')} description={t('sales.emptyDescription')} action={<button className="button button-secondary" type="button" onClick={() => setCreating(true)}>{t('sales.createDocument')}</button>} />}
     </section>
 
     <Modal open={creating} title={t('sales.newDocument')} description={t('sales.newDescription')} onClose={() => setCreating(false)} size="large"><CreateDocumentForm onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); setRefresh((value) => value + 1); notify(t('sales.created')) }} /></Modal>
@@ -134,7 +136,11 @@ function CreateDocumentForm({ onCancel, onSaved }: { onCancel: () => void; onSav
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const formErrors = useFormErrors()
-  const [form, setForm] = useState({ type: 'QUOTE' as DocumentType, customerId: '', issueDate: localIsoDate(), dueDate: '', currency: 'EUR', paymentMethodId: '', salespersonId: '', notes: '', confirm: true })
+  const [form, setForm] = useState({ type: 'QUOTE' as DocumentType, customerId: '', issueDate: localIsoDate(), dueDate: '', currency: 'EUR', paymentMethodId: '', salespersonId: '', notes: '', confirm: true, numberingSchemeId: '', documentNumber: '' })
+  const allSeries = useDocumentSeries()
+  const typeSeries = allSeries.filter((item) => item.active && item.documentType === form.type)
+    .sort((a, b) => (a.options?.displayOrder ?? 0) - (b.options?.displayOrder ?? 0) || a.code.localeCompare(b.code))
+  const chosenSeries = typeSeries.find((item) => item.id === form.numberingSchemeId) ?? typeSeries.find((item) => item.defaultScheme)
   const [lines, setLines] = useState([{ productId: '', productCode: '', description: '', quantity: '1', unitPrice: '0', discountPercentage: '0', taxPercentage: '21', unitPriceOverridden: false, taxPercentageOverridden: false }])
 
   useEffect(() => {
@@ -192,6 +198,8 @@ function CreateDocumentForm({ onCancel, onSaved }: { onCancel: () => void; onSav
       type: form.type, customerId: customer.id, customerCode: customer.code, customerName: customer.legalName,
       issueDate: form.issueDate, dueDate: form.dueDate || null, currency: form.currency, paymentMethodId: form.paymentMethodId || null,
       salespersonId: form.salespersonId || null,
+      numberingSchemeId: chosenSeries?.id ?? null,
+      documentNumber: chosenSeries?.options?.asksNumber ? form.documentNumber.trim() || null : null,
       notes: form.notes.trim() || null, confirm: form.confirm,
       lines: lines.map((line) => ({ productId: line.productId || null, productCode: line.productCode || null, description: line.description.trim(), quantity: Number(line.quantity), unitPrice: Number(line.unitPrice), discountPercentage: Number(line.discountPercentage), taxPercentage: Number(line.taxPercentage), unitPriceOverridden: line.unitPriceOverridden, taxPercentageOverridden: line.taxPercentageOverridden })),
     }
@@ -205,7 +213,9 @@ function CreateDocumentForm({ onCancel, onSaved }: { onCancel: () => void; onSav
   if (loadingOptions) return <LoadingState label={t('sales.loadingOptions')} />
   return <form onSubmit={submit}><FormErrors value={formErrors.context}>
     <div className="form-grid document-header-form">
-      <Field label={t('sales.type')} htmlFor="document-type" name="type" required><select id="document-type" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as DocumentType })}>{documentTypes.map((item) => <option key={item} value={item}>{t(documentTypeKey[item])}</option>)}</select></Field>
+      <Field label={t('sales.type')} htmlFor="document-type" name="type" required><select id="document-type" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as DocumentType, numberingSchemeId: '', documentNumber: '' })}>{documentTypes.map((item) => <option key={item} value={item}>{t(documentTypeKey[item])}</option>)}</select></Field>
+      {typeSeries.length > 0 && <Field label={language === 'es' ? 'Serie' : 'Series'} htmlFor="document-series" name="numberingSchemeId"><select id="document-series" value={chosenSeries?.id ?? ''} onChange={(event) => setForm({ ...form, numberingSchemeId: event.target.value, documentNumber: '' })}>{typeSeries.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></Field>}
+      {chosenSeries?.options?.asksNumber && <Field label={language === 'es' ? 'Número del documento' : 'Document number'} htmlFor="document-number" name="documentNumber" required hint={language === 'es' ? 'Esta serie pide el número a mano; no cambia el contador.' : 'This series asks for the number; the counter is not changed.'}><input id="document-number" value={form.documentNumber} maxLength={60} onChange={(event) => setForm({ ...form, documentNumber: event.target.value })} required /></Field>}
       <Field label={t('sales.customer')} htmlFor="document-customer" name="customerId" required><select id="document-customer" value={form.customerId} onChange={(event) => setForm({ ...form, customerId: event.target.value })} required><option value="">{t('sales.selectCustomer')}</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.code} · {customer.legalName}</option>)}</select></Field>
       <Field label={t('sales.issueDate')} htmlFor="document-date" name="issueDate" required><input id="document-date" type="date" value={form.issueDate} onChange={(event) => setForm({ ...form, issueDate: event.target.value })} required /></Field>
       <Field label={t('sales.dueDate')} htmlFor="document-due" name="dueDate"><input id="document-due" type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} /></Field>
@@ -243,6 +253,8 @@ function DocumentDetail({ document, onAction, onDownload }: { document: Commerci
   // Solo se imprime lo que es una factura. Un presupuesto o un albarán tienen su propio formato y
   // no llevan ni QR ni leyenda; imprimirlos con esta hoja sería llamarlos factura.
   const printable = document.type === 'INVOICE' || document.type === 'RECTIFYING_INVOICE'
+  // Albaranes y pedidos también se imprimen, valorados o no según su serie.
+  const downloadable = printable || document.type === 'DELIVERY_NOTE' || document.type === 'SALES_ORDER'
   // A draft saved without "confirm on save" is confirmed (or, for an invoice, issued) from here.
   const confirmable = document.status === 'DRAFT' && document.type !== 'QUOTE'
   return <div className="document-detail">
@@ -252,7 +264,7 @@ function DocumentDetail({ document, onAction, onDownload }: { document: Commerci
     {printable && <DocumentEmail id={document.id} disabled={document.status === 'DRAFT'} />}
     {document.type === 'INVOICE' || document.type === 'RECTIFYING_INVOICE' ? <VerifactuBlock documentId={document.id} configureLink={configureLink} /> : null}
     {document.type === 'INVOICE' && document.status !== 'DRAFT' && <FiscalDelivery sourceId={document.id} provider="B2B" configureLink={configureLink} />}
-    {(confirmable || convertible || payable || printable) && <div className="modal-action-strip">{confirmable && <button type="button" className="button button-primary" onClick={() => onAction('confirm', document)}><CheckCircle2 size={17} />{t(printable ? 'sales.issueInvoice' : 'sales.confirmDocument')}</button>}{convertible && <button type="button" className="button button-primary" onClick={() => onAction('convert', document)}>{t('sales.convertNext')} <ArrowRight size={17} /></button>}{payable && <button type="button" className="button button-secondary" onClick={() => onAction('paid', document)}><CheckCircle2 size={17} />{t('sales.markPaid')}</button>}{printable && <button type="button" className="button button-ghost" onClick={() => onDownload(document)}><Download size={17} />{c('Descargar la factura', 'Download the invoice')}</button>}</div>}
+    {(confirmable || convertible || payable || downloadable) && <div className="modal-action-strip">{confirmable && <button type="button" className="button button-primary" onClick={() => onAction('confirm', document)}><CheckCircle2 size={17} />{t(printable ? 'sales.issueInvoice' : 'sales.confirmDocument')}</button>}{convertible && <button type="button" className="button button-primary" onClick={() => onAction('convert', document)}>{t('sales.convertNext')} <ArrowRight size={17} /></button>}{payable && <button type="button" className="button button-secondary" onClick={() => onAction('paid', document)}><CheckCircle2 size={17} />{t('sales.markPaid')}</button>}{downloadable && <button type="button" className="button button-ghost" onClick={() => onDownload(document)}><Download size={17} />{printable ? c('Descargar la factura', 'Download the invoice') : c('Descargar el PDF', 'Download the PDF')}</button>}</div>}
   </div>
 }
 
@@ -284,4 +296,33 @@ function paymentTone(status: CommercialDocument['paymentStatus']): BadgeTone {
   if (status === 'PAID') return 'success'
   if (status === 'PENDING' || status === 'PARTIALLY_PAID') return 'warning'
   return 'neutral'
+}
+
+/** Las series de documentos (para elegirla al crear, su color y su aviso de «sin pasar»). Sin permiso, ninguna. */
+function useDocumentSeries() {
+  const [series, setSeries] = useState<DocumentSeries[]>([])
+  useEffect(() => {
+    let active = true
+    apiFetch<PageResponse<DocumentSeries>>('/api/v1/numbering-schemes?size=200')
+      .then((page) => { if (active) setSeries(page.content) })
+      .catch(() => { if (active) setSeries([]) })
+    return () => { active = false }
+  }, [])
+  return series
+}
+
+function seriesOf(series: DocumentSeries[], document: CommercialDocument) {
+  return series.find((item) => item.id === document.numberingSchemeId)
+    ?? series.find((item) => item.defaultScheme && item.documentType === document.type)
+}
+
+/**
+ * Días que lleva sin pasarse a otro documento, si su serie avisa a partir de cierto número de días
+ * (dias_aviso de las series de Dimpro). 0 si no hay que avisar.
+ */
+function overdueDays(series: DocumentSeries[], document: CommercialDocument) {
+  const limit = seriesOf(series, document)?.options?.remindAfterDays ?? 0
+  if (limit <= 0 || document.status !== 'CONFIRMED' || !(document.type === 'QUOTE' || document.type === 'DELIVERY_NOTE')) return 0
+  const days = Math.floor((Date.now() - new Date(`${document.issueDate}T00:00:00`).getTime()) / 86_400_000)
+  return days > limit ? days : 0
 }

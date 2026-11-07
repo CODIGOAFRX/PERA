@@ -25,7 +25,7 @@ const options: { words: string; title: [string, string]; to: string; routeId: st
   { words: 'b2brouter factura electronica facturae', title: ['B2Brouter · factura electrónica', 'B2Brouter · e-invoicing'], to: '/conexiones', routeId: 'connections' },
   { words: 'empresa razon social nif cif logo direccion datos de la empresa', title: ['Datos de la empresa (razón social, NIF, logo)', 'Company data (legal name, tax ID, logo)'], to: '/configuracion', routeId: 'settings' },
   { words: 'verifactu emisor entorno pruebas produccion configuracion fiscal', title: ['Configuración de Veri*Factu', 'Veri*Factu settings'], to: '/configuracion', routeId: 'settings' },
-  { words: 'numeracion series contador numero de factura', title: ['Series y numeración de documentos', 'Document series and numbering'], to: '/configuracion', routeId: 'settings' },
+  { words: 'numeracion series contador numero de factura', title: ['Series de documentos (numeración, a qué pasan, impresión)', 'Document series'], to: '/configuracion', routeId: 'settings' },
   { words: 'formas de pago vencimientos plazos recibos dias', title: ['Formas de pago', 'Payment methods'], to: '/finanzas', routeId: 'finance' },
   { words: 'usuarios contraseña permisos roles acceso', title: ['Usuarios, contraseñas y permisos', 'Users, passwords and permissions'], to: '/usuarios', routeId: 'users' },
   { words: 'comerciales comision vendedor', title: ['Comerciales y comisiones', 'Salespeople and commissions'], to: '/comisiones', routeId: 'commissions' },

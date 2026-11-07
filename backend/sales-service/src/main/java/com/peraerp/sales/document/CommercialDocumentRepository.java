@@ -19,7 +19,10 @@ public interface CommercialDocumentRepository extends JpaRepository<CommercialDo
             "and d.customerId = :customerId " +
             "and d.type in (com.peraerp.sales.document.DocumentType.INVOICE, com.peraerp.sales.document.DocumentType.RECTIFYING_INVOICE) " +
             "and d.status = com.peraerp.sales.document.DocumentStatus.CONFIRMED " +
-            "and d.paymentStatus in (com.peraerp.sales.document.PaymentStatus.PENDING, com.peraerp.sales.document.PaymentStatus.PARTIALLY_PAID)")
+            "and d.paymentStatus in (com.peraerp.sales.document.PaymentStatus.PENDING, com.peraerp.sales.document.PaymentStatus.PARTIALLY_PAID) " +
+            // Las series que no generan riesgo (es_riesgo de Dimpro desmarcado) no cuentan.
+            "and (d.numberingSchemeId is null or d.numberingSchemeId not in " +
+            "(select s.id from NumberingScheme s where s.companyId = :companyId and s.countsForRisk = false))")
     java.math.BigDecimal sumOutstandingInvoices(@Param("companyId") UUID companyId, @Param("customerId") UUID customerId);
     Optional<CommercialDocument> findByIdAndCompanyIdAndType(UUID id, UUID companyId, DocumentType type);
     boolean existsByCompanyIdAndTypeAndDocumentNumber(UUID companyId, DocumentType type, String documentNumber);

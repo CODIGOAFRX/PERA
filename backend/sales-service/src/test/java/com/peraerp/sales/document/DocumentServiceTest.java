@@ -38,6 +38,7 @@ class DocumentServiceTest {
     @Mock DocumentCurrencyService currencyService;
     @Mock SalesMasterDataService masterDataService;
     @Mock com.peraerp.sales.verifactu.VerifactuIssuanceService verifactuIssuance;
+    @Mock com.peraerp.sales.numbering.NumberingSchemeRepository numberingSchemes;
 
     private final UUID companyId = UUID.randomUUID();
     private DocumentService service;
@@ -45,7 +46,14 @@ class DocumentServiceTest {
     @BeforeEach
     void setUp() {
         service = new DocumentService(documents, numberGenerator, new DocumentAmountsCalculator(), companyProvider,
-                events, currencyService, masterDataService, verifactuIssuance, new CreditRiskService(documents, companyProvider));
+                events, currencyService, masterDataService, verifactuIssuance, new CreditRiskService(documents, companyProvider), numberingSchemes);
+        // La serie predeterminada de cada tipo, con el comportamiento de siempre; su número sale del contador del tipo.
+        lenient().when(numberGenerator.resolveScheme(any(), any(), any())).thenAnswer(invocation ->
+                new com.peraerp.sales.numbering.NumberingScheme(companyId, "AUTO", "Automática", invocation.getArgument(1),
+                        "X", "{seq}", com.peraerp.sales.numbering.NumberingResetPeriod.YEARLY, 1, true, true));
+        lenient().when(numberGenerator.next(any(), any(com.peraerp.sales.numbering.NumberingScheme.class), any())).thenAnswer(invocation ->
+                numberGenerator.next(companyId, ((com.peraerp.sales.numbering.NumberingScheme) invocation.getArgument(1)).getDocumentType(),
+                        invocation.getArgument(2), null));
         when(companyProvider.requireCompanyId()).thenReturn(companyId);
         lenient().when(masterDataService.requireActiveCustomer(any())).thenAnswer(invocation ->
                 new CustomerSnapshot(invocation.getArgument(0), "C001", "Cliente Demo", true));
@@ -235,6 +243,88 @@ class DocumentServiceTest {
         assertThatThrownBy(() -> service.changeSalesperson(id, retired)).isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("baja");
         assertThat(service.changeSalesperson(id, null).salespersonId()).isNull();
+    }
+
+    // --- series de documentos (fseries de DimproCristalWin) ---
+
+    private com.peraerp.sales.numbering.NumberingScheme series(DocumentType type, String code,
+                                                               com.peraerp.sales.numbering.SeriesOptions options) {
+        var scheme = new com.peraerp.sales.numbering.NumberingScheme(companyId, code, code, type, code, "{seq}",
+                com.peraerp.sales.numbering.NumberingResetPeriod.YEARLY, 1, true, false);
+        ReflectionTestUtils.setField(scheme, "id", UUID.randomUUID());
+        scheme.configure(options);
+        return scheme;
+    }
+
+    private static com.peraerp.sales.numbering.SeriesOptions options(java.util.function.UnaryOperator<java.util.Map<String, Object>> change) {
+        var d = com.peraerp.sales.numbering.SeriesOptions.defaults();
+        var m = new java.util.HashMap<String, Object>();
+        m.put("next", d.nextSchemeId()); m.put("sameNumber", false); m.put("sameDate", false); m.put("asks", false);
+        m.put("notes", true); m.put("priced", true); m.put("internal", false); m.put("zero", false); m.put("risk", true);
+        change.apply(m);
+        return new com.peraerp.sales.numbering.SeriesOptions(0, null, null, (UUID) m.get("next"), (boolean) m.get("sameNumber"),
+                (boolean) m.get("sameDate"), (boolean) m.get("asks"), (boolean) m.get("notes"), null, 0, (boolean) m.get("priced"),
+                (boolean) m.get("internal"), (boolean) m.get("zero"), (boolean) m.get("risk"), 0);
+    }
+
+    @Test
+    void convertingGoesToTheNextSeriesOfTheSourceWithItsNumberAndDateAndWithoutNotesWhenTheSeriesSaysSo() {
+        var invoiceSeries = series(DocumentType.INVOICE, "FC", options(m -> { m.put("sameNumber", true); m.put("sameDate", true); return m; }));
+        var deliverySeries = series(DocumentType.DELIVERY_NOTE, "AT", options(m -> { m.put("next", invoiceSeries.getId()); m.put("notes", false); return m; }));
+        UUID sourceId = UUID.randomUUID();
+        CommercialDocument source = document(sourceId, DocumentType.DELIVERY_NOTE);
+        ReflectionTestUtils.setField(source, "notes", "Entregar por la mañana");
+        source.addLine(new DocumentLine(UUID.randomUUID(), "A001", "Servicio", BigDecimal.ONE, new BigDecimal("50"), BigDecimal.ZERO, new BigDecimal("21")));
+        source.assignSeries(deliverySeries.getId());
+        source.applyCustomerTaxSnapshot("B12345674", null, "ES");
+        source.recalculate(new DocumentAmountsCalculator());
+        source.confirm();
+        when(documents.findByIdAndCompanyId(sourceId, companyId)).thenReturn(Optional.of(source));
+        when(numberingSchemes.findByIdAndCompanyId(deliverySeries.getId(), companyId)).thenReturn(Optional.of(deliverySeries));
+        when(numberingSchemes.findByIdAndCompanyId(invoiceSeries.getId(), companyId)).thenReturn(Optional.of(invoiceSeries));
+        when(documents.save(any(CommercialDocument.class))).thenAnswer(invocation -> withId(invocation.getArgument(0)));
+
+        DocumentResponse response = service.convert(sourceId);
+
+        assertThat(response.numberingSchemeId()).isEqualTo(invoiceSeries.getId());
+        assertThat(response.number()).isEqualTo("DOC-1");
+        assertThat(response.issueDate()).isEqualTo(LocalDate.of(2026, 8, 7));
+        assertThat(response.notes()).isNull();
+    }
+
+    @Test
+    void aSeriesThatAsksForTheNumberTakesItFromTheRequestAndNeverFromTheCounter() {
+        var manual = series(DocumentType.QUOTE, "M", options(m -> { m.put("asks", true); return m; }));
+        when(numberGenerator.resolveScheme(companyId, DocumentType.QUOTE, manual.getId())).thenReturn(manual);
+        when(currencyService.resolve(any(), any())).thenReturn(new DocumentCurrencySnapshot("EUR", BigDecimal.ONE, LocalDate.of(2026, 8, 7), "IDENTITY"));
+        when(documents.save(any(CommercialDocument.class))).thenAnswer(invocation -> withId(invocation.getArgument(0)));
+        var base = request(DocumentType.QUOTE, true);
+        var withNumber = new CreateDocumentRequest(base.type(), base.customerId(), base.customerCode(), base.customerName(),
+                base.issueDate(), null, "EUR", null, null, true, base.lines(), manual.getId(), null, null, null, null, "229258");
+
+        assertThat(service.create(withNumber).number()).isEqualTo("229258");
+        verify(numberGenerator, org.mockito.Mockito.never()).next(any(), any(com.peraerp.sales.numbering.NumberingScheme.class), any());
+
+        var withoutNumber = new CreateDocumentRequest(base.type(), base.customerId(), base.customerCode(), base.customerName(),
+                base.issueDate(), null, "EUR", null, null, true, base.lines(), manual.getId(), null, null, null, null, null);
+        assertThatThrownBy(() -> service.create(withoutNumber)).isInstanceOf(BusinessRuleException.class).hasMessageContaining("pide el número");
+    }
+
+    @Test
+    void aReplacementSeriesPutsEveryAmountToZero() {
+        var replacement = series(DocumentType.DELIVERY_NOTE, "R", options(m -> { m.put("zero", true); return m; }));
+        when(numberGenerator.resolveScheme(companyId, DocumentType.DELIVERY_NOTE, replacement.getId())).thenReturn(replacement);
+        when(numberGenerator.next(companyId, DocumentType.DELIVERY_NOTE, LocalDate.of(2026, 8, 7), null)).thenReturn("REP-1");
+        when(currencyService.resolve(any(), any())).thenReturn(new DocumentCurrencySnapshot("EUR", BigDecimal.ONE, LocalDate.of(2026, 8, 7), "IDENTITY"));
+        when(documents.save(any(CommercialDocument.class))).thenAnswer(invocation -> withId(invocation.getArgument(0)));
+        var base = request(DocumentType.DELIVERY_NOTE, true);
+        var request = new CreateDocumentRequest(base.type(), base.customerId(), base.customerCode(), base.customerName(),
+                base.issueDate(), null, "EUR", null, null, true, base.lines(), replacement.getId(), null, null, null, null, null);
+
+        DocumentResponse response = service.create(request);
+
+        assertThat(response.totalAmount()).isEqualByComparingTo("0");
+        assertThat(response.lines()).hasSize(1);
     }
 
     private CreateDocumentRequest request(DocumentType type, boolean confirm) {

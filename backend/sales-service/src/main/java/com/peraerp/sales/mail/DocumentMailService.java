@@ -72,6 +72,10 @@ public class DocumentMailService {
         return queue(documentId, quote);
     }
     private void enqueue(CommercialDocument d, boolean manual) {
+        if (pdf.internal(d)) {
+            if (manual) throw new BusinessRuleException("Este documento es de una serie interna: no se envía al cliente.");
+            return;
+        }
         var previous=jdbc.queryForList("SELECT status FROM document_mail WHERE company_id=? AND document_id=?",d.getCompanyId(),d.getId());
         if(!previous.isEmpty() && !"FAILED".equals(previous.getFirst().get("status"))) {
             if(manual) throw new BusinessRuleException("El documento ya está enviado, pendiente o requiere revisar una entrega incierta. No se reenviará automáticamente.");

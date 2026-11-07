@@ -113,6 +113,10 @@ public class DocumentLine extends AuditableEntity {
                 : calculator.calculate(BigDecimal.ONE, pricingResolvedAmount, discountPercentage, taxPercentage);
         netAmount=amounts.net(); taxAmount=amounts.tax(); totalAmount=amounts.total();
     }
+    void zeroPrice() {
+        this.unitPrice = BigDecimal.ZERO;
+    }
+
     DocumentLine copySnapshot() {
         DocumentLine copy = new DocumentLine(productId, productCodeSnapshot, description, requestedQuantity,
                 quantity, unitPrice, discountPercentage, taxPercentage, tariffId, tariffCodeSnapshot,

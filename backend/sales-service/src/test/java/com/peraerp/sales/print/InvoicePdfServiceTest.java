@@ -36,7 +36,8 @@ class InvoicePdfServiceTest {
         var renderer = mock(InvoicePdfRenderer.class);
         when(renderer.render(any())).thenReturn(new byte[0]);
         var service = new InvoicePdfService(documents, mock(VerifactuRecordRepository.class),
-                mock(VerifactuSettingsRepository.class), profile, mock(HttpPaymentMethodClient.class), renderer, provider);
+                mock(VerifactuSettingsRepository.class), profile, mock(HttpPaymentMethodClient.class), renderer, provider,
+                mock(com.peraerp.sales.numbering.NumberingSchemeRepository.class));
 
         service.render(id);
 

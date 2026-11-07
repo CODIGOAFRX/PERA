@@ -71,6 +71,14 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Registro de entregas
 
+### v20261107.Raul.3 — series de documentos (parte 1 de 5) y versión 0.4 (subida solo a `raul`, no a `main`)
+
+- Cada numeración pasa a ser una **serie** como `fseries` de DimproCristalWin, y cada documento guarda la suya (Ventas `V16`) ([docs/33](docs/33-series-de-documentos.md)): orden, color, agrupación, principal, **pide número**, **pasa a**, número y fecha iguales al anterior, pasa notas, **días de aviso sin pasar**, **texto al pie**, **copias**, **valorado**, **genera riesgo**, **interno** y **reposición**.
+- **Albaranes y pedidos ya se imprimen** (antes solo facturas y presupuestos), valorados o no según su serie.
+- Pantallas: Configuración › Series de documentos (ficha en cuatro apartados) y, en Ventas, el selector de serie, el número a mano y el aviso «Sin pasar hace N días». Versión del programa **0.4**.
+- Sin detalles técnicos a la vista: el número se configura eligiendo un formato y sus cifras, con «Así quedará…», en vez de un patrón; las series que crea PERA sola se llaman «PRE · Presupuesto», «FAC · Factura»… (Ventas `V17` renombra las que ya había).
+- Probado de verdad con series de ejemplo (AVSV, FCPRU, AREP, PMAN, PINT). Siguientes partes: contado y caja, permisos por usuario, formatos y listados, vidrio.
+
 ### v20261107.Raul.2 — avisos de error a soporte, buscador general y versión 0.3 (subida solo a `raul`, no a `main`)
 
 - **Avisos de error** como `MisErrores`/`ver_error` de DimproCristalWin: ventana «Error en la aplicación» con «¿Qué estabas haciendo?» y «Enviar a soporte» (si se cierra, sale solo a los 3 minutos), código de error en cada fallo interno del servidor y registro en Actividad (`V3`, `V4`). El correo sale, como en Dimpro, con el correo de la empresa (Conexiones › Correo) y, si no tiene, con la cuenta de la instalación de `config/pera.ini`; cada aviso con su propio asunto para que el buzón no los agrupe. Probado de verdad: de gjraul98@gmail.com a raulgil98@proton.me ([docs/32](docs/32-avisos-de-error-buscador-y-version.md)).

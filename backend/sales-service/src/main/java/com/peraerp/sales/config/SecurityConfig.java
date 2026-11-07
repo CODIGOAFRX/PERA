@@ -30,7 +30,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/quotes/**").hasAuthority("quotes:read")
                         .requestMatchers("/api/v1/quotes/**").hasAuthority("quotes:write")
                         .requestMatchers(HttpMethod.GET, "/api/v1/sales-dashboard/**").hasAuthority("documents:read")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/numbering-schemes/**").hasAuthority("numbering:read")
+                        // Quien hace documentos tiene que poder elegir la serie (y ver si pide número), aunque no pueda cambiarla.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/numbering-schemes/**").hasAnyAuthority("numbering:read", "documents:read")
                         .requestMatchers("/api/v1/numbering-schemes/**").hasAuthority("numbering:write")
                         .requestMatchers(HttpMethod.GET, "/api/v1/verifactu-settings/**").hasAuthority("verifactu:read")
                         .requestMatchers("/api/v1/verifactu-settings/**").hasAuthority("verifactu:write")

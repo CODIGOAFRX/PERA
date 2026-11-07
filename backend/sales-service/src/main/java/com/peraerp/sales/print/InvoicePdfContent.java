@@ -34,7 +34,27 @@ public record InvoicePdfContent(
         String paymentMethod,
         String notes,
         Verifactu verifactu,
-        byte[] logo) {
+        byte[] logo,
+        boolean priced,
+        String footerText,
+        int copies) {
+
+    /**
+     * Sin las opciones de la serie: valorado, sin texto al pie y sin copias, como se imprimía antes.
+     *
+     * @param priced     con precios e importes (documento_valorado de las series de Dimpro)
+     * @param footerText texto al pie (texto_documento)
+     * @param copies     copias además del original (copias_doc)
+     */
+    public InvoicePdfContent(Issuer issuer, Recipient recipient, String title, String number, LocalDate issueDate,
+                             LocalDate dueDate, String invoiceKind, String rectifiedNumber, LocalDate rectifiedIssueDate,
+                             String currency, List<Line> lines, List<TaxRow> taxes, BigDecimal netAmount,
+                             BigDecimal taxAmount, BigDecimal totalAmount, String paymentMethod, String notes,
+                             Verifactu verifactu, byte[] logo) {
+        this(issuer, recipient, title, number, issueDate, dueDate, invoiceKind, rectifiedNumber, rectifiedIssueDate,
+                currency, lines, taxes, netAmount, taxAmount, totalAmount, paymentMethod, notes, verifactu, logo,
+                true, null, 0);
+    }
 
     /** Obligado a expedir. Sale de los ajustes de empresa y de la configuración Veri*Factu. */
     public record Issuer(String legalName, String taxId, String addressLine1, String addressLine2,

@@ -16,6 +16,12 @@ public record NumberingSchemeRequest(
         @NotNull NumberingResetPeriod resetPeriod,
         @Min(1) long initialValue,
         boolean active,
-        boolean defaultScheme
+        boolean defaultScheme,
+        @io.swagger.v3.oas.annotations.media.Schema(description = "Comportamiento de la serie. Si se omite, se conserva el que tenga.")
+        @jakarta.validation.Valid SeriesOptions options
 ) {
+    public NumberingSchemeRequest(String code, String name, DocumentType documentType, String series, String pattern,
+                                  NumberingResetPeriod resetPeriod, long initialValue, boolean active, boolean defaultScheme) {
+        this(code, name, documentType, series, pattern, resetPeriod, initialValue, active, defaultScheme, null);
+    }
 }

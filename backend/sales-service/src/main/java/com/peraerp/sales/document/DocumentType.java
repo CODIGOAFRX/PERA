@@ -15,4 +15,13 @@ public enum DocumentType {
     public boolean isInvoice() {
         return this == INVOICE || this == RECTIFYING_INVOICE;
     }
+
+    /** Tipo al que se convierte un documento («pasar a»), o {@code null} si no se convierte. */
+    public DocumentType conversionTarget() {
+        return switch (this) {
+            case QUOTE -> DELIVERY_NOTE;
+            case DELIVERY_NOTE -> INVOICE;
+            default -> null;
+        };
+    }
 }

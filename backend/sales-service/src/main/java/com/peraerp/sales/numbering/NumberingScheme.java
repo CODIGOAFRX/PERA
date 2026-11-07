@@ -45,6 +45,23 @@ public class NumberingScheme extends CompanyScopedEntity {
     @Column(name = "default_scheme", nullable = false)
     private boolean defaultScheme;
 
+    // Comportamiento de la serie (ver SeriesOptions; campo de fseries de Dimpro entre paréntesis).
+    @Column(name = "display_order", nullable = false) private int displayOrder;
+    @Column(length = 16) private String color;
+    @Column(name = "listing_group", length = 60) private String listingGroup;
+    @Column(name = "next_scheme_id") private UUID nextSchemeId;
+    @Column(name = "same_number_as_source", nullable = false) private boolean sameNumberAsSource;
+    @Column(name = "same_date_as_source", nullable = false) private boolean sameDateAsSource;
+    @Column(name = "asks_number", nullable = false) private boolean asksNumber;
+    @Column(name = "carries_notes", nullable = false) private boolean carriesNotes = true;
+    @Column(name = "footer_text", length = 200) private String footerText;
+    @Column(name = "print_copies", nullable = false) @org.hibernate.annotations.JdbcTypeCode(java.sql.Types.SMALLINT) private int printCopies;
+    @Column(nullable = false) private boolean priced = true;
+    @Column(nullable = false) private boolean internal;
+    @Column(name = "zero_amounts", nullable = false) private boolean zeroAmounts;
+    @Column(name = "counts_for_risk", nullable = false) private boolean countsForRisk = true;
+    @Column(name = "remind_after_days", nullable = false) @org.hibernate.annotations.JdbcTypeCode(java.sql.Types.SMALLINT) private int remindAfterDays;
+
     protected NumberingScheme() {
     }
 
@@ -72,6 +89,35 @@ public class NumberingScheme extends CompanyScopedEntity {
         this.initialValue = initialValue;
         this.active = active;
         this.defaultScheme = defaultScheme;
+    }
+
+    /** Aplica el comportamiento ya validado por el servicio. */
+    public void configure(SeriesOptions options) {
+        this.displayOrder = options.displayOrder();
+        this.color = blankToNull(options.color());
+        this.listingGroup = blankToNull(options.listingGroup());
+        this.nextSchemeId = options.nextSchemeId();
+        this.sameNumberAsSource = options.sameNumberAsSource();
+        this.sameDateAsSource = options.sameDateAsSource();
+        this.asksNumber = options.asksNumber();
+        this.carriesNotes = options.carriesNotes();
+        this.footerText = blankToNull(options.footerText());
+        this.printCopies = options.printCopies();
+        this.priced = options.priced();
+        this.internal = options.internal();
+        this.zeroAmounts = options.zeroAmounts();
+        this.countsForRisk = options.countsForRisk();
+        this.remindAfterDays = options.remindAfterDays();
+    }
+
+    public SeriesOptions options() {
+        return new SeriesOptions(displayOrder, color, listingGroup, nextSchemeId, sameNumberAsSource, sameDateAsSource,
+                asksNumber, carriesNotes, footerText, printCopies, priced, internal, zeroAmounts, countsForRisk,
+                remindAfterDays);
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public void removeDefault() {

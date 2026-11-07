@@ -29,6 +29,14 @@ public class DocumentNumberGenerator {
             DocumentType.RECTIFYING_INVOICE, "REC",
             DocumentType.WORK_ORDER, "PAR");
 
+    private static final Map<DocumentType, String> DEFAULT_NAMES = Map.of(
+            DocumentType.QUOTE, "Presupuesto",
+            DocumentType.SALES_ORDER, "Pedido",
+            DocumentType.DELIVERY_NOTE, "Albarán",
+            DocumentType.INVOICE, "Factura",
+            DocumentType.RECTIFYING_INVOICE, "Factura rectificativa",
+            DocumentType.WORK_ORDER, "Parte de trabajo");
+
     private final NumberingSchemeRepository schemes;
     private final NumberingCounterRepository counters;
     private final NumberingPatternFormatter formatter;
@@ -44,7 +52,13 @@ public class DocumentNumberGenerator {
 
     @Transactional
     public String next(UUID companyId, DocumentType type, LocalDate date, UUID requestedSchemeId) {
-        NumberingScheme scheme = resolveScheme(companyId, type, requestedSchemeId);
+        return next(companyId, resolveScheme(companyId, type, requestedSchemeId), date);
+    }
+
+    /** Siguiente número de una serie ya elegida (ver {@link #resolveScheme}). */
+    @Transactional
+    public String next(UUID companyId, NumberingScheme scheme, LocalDate date) {
+        DocumentType type = scheme.getDocumentType();
         String periodKey = periodKey(scheme.getResetPeriod(), date);
         Instant now = Instant.now();
         counters.ensureCounter(UUID.randomUUID(), companyId, scheme.getId(), periodKey,
@@ -67,7 +81,8 @@ public class DocumentNumberGenerator {
         return next(companyId, type, LocalDate.of(year, 1, 1), null);
     }
 
-    private NumberingScheme resolveScheme(UUID companyId, DocumentType type, UUID requestedSchemeId) {
+    /** La serie pedida o, si no se pide ninguna, la predeterminada del tipo (que se crea si no existe). */
+    public NumberingScheme resolveScheme(UUID companyId, DocumentType type, UUID requestedSchemeId) {
         if (requestedSchemeId != null) {
             NumberingScheme requested = schemes.findByIdAndCompanyId(requestedSchemeId, companyId)
                     .orElseThrow(() -> new BusinessRuleException("La numeración indicada no existe en la empresa activa."));
@@ -82,8 +97,14 @@ public class DocumentNumberGenerator {
 
     private NumberingScheme createAndLoadDefault(UUID companyId, DocumentType type) {
         String series = PREFIXES.get(type);
-        schemes.ensureDefault(UUID.randomUUID(), companyId, "AUTO-" + type.name(),
-                "Numeración " + type.name(), type.name(), series, "{series}-{yyyy}-{seq:6}", Instant.now());
+        // La serie que PERA crea sola lleva un código y un nombre que entiende el usuario («FAC · Factura»), no los
+        // internos del programa. Si ese código ya lo usa otra serie de la empresa, se le añade «-AUTO».
+        Instant now = Instant.now();
+        if (schemes.ensureDefault(UUID.randomUUID(), companyId, series, DEFAULT_NAMES.get(type), type.name(), series,
+                "{series}-{yyyy}-{seq:6}", now) == 0) {
+            schemes.ensureDefault(UUID.randomUUID(), companyId, series + "-AUTO", DEFAULT_NAMES.get(type), type.name(),
+                    series, "{series}-{yyyy}-{seq:6}", now);
+        }
         return schemes.findByCompanyIdAndDocumentTypeAndDefaultSchemeTrueAndActiveTrue(companyId, type)
                 .orElseThrow(() -> new BusinessRuleException(
                         "No existe una numeración predeterminada activa para " + type + "."));

@@ -92,20 +92,26 @@ public class InvoicePdfRenderer {
             int rowsPerPage = Math.max(1, (int) ((tableTop - tableBottom) / ROW_HEIGHT));
             List<List<InvoicePdfContent.Line>> pages = paginate(content.lines(), rowsPerPage);
 
-            for (int index = 0; index < pages.size(); index++) {
-                PDPage page = new PDPage(PDRectangle.A4);
-                document.addPage(page);
-                boolean last = index == pages.size() - 1;
-                try (PDPageContentStream stream = new PDPageContentStream(document, page)) {
-                    PdfCanvas canvas = new PdfCanvas(stream);
-                    drawHeader(document, stream, canvas, content, index == 0);
-                    drawInvoiceIdentity(canvas, content);
-                    drawLines(canvas, content, pages.get(index), tableTop, tableBottom, last);
-                    if (last) {
-                        drawTotals(canvas, content);
-                        drawPayment(canvas, content);
+            // El original y sus copias en el mismo PDF, como las «copias» de la serie en Dimpro.
+            for (int copy = 0; copy <= content.copies(); copy++) {
+                String mark = content.copies() == 0 ? null : copy == 0 ? "ORIGINAL" : "COPIA " + copy;
+                for (int index = 0; index < pages.size(); index++) {
+                    PDPage page = new PDPage(PDRectangle.A4);
+                    document.addPage(page);
+                    boolean last = index == pages.size() - 1;
+                    try (PDPageContentStream stream = new PDPageContentStream(document, page)) {
+                        PdfCanvas canvas = new PdfCanvas(stream);
+                        drawHeader(document, stream, canvas, content, index == 0);
+                        drawInvoiceIdentity(canvas, content);
+                        if (mark != null) canvas.textRight(bold, 8f, RIGHT, 680f, mark);
+                        drawLines(canvas, content, pages.get(index), tableTop, tableBottom, last);
+                        if (last) {
+                            // Sin valorar (un albarán para el transportista, por ejemplo) no lleva totales ni importes.
+                            if (content.priced()) drawTotals(canvas, content);
+                            drawPayment(canvas, content);
+                        }
+                        drawFooter(canvas, content, index + 1, pages.size());
                     }
-                    drawFooter(canvas, content, index + 1, pages.size());
                 }
             }
             document.save(output);
@@ -245,7 +251,9 @@ public class InvoicePdfRenderer {
 
     private void drawLines(PdfCanvas canvas, InvoicePdfContent content, List<InvoicePdfContent.Line> rows,
                            float top, float bottom, boolean last) {
-        String[] headings = {"N.º", "Descripción", "Cantidad", "Precio", "Dto. %", "IVA %", "Importe"};
+        String[] headings = content.priced()
+                ? new String[]{"N.º", "Descripción", "Cantidad", "Precio", "Dto. %", "IVA %", "Importe"}
+                : new String[]{"N.º", "Descripción", "Cantidad", "", "", "", ""};
         canvas.filledBox(LEFT, top, RIGHT - LEFT, 16f, HEADER_FILL, RULE_GREY);
         float x = LEFT;
         for (int index = 0; index < COLUMNS.length; index++) {
@@ -287,13 +295,13 @@ public class InvoicePdfRenderer {
         canvas.textClipped(regular, 8f, x + 4f, baseline, COLUMNS[1] - 8f, description);
         x += COLUMNS[1];
 
-        String[] figures = {
+        String[] figures = content.priced() ? new String[]{
                 quantity(row.quantity()),
                 amount(row.unitPrice()),
                 percentage(row.discountPercentage()),
                 percentage(row.taxPercentage()),
                 amount(row.netAmount()),
-        };
+        } : new String[]{quantity(row.quantity()), "", "", "", ""};
         for (int index = 0; index < figures.length; index++) {
             float columnWidth = COLUMNS[index + 2];
             canvas.textRight(regular, 8f, x + columnWidth - 4f, baseline, figures[index]);
@@ -348,7 +356,7 @@ public class InvoicePdfRenderer {
 
         y -= TOTALS_ROW_HEIGHT;
         canvas.filledBox(LEFT, y, width, TOTALS_ROW_HEIGHT, SOFT_FILL, RULE_GREY);
-        canvas.text(bold, 9f, LEFT + 6f, y + 4.5f, "Presupuesto".equals(content.title()) ? "Total presupuesto" : "Total factura");
+        canvas.text(bold, 9f, LEFT + 6f, y + 4.5f, "Total " + content.title().toLowerCase(java.util.Locale.ROOT));
         canvas.textRight(bold, 8f, LEFT + cells[0] + cells[1] - 6f, y + 4.5f, amount(content.netAmount()));
         canvas.textRight(bold, 8f, LEFT + cells[0] + cells[1] + cells[2] - 6f, y + 4.5f, amount(content.taxAmount()));
         canvas.textRight(bold, 10f, RIGHT - 6f, y + 4f, money(content.totalAmount(), content.currency()));
@@ -356,14 +364,7 @@ public class InvoicePdfRenderer {
 
     private void drawPayment(PdfCanvas canvas, InvoicePdfContent content) {
         float y = PAYMENT_BOTTOM;
-        canvas.text(bold, 8f, LEFT, y + 12f, "Forma de pago");
-        canvas.text(regular, 8f, LEFT + 68f, y + 12f, nullToDash(content.paymentMethod()));
-        // El vencimiento ya sale arriba en su casilla. Aquí lo que interesa es a cuánto asciende
-        // lo que hay que pagar y cuándo, junto: repetir solo la fecha no aporta nada.
-        canvas.text(bold, 8f, LEFT, y + 1f, "Presupuesto".equals(content.title()) ? "Importe previsto" : "Importe a pagar");
-        canvas.text(regular, 8f, LEFT + 68f, y + 1f,
-                money(content.totalAmount(), content.currency())
-                        + (content.dueDate() == null ? "  a la vista" : "  el " + DATE.format(content.dueDate())));
+        if (content.priced()) drawAmountToPay(canvas, content, y);
         if (content.notes() != null && !content.notes().isBlank()) {
             float x = 300f;
             canvas.text(bold, 7.5f, x, y + 12f, "Observaciones");
@@ -375,11 +376,27 @@ public class InvoicePdfRenderer {
         }
     }
 
+    private void drawAmountToPay(PdfCanvas canvas, InvoicePdfContent content, float y) {
+        canvas.text(bold, 8f, LEFT, y + 12f, "Forma de pago");
+        canvas.text(regular, 8f, LEFT + 68f, y + 12f, nullToDash(content.paymentMethod()));
+        // El vencimiento ya sale arriba en su casilla. Aquí lo que interesa es a cuánto asciende
+        // lo que hay que pagar y cuándo, junto: repetir solo la fecha no aporta nada.
+        canvas.text(bold, 8f, LEFT, y + 1f, "Presupuesto".equals(content.title()) ? "Importe previsto" : "Importe a pagar");
+        canvas.text(regular, 8f, LEFT + 68f, y + 1f,
+                money(content.totalAmount(), content.currency())
+                        + (content.dueDate() == null ? "  a la vista" : "  el " + DATE.format(content.dueDate())));
+    }
+
     // --- pie ---
 
     private void drawFooter(PdfCanvas canvas, InvoicePdfContent content, int page, int pages) {
         canvas.line(LEFT, FOOTER_TOP, RIGHT, FOOTER_TOP, 0.5f, LINE_GREY);
         canvas.textRight(regular, 7f, RIGHT, FOOTER_TOP - 10f, "Hoja " + page + " de " + pages);
+        // Texto al pie de la serie (texto_documento de Dimpro): p. ej. la cuenta bancaria o un aviso legal.
+        if (content.footerText() != null && !content.footerText().isBlank()) {
+            float footerY = content.verifactu() == null ? FOOTER_TOP - 10f : FOOTER_TOP - 37f;
+            canvas.textClipped(regular, 7f, LEFT, footerY, RIGHT - LEFT - 60f, content.footerText());
+        }
 
         if (content.verifactu() == null) {
             return;

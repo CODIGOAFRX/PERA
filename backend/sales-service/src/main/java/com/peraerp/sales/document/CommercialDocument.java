@@ -90,6 +90,9 @@ public class CommercialDocument extends CompanyScopedEntity {
     private UUID salespersonId;
     @Column(name = "salesperson_name", length = 160)
     private String salespersonName;
+    /** Serie con la que se hizo (numeración y comportamiento, como fseries en Dimpro). Nula en los antiguos. */
+    @Column(name = "numbering_scheme_id")
+    private UUID numberingSchemeId;
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("lineOrder ASC")
     private List<DocumentLine> lines = new ArrayList<>();
@@ -316,6 +319,20 @@ public class CommercialDocument extends CompanyScopedEntity {
     public String getCustomerCodeSnapshot() { return customerCodeSnapshot; }
     public String getCustomerNameSnapshot() { return customerNameSnapshot; }
     public UUID getSalespersonId() { return salespersonId; }
+    public UUID getNumberingSchemeId() { return numberingSchemeId; }
+
+    /** La serie se fija al crear el documento, antes de expedirlo. */
+    public void assignSeries(UUID numberingSchemeId) {
+        requireModifiable();
+        this.numberingSchemeId = numberingSchemeId;
+    }
+
+    /** Reposición (es_reposicion de Dimpro): el documento lleva el material pero todos los importes a cero. */
+    public void zeroAmounts(DocumentAmountsCalculator calculator) {
+        requireModifiable();
+        lines.forEach(DocumentLine::zeroPrice);
+        recalculate(calculator);
+    }
     public String getSalespersonName() { return salespersonName; }
 
     /** Asigna o quita el comercial. No pasa por {@code requireModifiable}: no forma parte de la factura fiscal. */

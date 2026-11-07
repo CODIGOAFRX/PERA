@@ -55,6 +55,9 @@ public class NumberingSchemeService {
         NumberingScheme scheme = new NumberingScheme(companyId, code, request.name().trim(), request.documentType(),
                 normalizeCode(request.series()), request.pattern().trim(), request.resetPeriod(),
                 request.initialValue(), request.active(), request.defaultScheme());
+        SeriesOptions options = request.options() == null ? SeriesOptions.defaults() : request.options();
+        validateOptions(companyId, null, request.documentType(), options);
+        scheme.configure(options);
         return NumberingSchemeResponse.from(repository.save(scheme));
     }
 
@@ -73,7 +76,31 @@ public class NumberingSchemeService {
         }
         scheme.update(request.name().trim(), normalizeCode(request.series()), request.pattern().trim(),
                 request.resetPeriod(), request.initialValue(), request.active(), request.defaultScheme());
+        if (request.options() != null) {
+            validateOptions(scheme.getCompanyId(), scheme.getId(), scheme.getDocumentType(), request.options());
+            scheme.configure(request.options());
+        }
         return NumberingSchemeResponse.from(scheme);
+    }
+
+    /**
+     * «Pasará al documento…» tiene que ser una serie de la empresa del tipo al que se convierte este (presupuesto a
+     * albarán, albarán a factura). Una serie que no se convierte no puede tener serie siguiente.
+     */
+    private void validateOptions(UUID companyId, UUID selfId, DocumentType type, SeriesOptions options) {
+        if (options.nextSchemeId() == null) return;
+        if (options.nextSchemeId().equals(selfId)) {
+            throw new BusinessRuleException("Una serie no puede pasar a sí misma.");
+        }
+        DocumentType target = type.conversionTarget();
+        if (target == null) {
+            throw new BusinessRuleException("Este tipo de documento no se pasa a otro: quita la serie a la que pasa.");
+        }
+        NumberingScheme next = repository.findByIdAndCompanyId(options.nextSchemeId(), companyId)
+                .orElseThrow(() -> new BusinessRuleException("La serie a la que pasa no existe en la empresa."));
+        if (next.getDocumentType() != target) {
+            throw new BusinessRuleException("La serie a la que pasa tiene que ser de " + target.name() + ".");
+        }
     }
 
     @Transactional(readOnly = true)

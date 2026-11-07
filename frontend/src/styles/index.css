@@ -1114,3 +1114,14 @@ input:focus, select:focus, textarea:focus { border-color: #51964b; box-shadow: 0
 .global-search-status:empty { display: none; }
 .error-notice-comment { display: grid; gap: 6px; margin: 8px 0; font-size: 0.88rem; }
 .error-notice-comment textarea { min-height: 70px; resize: vertical; }
+
+/* Ficha de series de documentos (components/SeriesForm.tsx). */
+.series-form .series-section { margin: 18px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); font-size: 0.95rem; }
+.series-form .series-section:first-of-type { margin-top: 0; }
+.series-checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px 18px; margin: 8px 0; }
+.series-hint { display: block; color: var(--muted); font-size: 0.8rem; }
+.series-name { display: inline-flex; align-items: center; gap: 8px; }
+.series-color { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--line-strong); flex: none; }
+.document-overdue { display: inline-block; margin-top: 3px; padding: 1px 6px; border-radius: 6px; background: #fff3d6; color: #8a5a00; font-size: 11px; font-weight: 650; }
+.series-example { grid-column: 1 / -1; margin: -4px 0 4px; color: var(--muted); font-size: 0.9rem; }
+.series-example strong { color: var(--ink); font-size: 1rem; }

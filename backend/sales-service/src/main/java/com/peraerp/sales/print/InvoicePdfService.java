@@ -1,5 +1,9 @@
 package com.peraerp.sales.print;
 
+import com.peraerp.sales.numbering.NumberingScheme;
+import com.peraerp.sales.numbering.NumberingSchemeRepository;
+import com.peraerp.sales.numbering.SeriesOptions;
+
 import com.peraerp.platform.domain.BusinessRuleException;
 import com.peraerp.platform.domain.ResourceNotFoundException;
 import com.peraerp.sales.config.CurrentCompanyProvider;
@@ -43,11 +47,12 @@ public class InvoicePdfService {
     private final HttpPaymentMethodClient paymentMethods;
     private final InvoicePdfRenderer renderer;
     private final CurrentCompanyProvider companyProvider;
+    private final NumberingSchemeRepository schemes;
 
     public InvoicePdfService(CommercialDocumentRepository documents, VerifactuRecordRepository records,
                              VerifactuSettingsRepository settings, HttpCompanyProfileClient companyProfile,
                              HttpPaymentMethodClient paymentMethods, InvoicePdfRenderer renderer,
-                             CurrentCompanyProvider companyProvider) {
+                             CurrentCompanyProvider companyProvider, NumberingSchemeRepository schemes) {
         this.documents = documents;
         this.records = records;
         this.settings = settings;
@@ -55,6 +60,7 @@ public class InvoicePdfService {
         this.paymentMethods = paymentMethods;
         this.renderer = renderer;
         this.companyProvider = companyProvider;
+        this.schemes = schemes;
     }
 
     @Transactional(readOnly = true)
@@ -65,18 +71,17 @@ public class InvoicePdfService {
         UUID companyId = companyProvider.requireCompanyId();
         CommercialDocument invoice = documents.findByIdAndCompanyId(documentId, companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Documento", documentId));
-        if (!invoice.getType().isInvoice() && invoice.getType() != com.peraerp.sales.document.DocumentType.QUOTE) {
-            throw new BusinessRuleException(
-                    "Solo se pueden imprimir facturas y presupuestos; este documento es " + invoice.getType() + ".");
+        if (invoice.getType() == com.peraerp.sales.document.DocumentType.WORK_ORDER) {
+            throw new BusinessRuleException("Los partes de trabajo se imprimen desde Operaciones.");
         }
+        SeriesOptions series = seriesOptions(invoice);
 
         Optional<VerifactuSettings> configuration = settings.findByCompanyId(companyId);
         CompanyProfile company = companyProfile.profile();
         InvoicePdfContent content = new InvoicePdfContent(
                 issuer(company, configuration.orElse(null)),
                 recipient(invoice),
-                invoice.getType() == com.peraerp.sales.document.DocumentType.RECTIFYING_INVOICE
-                        ? "Factura rectificativa" : invoice.getType() == com.peraerp.sales.document.DocumentType.QUOTE ? "Presupuesto" : "Factura",
+                title(invoice.getType()),
                 invoice.getDocumentNumber(),
                 invoice.getIssueDate(),
                 invoice.getType() == com.peraerp.sales.document.DocumentType.QUOTE ? invoice.getQuoteValidUntil() : invoice.getDueDate(),
@@ -91,10 +96,39 @@ public class InvoicePdfService {
                 invoice.getTotalAmount(),
                 paymentMethods.nameOf(invoice.getPaymentMethodId()),
                 invoice.getNotes(),
-                verifactu(invoice, companyId, configuration.orElse(null)),
-                companyProfile.logo());
+                invoice.getType().isInvoice() ? verifactu(invoice, companyId, configuration.orElse(null)) : null,
+                companyProfile.logo(),
+                // Una factura siempre va valorada: sin importes no sería una factura.
+                series.priced() || invoice.getType().isInvoice(),
+                series.footerText(),
+                series.printCopies());
 
-        return new InvoicePdf((invoice.getType() == com.peraerp.sales.document.DocumentType.QUOTE ? "Presupuesto-" : "Factura-") + invoice.getDocumentNumber().replaceAll("[^A-Za-z0-9._-]", "-") + ".pdf", renderer.render(content));
+        return new InvoicePdf(title(invoice.getType()).replace(' ', '-') + "-" + invoice.getDocumentNumber().replaceAll("[^A-Za-z0-9._-]", "-") + ".pdf", renderer.render(content));
+    }
+
+    private static String title(com.peraerp.sales.document.DocumentType type) {
+        return switch (type) {
+            case RECTIFYING_INVOICE -> "Factura rectificativa";
+            case QUOTE -> "Presupuesto";
+            case SALES_ORDER -> "Pedido";
+            case DELIVERY_NOTE -> "Albarán";
+            default -> "Factura";
+        };
+    }
+
+    /** Documento de una serie interna (interno de Dimpro): no se manda al cliente. */
+    public boolean internal(CommercialDocument document) {
+        return seriesOptions(document).internal();
+    }
+
+    /** Opciones de la serie del documento (o de la predeterminada de su tipo); sin serie, las de siempre. */
+    private SeriesOptions seriesOptions(CommercialDocument document) {
+        java.util.Optional<NumberingScheme> scheme = document.getNumberingSchemeId() == null ? java.util.Optional.empty()
+                : schemes.findByIdAndCompanyId(document.getNumberingSchemeId(), document.getCompanyId());
+        if (scheme.isEmpty()) {
+            scheme = schemes.findByCompanyIdAndDocumentTypeAndDefaultSchemeTrueAndActiveTrue(document.getCompanyId(), document.getType());
+        }
+        return scheme.map(NumberingScheme::options).orElse(SeriesOptions.defaults());
     }
 
     /**

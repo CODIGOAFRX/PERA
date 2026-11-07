@@ -379,6 +379,8 @@ export interface CommercialDocument {
   /** Comercial del documento, tomado del cliente o elegido al crearlo. */
   salespersonId?: string | null
   salespersonName?: string | null
+  /** Serie con la que se hizo; nula en los documentos antiguos. */
+  numberingSchemeId?: string | null
   invoiceKind: InvoiceKind | null
   rectificationType: RectificationType | null
   rectifiedDocumentId: string | null
@@ -391,6 +393,10 @@ export interface CommercialDocument {
 export interface CreateDocumentInput {
   /** Si se omite, el comercial de la ficha del cliente. */
   salespersonId?: string | null
+  /** Serie del documento; si se omite, la principal del tipo. */
+  numberingSchemeId?: string | null
+  /** Solo en series que piden el número al crear. */
+  documentNumber?: string | null
   type: DocumentType
   customerId: string
   customerCode: string

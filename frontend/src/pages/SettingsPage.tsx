@@ -14,6 +14,7 @@ import { formatDate, formatDateTime } from '../lib/format'
 import { localIsoDate, localIsoDateTime } from '../lib/date'
 import type { DocumentType, PageResponse } from '../types/api'
 import { TableCaption } from '../components/TableCaption'
+import { SeriesForm, formatSeriesNumber, type DocumentSeries } from '../components/SeriesForm'
 
 type SettingsTab = 'company' | 'numbering' | 'verifactu' | 'currencies' | 'licenses'
 type ResetPeriod = 'YEARLY' | 'MONTHLY' | 'DAILY' | 'NEVER'
@@ -46,18 +47,7 @@ interface CompanySettingsValue {
   version: number
 }
 
-interface NumberingScheme {
-  id: string
-  code: string
-  name: string
-  documentType: DocumentType
-  series: string
-  pattern: string
-  resetPeriod: ResetPeriod
-  initialValue: number
-  active: boolean
-  defaultScheme: boolean
-}
+type NumberingScheme = DocumentSeries
 
 interface CurrencyValue {
   id: string
@@ -117,14 +107,14 @@ export function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('company')
   const tabs: Array<[SettingsTab, typeof Building2, string]> = [
     ['company', Building2, c('Empresa', 'Company')],
-    ['numbering', Hash, c('Numeraciones', 'Numbering')],
+    ['numbering', Hash, c('Series de documentos', 'Document series')],
     ['verifactu', ShieldCheck, 'Veri*Factu'],
     ['currencies', Coins, c('Monedas', 'Currencies')],
     ['licenses', FileKey2, c('Licencias', 'Licences')],
   ]
   return <div className="page-stack">
     <PageHeader eyebrow={c('Administración', 'Administration')} title={c('Configuración', 'Settings')}
-      description={c('Parámetros generales, numeraciones, Veri*Factu, divisas y licencias de la instalación.', 'General parameters, numbering, Veri*Factu, currencies and installation licences.')} icon={Settings} />
+      description={c('Datos de la empresa, series de documentos, Veri*Factu, monedas y licencias.', 'Company data, document series, Veri*Factu, currencies and licences.')} icon={Settings} />
     <div className="workspace-tabs" role="tablist" aria-label={c('Secciones de configuración', 'Settings sections')}>
       {tabs.map(([id, Icon, label]) => <button key={id} type="button" className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Icon size={16} />{label}</button>)}
     </div>
@@ -187,15 +177,10 @@ function NumberingPanel() {
   const load = useCallback(async () => { setLoading(true); try { const response = await apiFetch<PageResponse<NumberingScheme>>('/api/v1/numbering-schemes?size=100'); setItems(response.content); setError('') } catch (cause) { setError(errorMessage(cause)) } finally { setLoading(false) } }, [])
   useEffect(() => { void load() }, [load])
   const showPreview = async (item: NumberingScheme) => { try { const response = await apiFetch<{ value: string }>(`/api/v1/numbering-schemes/${item.id}/preview?sequence=${item.initialValue}`); setPreview(`${item.name}: ${response.value}`) } catch (cause) { setError(errorMessage(cause)) } }
-  return <section className="panel table-panel"><div className="panel-heading settings-heading"><div><strong>{c('Series documentales', 'Document series')}</strong><small>{preview || c('Patrones con fecha, serie y secuencia segura.', 'Patterns with date, series and safe sequence.')}</small></div><button className="button button-primary button-small" type="button" onClick={() => setEditing(null)}><Plus size={15} />{c('Nueva serie', 'New series')}</button></div>{error && <div className="inline-error">{error}</div>}{loading ? <LoadingState /> : items.length ? <div className="table-scroll"><table><TableCaption es="Series documentales" en="Document series" /><thead><tr><th>{c('Código', 'Code')}</th><th>{c('Documento', 'Document')}</th><th>{c('Patrón', 'Pattern')}</th><th>{c('Reinicio', 'Reset')}</th><th>{c('Estado', 'Status')}</th><th>{c('Acciones', 'Actions')}</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><strong>{item.code}</strong><small>{item.name}</small></td><td>{t(documentTypeKey[item.documentType])}</td><td><code>{item.pattern}</code></td><td>{resetPeriodLabel(item.resetPeriod, language)}</td><td><StatusBadge tone={item.active ? 'success' : 'neutral'}>{item.defaultScheme ? c('Predeterminada', 'Default') : item.active ? c('Activa', 'Active') : c('Inactiva', 'Inactive')}</StatusBadge></td><td><div className="row-actions"><button className="button button-secondary button-small" type="button" onClick={() => void showPreview(item)}>{c('Vista previa', 'Preview')}</button><button className="icon-button" type="button" aria-label={c('Editar serie', 'Edit series')} onClick={() => setEditing(item)}><Pencil size={15} /></button></div></td></tr>)}</tbody></table></div> : <EmptyState title={c('No hay numeraciones', 'No numbering schemes')} description={c('Crea una serie para facturas, pedidos o albaranes.', 'Create a series for invoices, orders or delivery notes.')} />}
-    <Modal open={editing !== undefined} title={editing ? c('Editar numeración', 'Edit numbering') : c('Nueva numeración', 'New numbering')} onClose={() => setEditing(undefined)}><NumberingForm value={editing ?? null} onCancel={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); void load() }} /></Modal></section>
-}
-
-function NumberingForm({ value, onCancel, onSaved }: { value: NumberingScheme | null; onCancel: () => void; onSaved: () => void }) {
-  const { language, t } = useTranslation(); const c = (es: string, en: string) => language === 'es' ? es : en
-  const [form, setForm] = useState<Omit<NumberingScheme, 'id'>>(value ?? { code: '', name: '', documentType: 'INVOICE', series: 'A', pattern: '{yyyy}-{series}-{seq:6}', resetPeriod: 'YEARLY', initialValue: 1, active: true, defaultScheme: false }); const [saving, setSaving] = useState(false); const [error, setError] = useState(''); const formErrors = useFormErrors()
-  const submit = async (event: FormEvent) => { event.preventDefault(); setSaving(true); try { await apiFetch(value ? `/api/v1/numbering-schemes/${value.id}` : '/api/v1/numbering-schemes', { method: value ? 'PUT' : 'POST', body: JSON.stringify(form) }); onSaved() } catch (cause) { setError(formErrors.capture(cause)) } finally { setSaving(false) } }
-  return <form onSubmit={submit}><FormErrors value={formErrors.context}><div className="form-grid"><Field label={c('Código', 'Code')} htmlFor="number-code" name="code" required><input id="number-code" value={form.code} disabled={Boolean(value)} onChange={(event) => setForm({ ...form, code: event.target.value.toUpperCase() })} required /></Field><Field label={c('Nombre', 'Name')} htmlFor="number-name" name="name" required><input id="number-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></Field><Field label={c('Tipo documental', 'Document type')} htmlFor="number-type" name="documentType" required><select id="number-type" value={form.documentType} onChange={(event) => setForm({ ...form, documentType: event.target.value as DocumentType })}>{(['QUOTE', 'SALES_ORDER', 'DELIVERY_NOTE', 'INVOICE', 'RECTIFYING_INVOICE', 'WORK_ORDER'] as DocumentType[]).map((type) => <option key={type} value={type}>{t(documentTypeKey[type])}</option>)}</select></Field><Field label={c('Serie', 'Series')} htmlFor="number-series" name="series" required><input id="number-series" value={form.series} onChange={(event) => setForm({ ...form, series: event.target.value.toUpperCase() })} required /></Field><Field label={c('Patrón', 'Pattern')} htmlFor="number-pattern" name="pattern" required wide hint="{yyyy} {yy} {MM} {dd} {series} {seq:6}"><input id="number-pattern" value={form.pattern} onChange={(event) => setForm({ ...form, pattern: event.target.value })} required /></Field><Field label={c('Reinicio', 'Reset period')} htmlFor="number-reset" name="resetPeriod"><select id="number-reset" value={form.resetPeriod} onChange={(event) => setForm({ ...form, resetPeriod: event.target.value as ResetPeriod })}>{(['YEARLY', 'MONTHLY', 'DAILY', 'NEVER'] as ResetPeriod[]).map((period) => <option key={period} value={period}>{resetPeriodLabel(period, language)}</option>)}</select></Field><Field label={c('Valor inicial', 'Initial value')} htmlFor="number-initial" name="initialValue"><input id="number-initial" type="number" min="1" value={form.initialValue} onChange={(event) => setForm({ ...form, initialValue: Number(event.target.value) })} /></Field><Field label={c('Opciones', 'Options')} htmlFor="number-active" name="active"><label className="switch-row"><input id="number-active" type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /><span>{c('Activa', 'Active')}</span></label><label className="switch-row"><input type="checkbox" checked={form.defaultScheme} onChange={(event) => setForm({ ...form, defaultScheme: event.target.checked })} /><span>{c('Predeterminada', 'Default')}</span></label></Field></div>{error && <div className="form-error">{error}</div>}<FormActions onCancel={onCancel} saving={saving} /></FormErrors></form>
+  const sorted = [...items].sort((a, b) => (a.options?.displayOrder ?? 0) - (b.options?.displayOrder ?? 0) || a.code.localeCompare(b.code))
+  const nameOf = (id: string | null | undefined) => { const found = items.find((item) => item.id === id); return found ? `${found.code} · ${found.name}` : '' }
+  return <section className="panel table-panel"><div className="panel-heading settings-heading"><div><strong>{c('Series de documentos', 'Document series')}</strong><small>{preview || c('Cada serie con su numeración y su comportamiento: a qué pasa, cómo se imprime, si genera riesgo…', 'Each series with its numbering and behaviour.')}</small></div><button className="button button-primary button-small" type="button" onClick={() => setEditing(null)}><Plus size={15} />{c('Nueva serie', 'New series')}</button></div>{error && <div className="inline-error">{error}</div>}{loading ? <LoadingState /> : items.length ? <div className="table-scroll"><table><TableCaption es="Series de documentos" en="Document series" /><thead><tr><th>{c('Serie', 'Series')}</th><th>{c('Documento', 'Document')}</th><th>{c('Ejemplo de número', 'Number example')}</th><th>{c('Pasa a', 'Converts into')}</th><th>{c('Estado', 'Status')}</th><th>{c('Acciones', 'Actions')}</th></tr></thead><tbody>{sorted.map((item) => <tr key={item.id}><td><span className="series-name"><i className="series-color" style={{ background: item.options?.color ?? 'transparent' }} aria-hidden="true" /><span><strong>{item.code}</strong><small>{item.name}</small></span></span></td><td>{t(documentTypeKey[item.documentType])}{item.options && !item.options.priced && <small>{c('Sin valorar', 'Unpriced')}</small>}{item.options?.internal && <small>{c('Interno', 'Internal')}</small>}</td><td>{formatSeriesNumber(item.pattern, item.series, item.initialValue)}</td><td>{nameOf(item.options?.nextSchemeId) || '—'}</td><td><StatusBadge tone={item.active ? 'success' : 'neutral'}>{item.defaultScheme ? c('Principal', 'Main') : item.active ? c('Activa', 'Active') : c('Inactiva', 'Inactive')}</StatusBadge></td><td><div className="row-actions"><button className="button button-secondary button-small" type="button" onClick={() => void showPreview(item)}>{c('Vista previa', 'Preview')}</button><button className="icon-button" type="button" aria-label={c('Editar serie', 'Edit series')} onClick={() => setEditing(item)}><Pencil size={15} /></button></div></td></tr>)}</tbody></table></div> : <EmptyState title={c('No hay series', 'No series')} description={c('Crea una serie para facturas, pedidos o albaranes.', 'Create a series for invoices, orders or delivery notes.')} />}
+    <Modal size="large" open={editing !== undefined} title={editing ? c('Editar serie', 'Edit series') : c('Nueva serie', 'New series')} onClose={() => setEditing(undefined)}><SeriesForm value={editing ?? null} all={items} typeLabel={(type) => t(documentTypeKey[type])} resetLabel={(period) => resetPeriodLabel(period, language)} onCancel={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); void load() }} /></Modal></section>
 }
 
 function CurrenciesPanel() {

@@ -14,11 +14,12 @@ public record NumberingSchemeResponse(
         NumberingResetPeriod resetPeriod,
         long initialValue,
         boolean active,
-        boolean defaultScheme
+        boolean defaultScheme,
+        SeriesOptions options
 ) {
     static NumberingSchemeResponse from(NumberingScheme scheme) {
         return new NumberingSchemeResponse(scheme.getId(), scheme.getCode(), scheme.getName(),
                 scheme.getDocumentType(), scheme.getSeries(), scheme.getPattern(), scheme.getResetPeriod(),
-                scheme.getInitialValue(), scheme.isActive(), scheme.isDefaultScheme());
+                scheme.getInitialValue(), scheme.isActive(), scheme.isDefaultScheme(), scheme.options());
     }
 }
