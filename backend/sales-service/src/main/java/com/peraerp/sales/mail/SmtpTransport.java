@@ -32,7 +32,7 @@ public class SmtpTransport {
     }
     public void test(MailConnectionService.Connection c) throws Exception { sender(c).testConnection(); }
     /** Correo de texto sin adjuntos, como el aviso de error a soporte que en Dimpro sale con el correo de la empresa. */
-    public void sendText(MailConnectionService.Connection c, String to, String subject, String body) throws Exception {
+    public void sendText(MailConnectionService.Connection c, String[] to, String subject, String body) throws Exception {
         JavaMailSenderImpl sender=sender(c);
         var message=sender.createMimeMessage();
         var helper=new MimeMessageHelper(message,false,"UTF-8");

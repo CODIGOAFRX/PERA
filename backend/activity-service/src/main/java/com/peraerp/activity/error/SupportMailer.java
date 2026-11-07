@@ -67,6 +67,14 @@ public class SupportMailer {
         this.serviceKey = serviceKey;
     }
 
+    /**
+     * Los destinatarios de [SOPORTE] correo: uno o varios separados por comas o punto y coma, para que el aviso llegue
+     * a todo el equipo de soporte en el mismo envío.
+     */
+    java.util.List<String> recipients() {
+        return java.util.Arrays.stream(recipient.split("[,;]")).map(String::trim).filter(value -> !value.isEmpty()).toList();
+    }
+
     /** Sin destinatario no se manda nada: los avisos solo se guardan. */
     public boolean hasRecipient() {
         return !recipient.isEmpty();
@@ -84,7 +92,7 @@ public class SupportMailer {
             try {
                 String sender = sales.post().uri("/internal/v1/support-mail")
                         .header("X-PERA-SERVICE-KEY", serviceKey)
-                        .body(Map.of("companyId", report.companyId(), "to", recipient, "subject", subject(report), "body", body(report)))
+                        .body(Map.of("companyId", report.companyId(), "to", String.join(",", recipients()), "subject", subject(report), "body", body(report)))
                         .retrieve().body(String.class);
                 return sender == null || sender.isBlank() ? "el correo de la empresa" : sender;
             } catch (HttpStatusCodeException e) {
@@ -129,7 +137,7 @@ public class SupportMailer {
         var message = sender.createMimeMessage();
         var helper = new MimeMessageHelper(message, false, "UTF-8");
         helper.setFrom(new InternetAddress(from, report.companyName() == null ? "PERA ERP" : report.companyName(), "UTF-8"));
-        helper.setTo(recipient);
+        helper.setTo(recipients().toArray(String[]::new));
         helper.setSubject(subject(report));
         helper.setText(body(report), false);
         sender.send(message);

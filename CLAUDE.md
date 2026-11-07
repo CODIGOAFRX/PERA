@@ -71,6 +71,11 @@ Para probar de verdad: `scripts/start-local.ps1` arranca todo (PostgreSQL en el 
 
 ## Registro de entregas
 
+### v20261107.Raul.4 — varios correos de soporte y guía de puesta en marcha (subida solo a `raul`, no a `main`)
+
+- `[SOPORTE] correo` de `config/pera.ini` admite varios correos separados por comas: el aviso de error llega a todos en el mismo envío (para Raúl y Pedro). Probado a dos direcciones.
+- [docs/34](docs/34-puesta-en-marcha.md): qué poner en `config/pera.ini`, en `config/empresas/<NIF>/factura_e.ini` y en la pantalla para ver PERA funcionando en un equipo nuevo, y qué trae `raul` respecto a `main`.
+
 ### v20261107.Raul.3 — series de documentos (parte 1 de 5) y versión 0.4 (subida solo a `raul`, no a `main`)
 
 - Cada numeración pasa a ser una **serie** como `fseries` de DimproCristalWin, y cada documento guarda la suya (Ventas `V16`) ([docs/33](docs/33-series-de-documentos.md)): orden, color, agrupación, principal, **pide número**, **pasa a**, número y fecha iguales al anterior, pasa notas, **días de aviso sin pasar**, **texto al pie**, **copias**, **valorado**, **genera riesgo**, **interno** y **reposición**.

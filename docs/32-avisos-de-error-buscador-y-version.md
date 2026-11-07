@@ -39,7 +39,7 @@ Igual que el `factura_e.ini` de cada empresa, pero para toda la instalación. La
 | Sección | Clave | Para qué |
 |---|---|---|
 | `[PRODUCTOR]` | `nif`, `nombre`, `instalacion` | Quien hace PERA ante la AEAT (bloque SistemaInformatico). El nombre tiene que ser el del censo para ese NIF. |
-| `[SOPORTE]` | `correo` | A quién llegan los avisos de error. |
+| `[SOPORTE]` | `correo` | A quién llegan los avisos de error. Uno o varios separados por comas (p. ej. el de Raúl y el de Pedro): todos reciben el mismo aviso. |
 | `[SMTP]` | `servidor`, `puerto`, `usuario`, `clave`, `remitente`, `seguridad` | Correo con el que se mandan los avisos. |
 
 `scripts/start-local.ps1` lo lee al arrancar. Una variable de entorno ya definida manda sobre el fichero.

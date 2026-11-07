@@ -38,4 +38,10 @@ class SupportMailerTest {
         assertThat(mailer("", "smtp.example.com", "pera@example.com").hasRecipient()).isFalse();
         assertThat(mailer("soporte@example.com", "smtp.example.com", "pera@example.com").installationAccount()).isTrue();
     }
+
+    @Test
+    void severalSupportAddressesSeparatedByCommasAllReceiveTheReport() {
+        assertThat(mailer("raul@example.com, pedro@example.com;soporte@example.com", "", "").recipients())
+                .containsExactly("raul@example.com", "pedro@example.com", "soporte@example.com");
+    }
 }

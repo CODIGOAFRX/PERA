@@ -15,6 +15,7 @@ instalacion = PERA-LOCAL-DEV
 
 [SOPORTE]
 ; A quién llegan los avisos de error del programa, como los correos de error de DimproCristalWin.
+; Uno o varios, separados por comas: correo = raul@ejemplo.com, pedro@ejemplo.com
 correo =
 
 [SMTP]
